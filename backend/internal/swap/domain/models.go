@@ -78,10 +78,11 @@ type Deposit struct {
 
 // Swap is the persistent swap lifecycle record.
 type Swap struct {
-	ID               string
-	QuoteID          string
-	IdempotencyKey   string
-	SessionID        string
+	ID                     string
+	QuoteID                string
+	IdempotencyKey         string
+	IdempotencyPayloadHash string
+	SessionID              string
 	State            State
 	ProviderStatus   ProviderStatus
 	RealSettlement   bool

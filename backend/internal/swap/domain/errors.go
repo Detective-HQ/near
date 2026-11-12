@@ -47,6 +47,8 @@ const (
 	CodeSwapNotFound               Code = "SWAP_NOT_FOUND"
 	CodeTerminalState              Code = "TERMINAL_STATE"
 	CodeInvalidSwapState           Code = "INVALID_SWAP_STATE"
+	CodeStateConflict              Code = "STATE_CONFLICT"
+	CodeConflict                   Code = "CONFLICT"
 	CodeIdempotencyKeyRequired     Code = "IDEMPOTENCY_KEY_REQUIRED"
 	CodeIdempotencyConflict        Code = "IDEMPOTENCY_CONFLICT"
 	CodeDepositAlreadyRecorded     Code = "DEPOSIT_ALREADY_RECORDED"
@@ -111,6 +113,8 @@ var ErrCodeHTTPStatus = map[Code]int{
 	CodeSwapNotFound:               http.StatusNotFound,
 	CodeTerminalState:              http.StatusConflict,
 	CodeInvalidSwapState:           http.StatusConflict,
+	CodeStateConflict:              http.StatusConflict,
+	CodeConflict:                   http.StatusConflict,
 	CodeIdempotencyKeyRequired:     http.StatusBadRequest,
 	CodeIdempotencyConflict:        http.StatusConflict,
 	CodeDepositAlreadyRecorded:     http.StatusConflict,
