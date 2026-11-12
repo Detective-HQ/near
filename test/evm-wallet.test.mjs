@@ -6,6 +6,7 @@ import {
   normalizeEvmAddress,
   normalizeEvmChainId,
   parseRpcQuantity,
+  sendEvmDeposit,
   shortenEvmAddress
 } from "../src/lib/evm-wallet.ts";
 
@@ -17,12 +18,15 @@ class MockProvider {
   chainId = "0x1";
   accounts = [validAddress];
   balance = "0xde0b6b3a7640000";
+  sendResult = `0x${"a".repeat(64)}`;
 
   async request(request) {
     this.requests.push(request);
     if (request.method === "eth_requestAccounts") return this.accounts;
+    if (request.method === "eth_accounts") return this.accounts;
     if (request.method === "eth_chainId") return this.chainId;
     if (request.method === "eth_getBalance") return this.balance;
+    if (request.method === "eth_sendTransaction") return this.sendResult;
     throw new Error(`Unexpected method: ${request.method}`);
   }
 
@@ -228,4 +232,102 @@ test("declined wallet permission is reported without exposing provider error tex
   assert.equal(wallet.getState().status, "error");
   assert.equal(wallet.getState().error, "Connection request was declined in your wallet.");
   assert.doesNotMatch(wallet.getState().error, /private wallet payload/i);
+});
+
+test("native EVM deposit builds an exact-value transaction after network and account checks", async () => {
+  const provider = new MockProvider();
+  const txHash = await sendEvmDeposit({
+    provider,
+    account: validAddress,
+    chainId: "1",
+    depositAddress: "0x5555555555555555555555555555555555555555",
+    amountAtomic: "1000000000000000000"
+  });
+
+  assert.equal(txHash, provider.sendResult);
+  assert.deepEqual(provider.requests.at(-1), {
+    method: "eth_sendTransaction",
+    params: [{
+      from: validAddress.toLowerCase(),
+      to: "0x5555555555555555555555555555555555555555",
+      value: "0xde0b6b3a7640000"
+    }]
+  });
+});
+
+test("ERC-20 deposit encodes transfer to the provider address without native value", async () => {
+  const provider = new MockProvider();
+  await sendEvmDeposit({
+    provider,
+    account: validAddress,
+    chainId: "1",
+    depositAddress: "0x5555555555555555555555555555555555555555",
+    tokenAddress: "0x6666666666666666666666666666666666666666",
+    amountAtomic: "1000000"
+  });
+
+  assert.deepEqual(provider.requests.at(-1), {
+    method: "eth_sendTransaction",
+    params: [{
+      from: validAddress.toLowerCase(),
+      to: "0x6666666666666666666666666666666666666666",
+      value: "0x0",
+      data: `0xa9059cbb${"0".repeat(24)}${"5".repeat(40)}${"0".repeat(59)}f4240`
+    }]
+  });
+});
+
+test("deposit refuses a changed network or account before asking the wallet to send", async () => {
+  const wrongNetwork = new MockProvider();
+  wrongNetwork.chainId = "0x2105";
+  await assert.rejects(
+    sendEvmDeposit({
+      provider: wrongNetwork,
+      account: validAddress,
+      chainId: "1",
+      depositAddress: "0x5555555555555555555555555555555555555555",
+      amountAtomic: "1"
+    }),
+    { code: "WRONG_NETWORK" }
+  );
+  assert.equal(wrongNetwork.requests.some((request) => request.method === "eth_sendTransaction"), false);
+
+  const changedAccount = new MockProvider();
+  changedAccount.accounts = ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"];
+  await assert.rejects(
+    sendEvmDeposit({
+      provider: changedAccount,
+      account: validAddress,
+      chainId: "1",
+      depositAddress: "0x5555555555555555555555555555555555555555",
+      amountAtomic: "1"
+    }),
+    { code: "WALLET_ACCOUNT_CHANGED" }
+  );
+  assert.equal(changedAccount.requests.some((request) => request.method === "eth_sendTransaction"), false);
+});
+
+test("wallet rejection is surfaced as a typed non-broadcast failure", async () => {
+  const provider = new MockProvider();
+  provider.request = async (request) => {
+    provider.requests.push(request);
+    if (request.method === "eth_chainId") return "0x1";
+    if (request.method === "eth_accounts") return [validAddress];
+    if (request.method === "eth_sendTransaction") {
+      throw Object.assign(new Error("private wallet detail"), { code: 4001 });
+    }
+    throw new Error(`Unexpected method: ${request.method}`);
+  };
+
+  await assert.rejects(
+    sendEvmDeposit({
+      provider,
+      account: validAddress,
+      chainId: "1",
+      depositAddress: "0x5555555555555555555555555555555555555555",
+      amountAtomic: "1"
+    }),
+    { code: "WALLET_REJECTED", message: "The wallet transaction was rejected. No deposit was recorded." }
+  );
+  assert.doesNotMatch(provider.requests.at(-1).params[0].from, /private wallet detail/);
 });

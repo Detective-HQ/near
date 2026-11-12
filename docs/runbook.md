@@ -28,12 +28,17 @@ The npm scripts load `.env` when present. Optional settings:
 | `MARKET_DATA_TTL_SECONDS` | `300` | In-memory live analytics cache lifetime. |
 | `MARKET_DATA_TIMEOUT_MS` | `10000` | Per-request analytics source timeout. |
 | `ONECLICK_BASE_URL` | `https://1click.chaindefuser.com` | Provider API base URL. |
-| `ONECLICK_API_KEY` | empty | Server-side provider credential; required for live quote requests and never returned by the API. |
+| `ONECLICK_JWT` | empty | Server-side NEAR Intents partner JWT; required for live quote requests and never returned by the API. |
 | `ONECLICK_TIMEOUT_MS` | `10000` | Per-request provider timeout. |
 | `ASSET_CATALOGUE_TTL_SECONDS` | `300` | In-memory live catalogue cache TTL. |
+| `ONECLICK_QUOTE_DEADLINE_SECONDS` | `180` | Requested executable quote lifetime; server clamps it to 60–600 seconds. |
+| `SWAP_STATUS_POLL_SECONDS` | `5` | In-process status polling interval; server clamps it to 1–60 seconds. |
+| `ENABLE_LIVE_EXECUTION` | `false` | Explicit server gate for executable quotes and live EVM deposit tracking. |
 | `LOG_LEVEL` | `info` | Reserved for future log filtering; currently emits info and errors. |
 
-To run in live quote mode, set `SWAP_QUOTE_MODE=live` and the server-side `ONECLICK_API_KEY` in `.env`. `GET /api/v1/assets` may load the provider catalogue without a key. Live quotes are dry-only; this application cannot turn a quote into a swap.
+To request the live provider catalogue and dry quotes, set `SWAP_QUOTE_MODE=live` and configure `ONECLICK_JWT` in `.env`. The catalogue may load without the JWT; quote requests will not. These settings alone do not enable deposits.
+
+The EVM deposit path requires all three conditions: `SWAP_QUOTE_MODE=live`, a configured `ONECLICK_JWT`, and `ENABLE_LIVE_EXECUTION=true`. Keep the execution gate false by default. When enabled, the app can ask an injected EVM wallet to broadcast a real source-chain transaction for a provider-issued executable quote. Confirm the exact route, asset contract, amount, recipient, refund address, expiry, and wallet transaction. The automated lifecycle tests use a mock provider; no live route or real-fund transaction has been verified in this repository.
 
 To run with live market observations, configure `MARKET_DATA_MODE=live`. The service makes read-only requests to DeFiLlama and its stablecoin API. It requires outbound network access; no credentials are needed. Open Markets and use “Refresh data” to bypass the in-memory cache. Each metric reports its source and retrieval time; missing data remains a dash, and stale observations are labelled.
 
@@ -50,9 +55,9 @@ For direct API access, use port `8081`. The health route reports local process s
 
 ## Logs and data
 
-Operational logs are one JSON object per line on stdout/stderr. They include a request ID and simulation IDs, but not request bodies, wallet signatures, API keys, or addresses. This prototype has no wallet data.
+Operational logs are one JSON object per line on stdout/stderr. They include request and swap IDs and the source transaction hash, but not request bodies, wallet signatures, API keys, or wallet addresses.
 
-Simulation records are persisted in `data/udi.json`. To clear local demo history, stop the process, make a backup if the records are needed, then remove only that file. Do not use this local file as a production audit record.
+Simulation and live-prototype records are persisted in `data/udi.json`. Back up the file before clearing local history if the records are needed. Do not use this file as a production audit record. The API has no authentication or owner-level access control; all local users share one repository.
 
 ## Docker
 
@@ -60,8 +65,8 @@ Simulation records are persisted in `data/udi.json`. To clear local demo history
 docker compose up --build
 ```
 
-The Compose configuration is a local demo setup. It exposes the Next.js app on port 3000 and stores API records in a named volume. It is not a production deployment template.
+The Compose configuration exposes the Next.js app on port 3000 and stores API records in a named volume. It is a local prototype setup, not a production deployment template.
 
 ## Incident boundary
 
-If someone attempts to use the prototype with real funds, stop the flow: even in live quote mode there is no executable quote or safe deposit address in this application. Do not infer route support from the chain list, token catalogue, quote result, or a simulation state. A real deployment requires reviewed chain-specific wallet transaction construction, address validation, route-specific testing, status tracking, settlement verification, and security review.
+If an unexpected asset, route, destination, provider status, or wallet transaction appears, stop before signing or sending. Do not infer route support from the chain list, token catalogue, or an earlier quote; request and review a fresh quote for each pair. A wallet broadcast only records the source transaction and is not settlement. Disable `ENABLE_LIVE_EXECUTION` if provider behavior is uncertain. Before public or production deployment, add authentication and data ownership, durable storage and worker coordination, independent source-chain receipt verification, route-specific tests, operational alerts, and security review.

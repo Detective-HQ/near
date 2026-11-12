@@ -24,6 +24,8 @@ function isAllowedRoute(method: string, pathname: string): boolean {
   if (method === "POST") {
     return pathname === "/api/v1/quotes"
       || pathname === "/api/v1/swaps"
+      || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/deposit$/.test(pathname)
+      || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/cancel$/.test(pathname)
       || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/simulate$/.test(pathname);
   }
   return false;

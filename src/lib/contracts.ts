@@ -27,6 +27,7 @@ export interface Asset {
   source: string;
   observedAt: string | null;
   enabledForLiveSwap: boolean;
+  sourceDepositSupported?: boolean;
 }
 
 export interface MetricObservation {
@@ -76,11 +77,12 @@ export interface QuoteAsset {
   symbol: string;
   chain: string;
   decimals: number;
+  contractAddress?: string | null;
 }
 
 export interface SwapQuote {
   id: string;
-  mode: "simulation" | "provider_dry_quote" | string;
+  mode: "simulation" | "provider_dry_quote" | "provider_executable_quote" | string;
   provider: string;
   providerQuoteId?: string;
   providerSignature?: string | null;
@@ -98,8 +100,13 @@ export interface SwapQuote {
   feeBps?: number;
   slippageBps: number;
   expiresAt: string | null;
-  depositAddress: null;
-  depositMemo: null;
+  deadline?: string | null;
+  timeWhenInactive?: string | null;
+  timeEstimateSeconds?: number | null;
+  depositAddress: string | null;
+  depositMemo: string | null;
+  refundFeeAtomic?: string | null;
+  withdrawFeeAtomic?: string | null;
   route?: string[];
   warning: string;
 }
@@ -116,8 +123,16 @@ export interface SwapRecord {
   state: string;
   providerStatus: string | null;
   mode: string;
-  realSettlement: false;
+  realSettlement: boolean;
+  reviewedQuoteId?: string;
+  providerUpdatedAt?: string;
+  providerDetails?: Record<string, unknown>;
   transactions: {
+    source: string | null;
+    destination: string | null;
+    refund: string | null;
+  };
+  transactionLinks?: {
     source: string | null;
     destination: string | null;
     refund: string | null;
@@ -159,6 +174,6 @@ export interface HealthStatus {
   demoMode: boolean;
   liveQuotesConfigured: boolean;
   marketDataMode: "fixture" | "live";
-  executionEnabled: false;
+  executionEnabled: boolean;
   capturedAt: string;
 }

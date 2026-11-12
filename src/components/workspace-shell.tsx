@@ -21,7 +21,12 @@ import type {
   SwapQuote,
   SwapRecord
 } from "../lib/contracts";
-import { createReadOnlyEvmWallet, shortenEvmAddress } from "../lib/evm-wallet";
+import {
+  createReadOnlyEvmWallet,
+  normalizeEvmAddress,
+  sendEvmDeposit,
+  shortenEvmAddress
+} from "../lib/evm-wallet";
 import type { Eip1193Provider, EvmWalletState, ReadOnlyEvmWallet } from "../lib/evm-wallet";
 import { displaySource, formatMetric, formatTimestamp } from "../lib/format";
 import {
@@ -66,15 +71,15 @@ interface AppData {
 const PAGE_INFO: Record<SectionKey, PageInfo> = {
   overview: {
     title: "Overview",
-    description: "Research signals and a quote sandbox. Execution is not enabled."
+    description: "Cross-chain swap activity and evidence-led ecosystem research."
   },
   swap: {
     title: "Universal swap",
-    description: "Review a dry quote or local estimate. This interface cannot send a deposit."
+    description: "Review a provider quote, sign the source transfer in your EVM wallet, and follow provider settlement."
   },
   activity: {
     title: "Activity",
-    description: "Local simulation records only. No wallet or provider settlement history is connected."
+    description: "Source deposits and provider-reported swap outcomes, kept as separate lifecycle events."
   },
   portfolio: {
     title: "Portfolio",
@@ -133,14 +138,8 @@ const METRIC_GROUPS: Array<{ label: string; aliases: string[] }> = [
 const RISK_ROWS = [
   {
     title: "Wallet execution",
-    detail: "No transaction builder, signature request, deposit broadcast or settlement verification is implemented.",
-    status: "Disabled",
-    tone: ""
-  },
-  {
-    title: "Live quote mode",
-    detail: "NEAR Intents quotes are requested with dry=true. Returned results contain no deposit instructions.",
-    status: "Dry only",
+    detail: "The initial transaction builder supports injected EVM wallets on the configured EVM networks. Other wallet families remain disabled.",
+    status: "EVM only",
     tone: "warn"
   },
   {
@@ -162,6 +161,59 @@ const RISK_ROWS = [
     tone: "warn"
   }
 ];
+
+const EXECUTABLE_EVM_CHAINS = new Set([
+  "ethereum",
+  "base",
+  "arbitrum",
+  "polygon",
+  "avalanche",
+  "bnb"
+]);
+
+const TERMINAL_SWAP_STATES = new Set([
+  "SUCCEEDED",
+  "REFUNDED",
+  "FAILED",
+  "EXPIRED",
+  "CANCELLED",
+  "SIMULATION_COMPLETE"
+]);
+
+function transactionExplorerUrl(value: string | null | undefined): string | null {
+  if (typeof value !== "string" || value.length > 2048) return null;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && !parsed.username && !parsed.password
+      ? parsed.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function SwapTransaction({
+  label,
+  hash,
+  explorerUrl
+}: {
+  label: string;
+  hash: string | null;
+  explorerUrl?: string | null;
+}) {
+  if (!hash) return null;
+  const safeUrl = transactionExplorerUrl(explorerUrl);
+  return (
+    <div className="transaction-reference">
+      <span>{label}</span>
+      {safeUrl ? (
+        <a href={safeUrl} target="_blank" rel="noreferrer noopener">{`${hash.slice(0, 10)}…${hash.slice(-8)}`}</a>
+      ) : (
+        <code title={hash}>{`${hash.slice(0, 10)}…${hash.slice(-8)}`}</code>
+      )}
+    </div>
+  );
+}
 
 function messageFrom(error: unknown): string {
   if (error instanceof ApiRequestError) {
@@ -454,15 +506,126 @@ function SwapView({
   const [refundTo, setRefundTo] = useState("");
   const [slippageBps, setSlippageBps] = useState(100);
   const [quote, setQuote] = useState<SwapQuote | null>(null);
+  const [preparedSwap, setPreparedSwap] = useState<SwapRecord | null>(null);
+  const [broadcastHash, setBroadcastHash] = useState("");
   const [busy, setBusy] = useState(false);
+  const [walletBusy, setWalletBusy] = useState(false);
+  const [now, setNow] = useState(Date.now());
   const [error, setError] = useState<string | null>(null);
+  const [walletState, setWalletState] = useState<EvmWalletState>({
+    status: "disconnected",
+    providerId: null,
+    providerName: null,
+    account: null,
+    chainId: null,
+    balance: null,
+    balanceStatus: "idle",
+    error: null
+  });
+  const walletRef = useRef<ReadOnlyEvmWallet | null>(null);
+  const walletProviderRef = useRef<Eip1193Provider | null>(null);
   const liveMode = data.health?.quoteMode === "live";
+  const executionEnabled = data.health?.executionEnabled === true;
+  const locked = Boolean(preparedSwap && !TERMINAL_SWAP_STATES.has(preparedSwap.state));
+  const originAsset = data.assets.find((asset) => asset.id === originAssetId) ?? null;
+  const destinationAsset = data.assets.find((asset) => asset.id === destinationAssetId) ?? null;
+  const originChain = data.chains.find((chain) => chain.key === originAsset?.chain) ?? null;
+  const walletOnOriginChain = Boolean(
+    walletState.status === "connected"
+    && originChain?.chainId
+    && walletState.chainId === originChain.chainId
+  );
+  const executableOrigin = Boolean(
+    originAsset
+    && EXECUTABLE_EVM_CHAINS.has(originAsset.chain)
+    && originAsset.sourceDepositSupported === true
+  );
+  const executableDestination = Boolean(
+    destinationAsset && EXECUTABLE_EVM_CHAINS.has(destinationAsset.chain)
+  );
+  const remainingSeconds = preparedSwap?.quote.expiresAt
+    ? Math.max(0, Math.ceil((Date.parse(preparedSwap.quote.expiresAt) - now) / 1000))
+    : null;
+  const preparedQuoteExpired = remainingSeconds === 0;
+
+  useEffect(() => {
+    walletRef.current = createReadOnlyEvmWallet({
+      resolveChain: (chainId) => {
+        const chain = data.chains.find((candidate) => candidate.chainId === chainId);
+        return chain?.chainId ? { ...chain, chainId: chain.chainId } : null;
+      },
+      onChange: setWalletState
+    });
+    return () => {
+      walletRef.current?.forget();
+      walletRef.current = null;
+      walletProviderRef.current = null;
+    };
+  }, [data.chains]);
+
+  useEffect(() => {
+    if (!locked || !preparedSwap) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [locked, preparedSwap]);
+
+  useEffect(() => {
+    if (!preparedSwap) return;
+    const latest = data.swaps.find((swap) => swap.id === preparedSwap.id);
+    if (latest && latest.updatedAt !== preparedSwap.updatedAt) setPreparedSwap(latest);
+  }, [data.swaps, preparedSwap]);
 
   useEffect(() => {
     if (!data.assets.length) return;
-    setOriginAssetId((current) => current || data.assets[0].id);
-    setDestinationAssetId((current) => current || data.assets.find((asset) => asset.id !== data.assets[0].id)?.id || "");
-  }, [data.assets]);
+    const selectable = liveMode
+      ? data.assets.filter((asset) => EXECUTABLE_EVM_CHAINS.has(asset.chain))
+      : data.assets;
+    const originOptions = liveMode
+      ? selectable.filter((asset) => asset.sourceDepositSupported)
+      : selectable;
+    const nextOriginId = originOptions.some((asset) => asset.id === originAssetId)
+      ? originAssetId
+      : originOptions[0]?.id ?? "";
+    const nextDestinationId = selectable.some((asset) =>
+      asset.id === destinationAssetId && asset.id !== nextOriginId
+    )
+      ? destinationAssetId
+      : selectable.find((asset) => asset.id !== nextOriginId)?.id ?? "";
+    if (nextOriginId !== originAssetId) setOriginAssetId(nextOriginId);
+    if (nextDestinationId !== destinationAssetId) setDestinationAssetId(nextDestinationId);
+  }, [data.assets, liveMode, originAssetId, destinationAssetId]);
+
+  function invalidateReviewedQuote() {
+    setQuote(null);
+    setError(null);
+  }
+
+  async function connectWallet() {
+    if (!window.ethereum) {
+      setError("No injected EVM wallet was detected in this browser.");
+      return;
+    }
+    const wallet = walletRef.current;
+    if (!wallet) return;
+    setWalletBusy(true);
+    setError(null);
+    const provider = window.ethereum;
+    walletProviderRef.current = provider;
+    const name = provider.isMetaMask
+      ? "MetaMask"
+      : provider.isCoinbaseWallet
+        ? "Coinbase Wallet"
+        : "Injected EVM wallet";
+    try {
+      const state = await wallet.connect({ id: "injected-evm", name, provider });
+      if (state.account) {
+        setRecipient((current) => current || state.account!);
+        setRefundTo((current) => current || state.account!);
+      }
+    } finally {
+      setWalletBusy(false);
+    }
+  }
 
   async function requestQuote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -479,6 +642,8 @@ function SwapView({
         slippageBps
       });
       setQuote(result.quote);
+      setPreparedSwap(null);
+      setBroadcastHash("");
     } catch (requestError) {
       setError(messageFrom(requestError));
     } finally {
@@ -502,41 +667,167 @@ function SwapView({
     }
   }
 
+  async function prepareExecutableSwap() {
+    if (
+      !quote
+      || quote.mode !== "provider_dry_quote"
+      || !executionEnabled
+      || !walletOnOriginChain
+    ) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const idempotencyKey = globalThis.crypto?.randomUUID?.()
+        ?? `udi-${Date.now()}-${Math.random()}`;
+      const result = await api.createLiveSwap(
+        { quoteId: quote.id, recipient: recipient.trim(), refundTo: refundTo.trim() },
+        idempotencyKey
+      );
+      setPreparedSwap(result.swap);
+      setNow(Date.now());
+      setBroadcastHash("");
+      onActivity();
+      notify("Executable quote prepared. Review its amount and deadline before sending.");
+    } catch (requestError) {
+      setError(messageFrom(requestError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recordBroadcast(txHash: string) {
+    if (!preparedSwap || !originChain?.chainId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.recordDeposit(preparedSwap.id, txHash, originChain.chainId);
+      setPreparedSwap(result.swap);
+      setBroadcastHash("");
+      onActivity();
+      notify("Source transaction recorded. Provider status will determine the outcome.");
+    } catch (requestError) {
+      setError(
+        `${messageFrom(requestError)} The wallet already broadcast ${txHash.slice(0, 10)}…; retry recording this hash, not sending again.`
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendDeposit() {
+    if (!preparedSwap || !originAsset || !originChain?.chainId) return;
+    const existingHash = broadcastHash || preparedSwap.transactions.source;
+    if (existingHash) {
+      await recordBroadcast(existingHash);
+      return;
+    }
+    const provider = walletProviderRef.current;
+    if (!provider || !walletState.account || !walletOnOriginChain) {
+      setError("Connect the wallet and switch it to the quoted source network before sending.");
+      return;
+    }
+    if (preparedQuoteExpired) {
+      setError("This provider deposit address has expired. Discard it and request a fresh quote.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const txHash = await sendEvmDeposit({
+        provider,
+        account: walletState.account,
+        chainId: originChain.chainId,
+        depositAddress: preparedSwap.quote.depositAddress ?? "",
+        amountAtomic: preparedSwap.quote.amountInAtomic,
+        tokenAddress: originAsset.contractAddress ?? null,
+        depositMemo: preparedSwap.quote.depositMemo
+      });
+      setBroadcastHash(txHash);
+      await recordBroadcast(txHash);
+    } catch (requestError) {
+      setError(messageFrom(requestError));
+      setBusy(false);
+    }
+  }
+
+  async function discardInstructions() {
+    if (!preparedSwap) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.cancelSwap(preparedSwap.id);
+      setPreparedSwap(result.swap);
+      onActivity();
+      notify(result.swap.state === "EXPIRED"
+        ? "The deposit deadline passed. Instructions are marked expired."
+        : "Unfunded deposit instructions discarded.");
+    } catch (requestError) {
+      setError(messageFrom(requestError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <PageHeader section="swap">
-        <StatusPill tone={liveMode ? "warn" : ""}>{liveMode ? "Provider dry quote" : "Demo estimate"}</StatusPill>
+        <StatusPill tone={executionEnabled ? "good" : "warn"}>
+          {executionEnabled ? "EVM execution enabled" : liveMode ? "Quote-only mode" : "Fixture mode"}
+        </StatusPill>
       </PageHeader>
       <div className="content-grid">
         <section className="panel panel-pad form-panel">
           <h2 className="card-heading">Quote inputs</h2>
-          <p className="card-description">Exact-input amount. No wallet signature or deposit transaction is requested.</p>
+          <p className="card-description">
+            {liveMode
+              ? "Request a provider quote for an EVM-to-EVM pair. Wallet transfer is a separate, explicit confirmation."
+              : "Fixture estimates exercise the interface only. They can never be turned into deposit instructions."}
+          </p>
+          <div className="wallet-connect-row">
+            <div>
+              <strong>{walletState.account ? shortenEvmAddress(walletState.account) : "EVM wallet disconnected"}</strong>
+              <span>
+                {walletState.account
+                  ? `${data.chains.find((chain) => chain.chainId === walletState.chainId)?.name ?? "Unsupported network"}${walletState.providerName ? ` · ${walletState.providerName}` : ""}`
+                  : "Connect to prepare a live deposit quote."}
+              </span>
+            </div>
+            <button className="button button-secondary" type="button" onClick={() => void connectWallet()} disabled={walletBusy || locked}>
+              {walletBusy ? "Connecting…" : walletState.account ? "Reconnect wallet" : "Connect wallet"}
+            </button>
+          </div>
+          {walletState.error ? <p className="warning-text" role="alert">{walletState.error}</p> : null}
           <form onSubmit={requestQuote}>
             <div className="form-grid">
               <div className="field">
                 <label htmlFor="origin-asset">From asset</label>
-                <select id="origin-asset" value={originAssetId} onChange={(event) => setOriginAssetId(event.target.value)} required>
-                  {data.assets.map((asset) => (
+                <select id="origin-asset" value={originAssetId} onChange={(event) => { invalidateReviewedQuote(); setOriginAssetId(event.target.value); }} required disabled={locked}>
+                  {(liveMode ? data.assets.filter((asset) =>
+                    EXECUTABLE_EVM_CHAINS.has(asset.chain) && asset.sourceDepositSupported
+                  ) : data.assets).map((asset) => (
                     <option value={asset.id} key={asset.id}>{asset.symbol} · {asset.chain} · {asset.name}</option>
                   ))}
                 </select>
               </div>
               <div className="field">
                 <label htmlFor="destination-asset">To asset</label>
-                <select id="destination-asset" value={destinationAssetId} onChange={(event) => setDestinationAssetId(event.target.value)} required>
-                  {data.assets.filter((asset) => asset.id !== originAssetId).map((asset) => (
+                <select id="destination-asset" value={destinationAssetId} onChange={(event) => { invalidateReviewedQuote(); setDestinationAssetId(event.target.value); }} required disabled={locked}>
+                  {data.assets.filter((asset) =>
+                    asset.id !== originAssetId
+                    && (!liveMode || EXECUTABLE_EVM_CHAINS.has(asset.chain))
+                  ).map((asset) => (
                     <option value={asset.id} key={asset.id}>{asset.symbol} · {asset.chain} · {asset.name}</option>
                   ))}
                 </select>
               </div>
               <div className="field">
                 <label htmlFor="amount-in">Amount</label>
-                <input id="amount-in" inputMode="decimal" autoComplete="off" value={amountIn} onChange={(event) => setAmountIn(event.target.value)} required />
+                <input id="amount-in" inputMode="decimal" autoComplete="off" value={amountIn} onChange={(event) => { invalidateReviewedQuote(); setAmountIn(event.target.value); }} required disabled={locked} />
                 <span className="field-hint">Enter a decimal string; precision is checked against the asset catalogue.</span>
               </div>
               <div className="field">
                 <label htmlFor="slippage">Maximum slippage</label>
-                <select id="slippage" value={slippageBps} onChange={(event) => setSlippageBps(Number(event.target.value))}>
+                <select id="slippage" value={slippageBps} onChange={(event) => { invalidateReviewedQuote(); setSlippageBps(Number(event.target.value)); }} disabled={locked}>
                   <option value={50}>0.50%</option>
                   <option value={100}>1.00%</option>
                   <option value={300}>3.00%</option>
@@ -544,15 +835,15 @@ function SwapView({
               </div>
               <div className="field full-width">
                 <label htmlFor="recipient">Destination address{liveMode ? " (required for live quote)" : ""}</label>
-                <input id="recipient" autoComplete="off" value={recipient} onChange={(event) => setRecipient(event.target.value)} required={liveMode} />
+                <input id="recipient" autoComplete="off" value={recipient} onChange={(event) => { invalidateReviewedQuote(); setRecipient(event.target.value); }} required={liveMode} disabled={locked} />
               </div>
               <div className="field full-width">
                 <label htmlFor="refund-address">Refund address{liveMode ? " (required for live quote)" : ""}</label>
-                <input id="refund-address" autoComplete="off" value={refundTo} onChange={(event) => setRefundTo(event.target.value)} required={liveMode} />
+                <input id="refund-address" autoComplete="off" value={refundTo} onChange={(event) => { invalidateReviewedQuote(); setRefundTo(event.target.value); }} required={liveMode} disabled={locked} />
               </div>
             </div>
             <div className="swap-actions">
-              <button className="button" type="submit" disabled={busy || !originAssetId || !destinationAssetId || originAssetId === destinationAssetId}>
+              <button className="button" type="submit" disabled={busy || locked || !originAssetId || !destinationAssetId || originAssetId === destinationAssetId}>
                 {busy ? "Requesting quote…" : "Review quote"}
               </button>
             </div>
@@ -565,8 +856,40 @@ function SwapView({
               <div className="quote-detail"><span>Minimum output</span><strong>{quote.minimumAmountOut ?? "Not returned"} {quote.destinationAsset.symbol}</strong></div>
               <div className="quote-detail"><span>Slippage setting</span><strong>{(quote.slippageBps / 100).toFixed(2)}%</strong></div>
               <div className="quote-detail"><span>Provider</span><strong>{quote.provider}</strong></div>
-              {quote.expiresAt ? <div className="quote-detail"><span>Estimate expires</span><strong>{formatTimestamp(quote.expiresAt)}</strong></div> : null}
+              {quote.expiresAt ? <div className="quote-detail"><span>Quote expiry</span><strong>{formatTimestamp(quote.expiresAt)}</strong></div> : null}
               <p className="warning-text">{quote.warning}</p>
+              {quote.mode === "provider_dry_quote" ? (
+                <>
+                  <p className="metric-note">
+                    Dry quote only: no deposit address is active yet. The executable quote will refresh price and deadline.
+                  </p>
+                  <button
+                    className="button button-secondary button-small"
+                    type="button"
+                    onClick={() => void prepareExecutableSwap()}
+                    disabled={
+                      busy
+                      || !executionEnabled
+                      || !walletOnOriginChain
+                      || !executableOrigin
+                      || !executableDestination
+                      || !normalizeEvmAddress(recipient)
+                      || !normalizeEvmAddress(refundTo)
+                    }
+                  >
+                    {busy ? "Preparing…" : "Prepare executable quote"}
+                  </button>
+                  {!data.health?.liveQuotesConfigured ? (
+                    <p className="warning-text">A server-side NEAR Intents partner JWT is required for live quotes.</p>
+                  ) : !executionEnabled ? (
+                    <p className="warning-text">Live deposits are server-gated. Enable them only after the provider credential and route review are complete.</p>
+                  ) : !walletOnOriginChain ? (
+                    <p className="warning-text">Connect an EVM wallet on {originChain?.name ?? "the quoted source network"} to continue.</p>
+                  ) : !executableOrigin || !executableDestination ? (
+                    <p className="warning-text">This pair is outside the verified EVM transfer slice.</p>
+                  ) : null}
+                </>
+              ) : null}
               {quote.mode === "simulation" ? (
                 <button className="button button-secondary button-small" type="button" onClick={createSimulation} disabled={busy}>
                   Create local simulation record
@@ -574,23 +897,86 @@ function SwapView({
               ) : null}
             </div>
           ) : null}
+          {preparedSwap ? (
+            <div className="quote-result executable-result" aria-live="polite">
+              <h3>Provider deposit instructions</h3>
+              <div className="quote-detail"><span>State</span><strong>{preparedSwap.state.replaceAll("_", " ")}</strong></div>
+              <p className="quote-number">{preparedSwap.quote.amountOutEstimate} <small>{preparedSwap.quote.destinationAsset.symbol} estimated</small></p>
+              <div className="quote-detail"><span>Minimum output</span><strong>{preparedSwap.quote.minimumAmountOut ?? "Not returned"} {preparedSwap.quote.destinationAsset.symbol}</strong></div>
+              <div className="quote-detail"><span>Send exactly</span><strong>{preparedSwap.quote.amountIn} {preparedSwap.quote.originAsset.symbol}</strong></div>
+              <div className="quote-detail"><span>Provider deadline</span><strong>{remainingSeconds === null ? "Not returned" : preparedQuoteExpired ? "Expired" : `${remainingSeconds}s remaining`}</strong></div>
+              <div className="deposit-address">
+                <span>Deposit address · {preparedSwap.quote.originAsset.chain}</span>
+                <code>{preparedSwap.quote.depositAddress ?? "Not available"}</code>
+              </div>
+              {preparedSwap.quote.depositMemo ? (
+                <div className="deposit-address"><span>Provider memo</span><code>{preparedSwap.quote.depositMemo}</code></div>
+              ) : null}
+              {preparedSwap.state === "AWAITING_USER_DEPOSIT" && !preparedSwap.transactions.source ? (
+                <div className="deposit-actions">
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => void sendDeposit()}
+                    disabled={busy || preparedQuoteExpired || !walletOnOriginChain}
+                  >
+                    {busy
+                      ? "Waiting for wallet…"
+                      : broadcastHash
+                        ? "Retry recording transaction hash"
+                        : "Review and send in wallet"}
+                  </button>
+                  <button className="button button-quiet button-small" type="button" onClick={() => void discardInstructions()} disabled={busy}>
+                    Discard instructions
+                  </button>
+                </div>
+              ) : null}
+              {preparedSwap.transactions.source ? (
+                <SwapTransaction
+                  label="Source transaction"
+                  hash={preparedSwap.transactions.source}
+                  explorerUrl={preparedSwap.transactionLinks?.source}
+                />
+              ) : null}
+              {preparedSwap.transactions.destination ? (
+                <SwapTransaction
+                  label="Destination transaction"
+                  hash={preparedSwap.transactions.destination}
+                  explorerUrl={preparedSwap.transactionLinks?.destination}
+                />
+              ) : null}
+              {preparedSwap.transactions.refund ? (
+                <SwapTransaction
+                  label="Refund transaction"
+                  hash={preparedSwap.transactions.refund}
+                  explorerUrl={preparedSwap.transactionLinks?.refund}
+                />
+              ) : null}
+              {preparedSwap.providerStatus ? (
+                <p className="metric-note">Provider status: {preparedSwap.providerStatus} · updated {formatTimestamp(preparedSwap.providerUpdatedAt)}</p>
+              ) : null}
+              <p className="warning-text">
+                Verify the source network, exact amount and destination before approving. A wallet broadcast is not proof of swap settlement.
+              </p>
+            </div>
+          ) : null}
         </section>
 
         <aside>
           <section className="panel panel-pad">
-            <PanelTitle title="Before you continue" description="This build stops at quote review." />
+            <PanelTitle title="Execution checklist" description="Provider status is authoritative after wallet broadcast." />
             <ul className="swap-timeline">
-              <li className="current"><strong>Quote request</strong><small>Fixture calculation or server-authenticated dry quote</small></li>
-              <li><strong>Wallet approval</strong><small>Not available in this build</small></li>
-              <li><strong>Deposit and settlement</strong><small>No transaction or provider status tracking</small></li>
+              <li className="current"><strong>Quote review</strong><small>{liveMode ? "Provider dry quote, then a refreshed executable quote" : "Local estimate only; no route is requested"}</small></li>
+              <li><strong>Wallet transfer</strong><small>Injected EVM wallet only; the wallet signs and broadcasts</small></li>
+              <li><strong>Provider settlement</strong><small>Source, destination and refund hashes remain separate</small></li>
             </ul>
             <div className="simulation-callout">
-              <strong>Simulation is not a swap.</strong> Local demo records create no transaction hash and never move funds.
+              <strong>Capabilities are gated.</strong> Only EVM pairs with verified transfer metadata can reach wallet signing; live routes still require a successful quote.
             </div>
           </section>
           <section className="panel panel-pad section">
             <PanelTitle title="Catalogue note" />
-            <p className="card-description">{data.assets.length} assets are visible. A pair is not confirmed until a quote succeeds, and a quote is not an execution instruction.</p>
+            <p className="card-description">{data.assets.length} assets are visible. Catalogue presence is not route confirmation; only an executable quote supplies deposit instructions.</p>
             <Link className="text-link" href="/workspace/risk">Open risk center</Link>
           </section>
         </aside>
@@ -603,13 +989,17 @@ function ActivityView({
   swaps,
   loading,
   onAdvance,
+  onCancel,
   onRefresh
 }: {
   swaps: SwapRecord[];
   loading: boolean;
   onAdvance: (swap: SwapRecord) => void;
+  onCancel: (swap: SwapRecord) => void;
   onRefresh: () => void;
 }) {
+  const liveCount = swaps.filter((swap) => swap.mode === "live").length;
+  const simulationCount = swaps.length - liveCount;
   return (
     <>
       <PageHeader section="activity">
@@ -617,45 +1007,71 @@ function ActivityView({
       </PageHeader>
       <section className="panel panel-pad">
         <div className="section-heading">
-          <div><h2>Local records</h2><p>{swaps.length} simulation records · no chain activity is included</p></div>
-          <span className="subtle-meta">{loading ? "Refreshing…" : "Updated from local API"}</span>
+          <div><h2>Swap history</h2><p>{liveCount} provider-tracked · {simulationCount} local simulations</p></div>
+          <span className="subtle-meta">{loading ? "Refreshing…" : "Auto-refreshes pending provider states"}</span>
         </div>
         {swaps.length === 0 ? (
-          <div className="empty-state">No local records yet. Create a demo quote, then save it as a simulation.</div>
+          <div className="empty-state">No swaps or simulations yet. Review a quote to start a record.</div>
         ) : (
-          <div className="table-wrap">
-            <table className="data-table mobile-stack">
-              <thead><tr><th>Route</th><th>State</th><th>Created</th><th>Record</th><th>Action</th></tr></thead>
-              <tbody>
-                {swaps.map((swap) => {
-                  const terminal = swap.state === "SIMULATION_COMPLETE";
-                  return (
-                    <tr key={swap.id}>
-                      <td data-label="Route">
-                        <strong>{swap.quote.originAsset.symbol} → {swap.quote.destinationAsset.symbol}</strong>
-                        <span className="row-title"><small>{swap.quote.originAsset.chain} to {swap.quote.destinationAsset.chain}</small></span>
-                      </td>
-                      <td data-label="State"><StatusPill tone={terminal ? "good" : "warn"}>{swap.state.replaceAll("_", " ")}</StatusPill></td>
-                      <td data-label="Created">{formatTimestamp(swap.createdAt)}</td>
-                      <td className="mono" data-label="Record">{swap.id.slice(0, 12)}…</td>
-                      <td data-label="Action">
-                        <button
-                          className="button button-quiet button-small"
-                          type="button"
-                          onClick={() => onAdvance(swap)}
-                          disabled={terminal || swap.mode !== "simulation"}
-                        >
-                          {terminal ? "Complete" : "Advance simulation"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="swap-record-list">
+            {swaps.map((swap) => {
+              const isSimulation = swap.mode !== "live";
+              const canCancel = !isSimulation
+                && swap.state === "AWAITING_USER_DEPOSIT"
+                && !swap.transactions.source;
+              const statusTone = swap.state === "SUCCEEDED" || swap.state === "SIMULATION_COMPLETE"
+                ? "good"
+                : TERMINAL_SWAP_STATES.has(swap.state)
+                  ? "bad"
+                  : "warn";
+              return (
+                <article className="swap-record" key={swap.id}>
+                  <div className="swap-record-heading">
+                    <div>
+                      <strong>{swap.quote.originAsset.symbol} → {swap.quote.destinationAsset.symbol}</strong>
+                      <span>{swap.quote.originAsset.chain} to {swap.quote.destinationAsset.chain}</span>
+                    </div>
+                    <StatusPill tone={statusTone}>{swap.state.replaceAll("_", " ")}</StatusPill>
+                  </div>
+                  <div className="swap-record-meta">
+                    <span>{isSimulation ? "Local simulation" : `Provider: ${swap.providerStatus ?? "awaiting deposit"}`}</span>
+                    <time dateTime={swap.createdAt}>{formatTimestamp(swap.createdAt)}</time>
+                    <code title={swap.id}>{swap.id.slice(0, 14)}…</code>
+                  </div>
+                  <div className="swap-transactions">
+                    <SwapTransaction label="Source" hash={swap.transactions.source} explorerUrl={swap.transactionLinks?.source} />
+                    <SwapTransaction label="Destination" hash={swap.transactions.destination} explorerUrl={swap.transactionLinks?.destination} />
+                    <SwapTransaction label="Refund" hash={swap.transactions.refund} explorerUrl={swap.transactionLinks?.refund} />
+                    {!swap.transactions.source && !swap.transactions.destination && !swap.transactions.refund ? (
+                      <span className="subtle-meta">{isSimulation ? "No chain transaction was created." : "No source deposit recorded yet."}</span>
+                    ) : null}
+                  </div>
+                  <div className="swap-record-actions">
+                    {!isSimulation && swap.providerUpdatedAt ? (
+                      <span className="subtle-meta">Provider updated {formatTimestamp(swap.providerUpdatedAt)}</span>
+                    ) : null}
+                    {canCancel ? (
+                      <button className="button button-quiet button-small" type="button" onClick={() => onCancel(swap)}>
+                        Discard quote
+                      </button>
+                    ) : null}
+                    {isSimulation ? (
+                      <button
+                        className="button button-quiet button-small"
+                        type="button"
+                        onClick={() => onAdvance(swap)}
+                        disabled={TERMINAL_SWAP_STATES.has(swap.state)}
+                      >
+                        {TERMINAL_SWAP_STATES.has(swap.state) ? "Complete" : "Advance simulation"}
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
-        <p className="metric-note">Source and destination transaction references remain empty for simulated records.</p>
+        <p className="metric-note">A source transaction is only a deposit attempt; completion is shown only when the provider reports success.</p>
       </section>
     </>
   );
@@ -985,6 +1401,9 @@ function RiskView({ health, snapshot, chains }: { health: HealthStatus | null; s
   const quoteStatus = health?.quoteMode === "live"
     ? health.liveQuotesConfigured ? "Dry quotes configured" : "Credential missing"
     : "Local fixture estimates";
+  const executionStatus = health?.executionEnabled
+    ? "EVM deposits enabled by server configuration"
+    : "EVM deposits disabled";
   const dataStatus = health?.marketDataMode === "live"
     ? snapshot?.status ?? "Live source status unavailable"
     : "Illustrative fixture";
@@ -995,6 +1414,12 @@ function RiskView({ health, snapshot, chains }: { health: HealthStatus | null; s
       detail: `Current mode: ${quoteStatus}. Credentials remain server-side and never reach the browser.`,
       status: quoteStatus,
       tone: health?.liveQuotesConfigured ? "good" : "warn"
+    },
+    {
+      title: "Swap execution",
+      detail: "Only the EVM source-transfer path is implemented. Pair support still requires a fresh provider quote; this local prototype is not a production execution service.",
+      status: executionStatus,
+      tone: health?.executionEnabled ? "warn" : ""
     },
     {
       title: "Market data freshness",
@@ -1024,10 +1449,14 @@ function RiskView({ health, snapshot, chains }: { health: HealthStatus | null; s
           <PanelTitle title="Network capability" description={`${chains.filter((chain) => chain.swapEnabled).length} swap-enabled chains`} />
           <p className="card-description">A chain may have wallet configuration without a provider route. Pair support is confirmed by quote, not by the chain list.</p>
           <div className="notice-block">
-            <h3>Never send funds from this prototype</h3>
-            <p>Wallet signing, transaction construction, deposit submission and status polling are not connected.</p>
+            <h3>Execution remains opt-in</h3>
+            <p>
+              {health?.executionEnabled
+                ? "The server execution gate is enabled. This prototype is not audited or production-ready; verify every route and transaction before signing."
+                : "Wallet signing, deposit submission and provider status tracking are implemented for the initial EVM slice but disabled by default."}
+            </p>
           </div>
-          <Link className="button button-secondary section" href="/workspace/swap">Open quote sandbox</Link>
+          <Link className="button button-secondary section" href="/workspace/swap">Open swap workspace</Link>
         </aside>
       </div>
     </>
@@ -1053,6 +1482,9 @@ export function WorkspaceShell({ initialSection = "overview" }: { initialSection
   const sectionFromPath = pathname.split("/").filter(Boolean)[1] as SectionKey | undefined;
   const section = sectionFromPath && KNOWN_SECTIONS.has(sectionFromPath) ? sectionFromPath : initialSection;
   const page = PAGE_INFO[section];
+  const hasPendingLiveSwaps = data.swaps.some((swap) =>
+    swap.mode === "live" && !TERMINAL_SWAP_STATES.has(swap.state)
+  );
 
   const reload = useCallback(() => setReloadVersion((version) => version + 1), []);
 
@@ -1087,6 +1519,24 @@ export function WorkspaceShell({ initialSection = "overview" }: { initialSection
   }, [reloadVersion]);
 
   useEffect(() => {
+    if (!hasPendingLiveSwaps) return;
+    let active = true;
+    const refreshPendingActivity = async () => {
+      try {
+        const activity = await api.activity();
+        if (active) setData((current) => ({ ...current, swaps: activity.swaps }));
+      } catch {
+        // Keep the last known lifecycle visible; manual refresh can surface broader API errors.
+      }
+    };
+    const timer = window.setInterval(() => { void refreshPendingActivity(); }, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [hasPendingLiveSwaps]);
+
+  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 4200);
     return () => window.clearTimeout(timer);
@@ -1104,7 +1554,28 @@ export function WorkspaceShell({ initialSection = "overview" }: { initialSection
     }
   }
 
+  async function discardPendingSwap(swap: SwapRecord) {
+    try {
+      const result = await api.cancelSwap(swap.id);
+      setData((current) => ({
+        ...current,
+        swaps: current.swaps.map((item) => item.id === result.swap.id ? result.swap : item)
+      }));
+      notify(result.swap.state === "EXPIRED"
+        ? "The provider deadline passed; the quote is marked expired."
+        : "Unfunded deposit instructions discarded.");
+    } catch (error) {
+      notify(messageFrom(error));
+    }
+  }
+
   const isLive = data.health?.marketDataMode === "live";
+  const executionEnabled = data.health?.executionEnabled === true;
+  const executionStatus = executionEnabled
+    ? "EVM deposit flow enabled"
+    : data.health?.liveQuotesConfigured
+      ? "Provider quotes only"
+      : "Swap execution disabled";
 
   return (
     <div className="workspace-page">
@@ -1141,7 +1612,7 @@ export function WorkspaceShell({ initialSection = "overview" }: { initialSection
         <div className="sidebar-bottom">
           <div className="connection-status">
             <span className={`status-dot ${isLive ? "status-dot-positive" : "status-dot-neutral"}`} />
-            <span><strong>{isLive ? "Live research source" : "Sandbox mode"}</strong><small>{data.health?.liveQuotesConfigured ? "Dry quote credential configured" : "No wallet or provider execution"}</small></span>
+            <span><strong>{isLive ? "Live research source" : "Sandbox mode"}</strong><small>{executionStatus}</small></span>
           </div>
           <Link className="sidebar-help" href="/workspace/risk">
             <span>Execution limits</span><span aria-hidden="true">↗</span>
@@ -1160,13 +1631,20 @@ export function WorkspaceShell({ initialSection = "overview" }: { initialSection
       <div className="main-shell">
         <div className="global-notice">
           <span className="notice-mark" aria-hidden="true">i</span>
-          <p><strong>Local prototype</strong><span>Quotes are dry-only. Wallet signing, live routing and chain broadcasts are disabled.</span></p>
+          <p>
+            <strong>Local prototype</strong>
+            <span>
+              {executionEnabled
+                ? "EVM source deposits are enabled by server configuration. Review the route, exact amount and expiry before signing."
+                : "Provider quotes and lifecycle tracking are available when configured; EVM deposits remain disabled by default."}
+            </span>
+          </p>
           <Link href="/workspace/risk">Review limits</Link>
         </div>
         <main className="app-content">
           {section === "overview" ? <OverviewView data={data} onRefresh={reload} /> : null}
           {section === "swap" ? <SwapView data={data} notify={notify} onActivity={reload} /> : null}
-          {section === "activity" ? <ActivityView swaps={data.swaps} loading={data.loading} onAdvance={(swap) => void advanceSimulation(swap)} onRefresh={reload} /> : null}
+          {section === "activity" ? <ActivityView swaps={data.swaps} loading={data.loading} onAdvance={(swap) => void advanceSimulation(swap)} onCancel={(swap) => void discardPendingSwap(swap)} onRefresh={reload} /> : null}
           {section === "portfolio" ? <PortfolioView chains={data.chains} notify={notify} /> : null}
           {section === "markets" ? <MetricsView section="markets" snapshot={data.markets} health={data.health} onRefresh={reload} /> : null}
           {section === "intelligence" ? <MetricsView section="intelligence" snapshot={data.intelligence} health={data.health} onRefresh={reload} /> : null}

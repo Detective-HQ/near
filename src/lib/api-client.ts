@@ -87,6 +87,30 @@ export const api = {
     method: "POST",
     body: JSON.stringify(input)
   }),
+  createLiveSwap: (
+    input: { quoteId: string; recipient: string; refundTo: string },
+    idempotencyKey: string
+  ) =>
+    apiRequest<{ swap: SwapRecord; created: boolean }>("/api/v1/swaps", {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(input)
+    }),
+  recordDeposit: (swapId: string, txHash: string, chainId: string) =>
+    apiRequest<{ swap: SwapRecord; duplicate: boolean }>(
+      `/api/v1/swaps/${encodeURIComponent(swapId)}/deposit`,
+      {
+        method: "POST",
+        body: JSON.stringify({ txHash, chainId })
+      }
+    ),
+  cancelSwap: (swapId: string) =>
+    apiRequest<{ swap: SwapRecord }>(
+      `/api/v1/swaps/${encodeURIComponent(swapId)}/cancel`,
+      { method: "POST", body: "{}" }
+    ),
+  swap: (swapId: string) =>
+    apiRequest<{ swap: SwapRecord }>(`/api/v1/swaps/${encodeURIComponent(swapId)}`),
   createSimulation: (quoteId: string, idempotencyKey: string) =>
     apiRequest<{ swap: SwapRecord; created: boolean }>("/api/v1/swaps", {
       method: "POST",

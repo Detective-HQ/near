@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Universal DeFi Intelligence Local API
   version: 0.1.0
-  description: Local API with fixture data, optional DeFiLlama public analytics, and optional NEAR Intents 1Click catalogue/dry quotes. This API never builds or broadcasts transactions.
+  description: Local prototype API with fixture data, optional DeFiLlama analytics, optional NEAR Intents quotes, and an opt-in EVM wallet deposit lifecycle. Live execution is disabled by default; the API does not authenticate users or independently verify source-chain receipts.
 servers:
   - url: http://127.0.0.1:8081
 paths:
@@ -11,13 +11,13 @@ paths:
       summary: Local process health and configured data modes
       responses:
         "200":
-          description: Includes quoteMode, marketDataMode, liveQuotesConfigured, and executionEnabled=false. Never includes credentials.
+          description: Includes quoteMode, marketDataMode, liveQuotesConfigured, and the computed executionEnabled flag. Never includes credentials.
   /api/v1/chains:
     get:
       summary: Configured chain registry
       responses:
         "200":
-          description: Chain flags, with wallet and swap support disabled.
+          description: Chain registry flags. EVM swap flags are enabled only when the server execution gate is active; a pair still requires a provider quote.
   /api/v1/assets:
     get:
       summary: Fixture catalogue or current 1Click provider catalogue
@@ -59,14 +59,14 @@ paths:
           description: Fictional assumptions for reproducible UI calculation.
   /api/v1/activity:
     get:
-      summary: Local simulation history
+      summary: Prototype swap activity
       responses:
         "200":
-          description: Saved local simulation records.
+          description: Saved simulation and live-prototype records. No user ownership filter is applied.
   /api/v1/quotes:
     post:
       summary: Create a demo estimate or live provider dry quote
-      description: In live mode, requests only dry=true exact-input quotes. No deposit address or executable transaction is returned.
+      description: In live mode, requests only a dry=true exact-input quote. Executable quotes are requested separately by POST /api/v1/swaps and require the execution gate.
       requestBody:
         required: true
         content:
@@ -86,11 +86,11 @@ paths:
                 recipient:
                   type: string
                   maxLength: 256
-                  description: Required in live mode; passed to provider and not chain-wallet validated.
+                  description: Required in live mode; must be a valid EVM address for the current live quote slice.
                 refundTo:
                   type: string
                   maxLength: 256
-                  description: Required in live mode; passed to provider and not chain-wallet validated.
+                  description: Required in live mode; must be a valid EVM address for the current live quote slice.
                 slippageBps:
                   type: integer
                   minimum: 0
@@ -109,8 +109,8 @@ paths:
           description: Provider credentials are not configured, provider is rate-limited, or demo writes are disabled.
   /api/v1/swaps:
     post:
-      summary: Create a local simulation record
-      description: Demo mode only. Fails closed in live quote mode; does not execute a provider quote.
+      summary: Create a simulated record or executable live quote
+      description: Demo mode creates a local simulation. Live mode requires an EVM pair, server-side NEAR Intents partner JWT, and ENABLE_LIVE_EXECUTION=true; it requests and verifies a fresh executable quote but does not sign or broadcast.
       parameters:
         - in: header
           name: Idempotency-Key
@@ -129,18 +129,25 @@ paths:
               properties:
                 quoteId:
                   type: string
+                  description: ID of the provider dry quote in live mode or fixture quote in demo mode.
+                recipient:
+                  type: string
+                  description: Required in live mode; EVM destination address.
+                refundTo:
+                  type: string
+                  description: Required in live mode; EVM refund address.
       responses:
         "200":
-          description: Existing record returned for a repeated idempotency key.
+          description: Existing swap returned for a repeated idempotency key.
         "201":
-          description: New QUOTE_READY simulation record.
+          description: New simulation record or live swap awaiting user deposit.
         "400":
-          description: Missing idempotency key or expired quote.
+          description: Invalid request, missing idempotency key, or expired quote.
         "503":
-          description: Live execution is disabled or demo writes are disabled.
+          description: Live execution is disabled, provider credential is unavailable, or demo writes are disabled.
   /api/v1/swaps/{id}:
     get:
-      summary: Get a local simulation record
+      summary: Get a simulation or live-prototype swap
       parameters:
         - in: path
           name: id
@@ -149,9 +156,61 @@ paths:
             type: string
       responses:
         "200":
-          description: Simulation state and event history.
+          description: State, event history, provider status, and separate transaction references when present.
         "404":
-          description: Record not found.
+          description: Swap not found.
+  /api/v1/swaps/{id}/deposit:
+    post:
+      summary: Record a wallet-reported EVM deposit transaction
+      description: Records a transaction hash, optionally notifies the provider, and relies on provider status polling for settlement. The source transaction is not independently verified against an RPC.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [txHash, chainId]
+              properties:
+                txHash:
+                  type: string
+                  pattern: "^0x[a-fA-F0-9]{64}$"
+                chainId:
+                  type: string
+                  description: Decimal EVM chain ID for the quoted source asset.
+      responses:
+        "200":
+          description: Duplicate report of the same source transaction hash.
+        "202":
+          description: Source hash recorded; provider settlement is pending.
+        "404":
+          description: Swap not found.
+        "409":
+          description: Wrong state, duplicate hash on another swap, or conflicting source transaction.
+        "503":
+          description: Live execution is disabled.
+  /api/v1/swaps/{id}/cancel:
+    post:
+      summary: Discard unfunded executable quote instructions
+      description: Does not cancel an on-chain transaction. Only allowed before a source transaction is recorded.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Instructions marked cancelled or expired.
+        "404":
+          description: Swap not found.
+        "409":
+          description: A deposit was already recorded or the swap is not awaiting a deposit.
   /api/v1/swaps/{id}/simulate:
     post:
       summary: Advance a local-only demo lifecycle
@@ -165,8 +224,6 @@ paths:
       responses:
         "200":
           description: One simulated transition; this is not provider settlement.
-        "503":
-          description: Live execution is unavailable.
         "400":
           description: Simulation is already in its final state.
         "503":

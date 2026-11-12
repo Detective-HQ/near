@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Geist } from "next/font/google";
 import "./globals.css";
+
+const geist = Geist({
+  subsets: ["latin"]
+});
 
 export const metadata: Metadata = {
   title: {
@@ -13,7 +18,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={geist.className}>{children}</body>
     </html>
   );
 }

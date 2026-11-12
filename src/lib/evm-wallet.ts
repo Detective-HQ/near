@@ -12,6 +12,16 @@ export interface Eip1193Provider {
   [key: string]: unknown;
 }
 
+export interface EvmDepositRequest {
+  provider: Eip1193Provider;
+  account: string;
+  chainId: string;
+  depositAddress: string;
+  amountAtomic: string;
+  tokenAddress?: string | null;
+  depositMemo?: string | null;
+}
+
 export interface EvmWalletChain {
   chainId: string;
   family: string;
@@ -109,6 +119,83 @@ export function formatNativeBalance(value: unknown, decimals = 18, maxFractionDi
 export function shortenEvmAddress(value: unknown): string {
   const address = normalizeEvmAddress(value);
   return address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "Address unavailable";
+}
+
+export async function sendEvmDeposit({
+  provider,
+  account,
+  chainId,
+  depositAddress,
+  amountAtomic,
+  tokenAddress = null,
+  depositMemo = null
+}: EvmDepositRequest): Promise<string> {
+  const normalizedAccount = normalizeEvmAddress(account);
+  const normalizedDeposit = normalizeEvmAddress(depositAddress);
+  const normalizedToken = tokenAddress === null ? null : normalizeEvmAddress(tokenAddress);
+  if (!provider || typeof provider.request !== "function") {
+    throw new TypeError("An injected EVM wallet is required.");
+  }
+  if (!normalizedAccount || !normalizedDeposit || (tokenAddress !== null && !normalizedToken)) {
+    throw new TypeError("The wallet, deposit or token address is invalid.");
+  }
+  if (typeof depositMemo === "string" && depositMemo.length > 0) {
+    throw new TypeError("This EVM transaction path cannot attach a provider memo.");
+  }
+  if (!/^\d+$/.test(amountAtomic) || BigInt(amountAtomic) <= 0n || BigInt(amountAtomic) >= 1n << 256n) {
+    throw new TypeError("The deposit amount must be a positive EVM-sized integer.");
+  }
+  if (!/^\d+$/.test(chainId) || BigInt(chainId) <= 0n) {
+    throw new TypeError("The expected EVM network identifier is invalid.");
+  }
+
+  const currentChainId = normalizeEvmChainId(await provider.request({ method: "eth_chainId" }));
+  if (currentChainId !== chainId) {
+    throw Object.assign(new Error("Switch the wallet to the quoted source network before sending."), {
+      code: "WRONG_NETWORK"
+    });
+  }
+  const accounts = await provider.request({ method: "eth_accounts" });
+  const currentAccount = Array.isArray(accounts) ? normalizeEvmAddress(accounts[0]) : null;
+  if (!currentAccount || currentAccount !== normalizedAccount) {
+    throw Object.assign(new Error("The selected wallet account changed. Review the swap again."), {
+      code: "WALLET_ACCOUNT_CHANGED"
+    });
+  }
+
+  const transaction: Record<string, string> = {
+    from: normalizedAccount,
+    to: normalizedToken ?? normalizedDeposit,
+    value: normalizedToken ? "0x0" : `0x${BigInt(amountAtomic).toString(16)}`
+  };
+  if (normalizedToken) {
+    const paddedAddress = normalizedDeposit.slice(2).padStart(64, "0");
+    const paddedAmount = BigInt(amountAtomic).toString(16).padStart(64, "0");
+    transaction.data = `0xa9059cbb${paddedAddress}${paddedAmount}`;
+  }
+
+  let result: unknown;
+  try {
+    result = await provider.request({
+      method: "eth_sendTransaction",
+      params: [transaction]
+    });
+  } catch (error) {
+    const walletError = error as { code?: string | number };
+    if (walletError?.code === 4001) {
+      throw Object.assign(new Error("The wallet transaction was rejected. No deposit was recorded."), {
+        code: "WALLET_REJECTED"
+      });
+    }
+    throw Object.assign(new Error("The wallet could not submit the deposit transaction."), {
+      code: "WALLET_SEND_FAILED"
+    });
+  }
+
+  if (typeof result !== "string" || !/^0x[a-f0-9]{64}$/i.test(result)) {
+    throw new TypeError("The wallet returned an invalid transaction hash.");
+  }
+  return result;
 }
 
 function providerErrorMessage(error: unknown): string {

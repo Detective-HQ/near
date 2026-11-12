@@ -18,34 +18,34 @@ The `requestId` response header is set for successful and failed JSON responses.
 
 | Method and route | Response | Notes |
 | --- | --- | --- |
-| `GET /api/v1/health` | status, quote mode, market data mode, capability flags, fixture date | `executionEnabled` is always false. Credentials are not exposed. |
-| `GET /api/v1/chains` | configured chain entries | Every entry reports `walletSupported: false` and `swapEnabled: false`. |
+| `GET /api/v1/health` | status, quote mode, market data mode, capability flags, fixture date | `executionEnabled` is true only when live quote mode, a configured partner JWT, and the execution gate are all enabled. Credentials are not exposed. |
+| `GET /api/v1/chains` | configured chain entries | EVM entries report swap-enabled only when the server execution gate is active; route support remains pair-specific. |
 | `GET /api/v1/assets?chain=near` | fixture assets, or the live provider catalogue | `demo` mode returns fixture IDs; `live` mode returns 1Click `assetId` values unchanged. Catalogue presence does not confirm a route. |
 | `GET /api/v1/markets/overview` | fixture overview or live DeFiLlama NEAR snapshot | `?refresh=true` bypasses the live in-memory cache. Live values include source, retrieval time, status, and methodology version. |
 | `GET /api/v1/intelligence/near` | metric dictionary and fixture or live TVL series | Live mode returns the same snapshot shape and cache as Markets. Missing values are `null`; no fixture substitution occurs. |
 | `GET /api/v1/research/scenarios` | base assumptions and formula | Scenario inputs are illustrative. |
-| `GET /api/v1/activity` | saved local simulation records | No real chain activity is included. |
-| `GET /api/v1/swaps/{id}` | one local simulation record | Transaction references remain null. |
+| `GET /api/v1/activity` | saved simulation and local live-prototype swap records | No account ownership filter is implemented. |
+| `GET /api/v1/swaps/{id}` | one simulation or live-prototype swap record | Live records retain provider status and separate source, destination, and refund transaction references. |
 
 ## Write endpoints
 
 ### `POST /api/v1/quotes`
 
-In default `demo` mode, this endpoint returns the local fixture estimate described below. In `live` mode, it makes a server-authenticated **dry quote only** request to the configured 1Click API. The live path requires `ONECLICK_API_KEY` and current provider asset IDs from `GET /api/v1/assets`.
+In default `demo` mode, this endpoint returns the local fixture estimate described below. In `live` mode, it makes a server-authenticated **dry quote only** request to the configured 1Click API. The live quote path requires `ONECLICK_JWT` and current provider asset IDs from `GET /api/v1/assets`. The current deposit builder is limited to supported EVM-origin and EVM-destination pairs; the provider must still return a route quote for the selected pair.
 
 Live-mode request:
 
 ```json
 {
-  "originAssetId": "nep141:wrap.near",
-  "destinationAssetId": "nep141:usdc.near",
+  "originAssetId": "<provider assetId from GET /api/v1/assets>",
+  "destinationAssetId": "<provider assetId from GET /api/v1/assets>",
   "amountIn": "1.25",
-  "recipient": "destination.near",
-  "refundTo": "refund.near"
+  "recipient": "0x<40 hex characters>",
+  "refundTo": "0x<40 hex characters>"
 }
 ```
 
-The API converts `amountIn` to atomic units using the catalogue decimals and sends `dry: true`, `swapType: EXACT_INPUT`, and the recipient/refund addresses to the provider. The live quote is not stored in the local simulation repository. The response has `mode: provider_dry_quote`, provider output/minimum amounts where returned, and no expiry or deposit instructions. A dry quote does not create a usable deposit address. Address format validation and transaction construction are not implemented.
+The API validates EVM address shape, converts `amountIn` to atomic units using the provider catalogue decimals, and sends `dry: true`, `swapType: EXACT_INPUT`, and the recipient/refund addresses to the provider. The returned dry quote is stored for the local prototype and has `mode: provider_dry_quote`; it has no deposit address or executable transaction. Provider catalogue presence does not guarantee a route.
 
 Demo-mode request:
 
@@ -59,7 +59,7 @@ Demo-mode request:
 
 The amount is a base-10 decimal string, never a floating-point JSON number. The demo service rejects non-positive values, exponent notation, unknown demo IDs, identical asset IDs, and precision beyond the source asset's fixture decimals.
 
-Demo response status is `201`. The quote includes integer atomic amounts as strings, a formatted estimate, a minimum display estimate, fixture mode, fixed demo assumptions, a two-minute local expiry, and a warning. It contains no deposit address, memo, refund instruction, provider quote ID, or executable transaction. Live response status is `200` and remains dry-only.
+Demo response status is `201`. The quote includes integer atomic amounts as strings, a formatted estimate, a minimum display estimate, fixture mode, fixed demo assumptions, a two-minute local expiry, and a warning. It contains no deposit address, memo, refund instruction, provider quote ID, or executable transaction. Live dry-quote response status is `200`; creating a swap requires a separate fresh executable quote.
 
 Provider rate limits, unavailable responses, invalid JSON, unexpected quote shapes, and timeout conditions return typed, sanitized errors; upstream response bodies and credentials are not returned.
 
@@ -71,15 +71,43 @@ Markets and Intelligence provide client-side JSON and CSV downloads of the curre
 
 ### `POST /api/v1/swaps`
 
-Requires an `Idempotency-Key` header from 8 to 128 characters and a JSON body:
+Requires an `Idempotency-Key` header from 8 to 128 characters. In demo mode, the JSON body is:
 
 ```json
 { "quoteId": "qte_..." }
 ```
 
-Response status is `201` when a record is created and `200` when the same idempotency key is replayed. It creates a `QUOTE_READY` simulation record. An expired quote is rejected. The request does not accept a deposit destination override.
+Demo mode returns `201` when a `QUOTE_READY` simulation record is created and `200` when the same idempotency key is replayed. Expired quotes are rejected.
 
-In `live` mode, this route fails closed with `LIVE_EXECUTION_UNAVAILABLE`.
+In live mode, the body must contain `{ "quoteId": "qte_...", "recipient": "0x...", "refundTo": "0x..." }`. The server requires a live dry quote, validates that both assets are on the implemented EVM chains, rechecks their provider catalogue metadata, requests and verifies a fresh executable quote, then persists the provider deposit address/memo, deadline, and normalized quote. Arbitrary deposit-address overrides are not accepted. The response is `201` with `AWAITING_USER_DEPOSIT`, or `200` for an idempotent replay. Live creation returns `503` unless `SWAP_QUOTE_MODE=live`, `ONECLICK_JWT` is configured, and `ENABLE_LIVE_EXECUTION=true`.
+
+The frontend currently builds native-asset or ERC-20 transfer transactions on the supported EVM source chain and asks the injected wallet to sign and broadcast. Review the complete transaction in the wallet. An executable quote may result in irreversible loss if sent on the wrong network or to the wrong address; this prototype has not been audited.
+
+### `POST /api/v1/swaps/{id}/deposit`
+
+Records a wallet-reported EVM transaction. The body requires `txHash` (a 32-byte `0x` hash) and `chainId` (the quoted source chain's decimal chain ID). The API rejects a wrong network, a conflicting hash, an expired unfunded quote, and a hash already attached to another swap. The first accepted report returns `202`; an identical repeat returns `200` with `duplicate: true`.
+
+The source hash is not independently verified against an RPC. The server persists it, attempts `/v0/deposit/submit` as an accelerator, and polls provider status by the quote's deposit address/memo. A failed submit notification does not erase the hash; provider polling remains the authority for the tracked swap outcome. A `202` response is not settlement success.
+
+### `POST /api/v1/swaps/{id}/cancel`
+
+Discards an unfunded live quote instruction. It does not cancel an on-chain transaction. It is accepted only while the swap is awaiting a user deposit and no source hash is recorded. The result is `CANCELLED`, or `EXPIRED` if the provider deadline has passed.
+
+### Provider lifecycle
+
+The in-process poller maps known provider statuses to internal states:
+
+```text
+PENDING_DEPOSIT -> AWAITING_USER_DEPOSIT
+KNOWN_DEPOSIT_TX -> DEPOSIT_SUBMITTED
+INCOMPLETE_DEPOSIT -> INCOMPLETE_DEPOSIT
+PROCESSING -> PROCESSING
+SUCCESS -> SUCCEEDED
+REFUNDED -> REFUNDED
+FAILED -> FAILED
+```
+
+Unknown values are retained as `UNKNOWN_PROVIDER_STATUS`; they are never treated as success. Known states do not regress. Only a provider `SUCCESS` status marks `realSettlement: true`. Source, destination, and refund transaction hashes are stored separately. Polling runs in the API process and is not a durable worker.
 
 ### `POST /api/v1/swaps/{id}/simulate`
 
@@ -93,6 +121,8 @@ SIMULATED_PROCESSING -> SIMULATION_COMPLETE
 
 This is a demo control, not a deposit notification or provider status update. It is disabled when `DEMO_MODE=false`, `NODE_ENV=production`, or `SWAP_QUOTE_MODE=live`.
 
+The local JSON repository has no user authentication or record ownership checks. Do not expose it as a multi-user service.
+
 ## Current error codes
 
-`INVALID_JSON`, `BODY_TOO_LARGE`, `INVALID_AMOUNT`, `INVALID_DECIMALS`, `TOO_MANY_DECIMALS`, `AMOUNT_TOO_SMALL`, `UNKNOWN_ASSET`, `SAME_ASSET`, `QUOTE_EXPIRED`, `QUOTE_NOT_FOUND`, `SWAP_NOT_FOUND`, `IDEMPOTENCY_KEY_REQUIRED`, `TERMINAL_STATE`, `DEMO_DISABLED`, `LIVE_EXECUTION_UNAVAILABLE`, `PROVIDER_NOT_CONFIGURED`, `PROVIDER_AUTH_FAILED`, `PROVIDER_RATE_LIMITED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_TIMEOUT`, `PROVIDER_NETWORK_ERROR`, `PROVIDER_INVALID_RESPONSE`, `PROVIDER_INVALID_CATALOGUE`, `PROVIDER_INVALID_QUOTE`, `PROVIDER_UNEXPECTED_DEPOSIT_DATA`, `PROVIDER_RESPONSE_TOO_LARGE`, `RATE_LIMITED`, and `NOT_FOUND`.
+Errors are typed and sanitized. Important swap codes include `INVALID_JSON`, `BODY_TOO_LARGE`, `INVALID_AMOUNT`, `UNKNOWN_ASSET`, `QUOTE_EXPIRED`, `QUOTE_NOT_FOUND`, `IDEMPOTENCY_KEY_REQUIRED`, `LIVE_EXECUTION_DISABLED`, `CHAIN_EXECUTION_UNAVAILABLE`, `SOURCE_TRANSFER_UNAVAILABLE`, `INVALID_RECIPIENT`, `INVALID_REFUND_ADDRESS`, `WRONG_NETWORK`, `INVALID_TRANSACTION_HASH`, `TRANSACTION_ALREADY_RECORDED`, `DEPOSIT_ALREADY_RECORDED`, `INVALID_SWAP_STATE`, `PROVIDER_NOT_CONFIGURED`, `PROVIDER_AUTH_FAILED`, `PROVIDER_RATE_LIMITED`, `PROVIDER_UNAVAILABLE`, `PROVIDER_TIMEOUT`, `PROVIDER_INVALID_RESPONSE`, `PROVIDER_INVALID_CATALOGUE`, `PROVIDER_INVALID_QUOTE`, `PROVIDER_QUOTE_MISMATCH`, `PROVIDER_SIGNATURE_INVALID`, `PROVIDER_INVALID_DEADLINE`, `PROVIDER_UNEXPECTED_DEPOSIT_DATA`, `RATE_LIMITED`, and `NOT_FOUND`.
