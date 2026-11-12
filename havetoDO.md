@@ -205,14 +205,14 @@ The roadmap omits:
 
 ### Phase 3 — Redis and worker daemon (4–6 days)
 
-- [ ] **3.1** Redis client and keyspace helpers — `internal/storage/redis/client.go`. TLS/pool/timeouts; prefix `udi:{env}:`; `GetOrSetJSON`, `SetNX` lock with token + Lua release.
-- [ ] **3.2** Worker lifecycle — `cmd/worker/main.go`. `signal.NotifyContext`, errgroup, graceful shutdown, heartbeat.
-- [ ] **3.3** Swap poller — `internal/worker/poller.go`. Claim with `FOR UPDATE SKIP LOCKED`; bounded concurrency; `next_poll_at`; per-swap backoff persisted in DB.
-- [ ] **3.4** Retry policy — `internal/worker/retry.go`. Only idempotent calls; max 3; 1s base; 30s cap; ±25% jitter; honor `Retry-After`; never retry executable `POST /v0/quote`.
-- [ ] **3.5** Stuck-swap handling — `internal/worker/poller.go`. After `SWAP_STATUS_MAX_AGE_MINUTES`, stop polling and emit alert; do not silently mark `EXPIRED` if a deposit exists.
-- [ ] **3.6** Catalogue refresh job — `internal/worker/catalogue.go`. Distributed lock; stale-on-error; soft-disable assets, never DELETE.
-- [ ] **3.7** Provider health tracker — `internal/worker/health.go`. Track 429/5xx rates, last success, catalogue age.
-- [ ] **3.8** Tests — `internal/worker/*_test.go`. Fake clock; mock provider; 429 `Retry-After`; worker restart resumes; two workers claim each swap once.
+- [x] **3.1** Redis client and keyspace helpers — `internal/storage/redis/client.go`. TLS/pool/timeouts; prefix `udi:{env}:`; `GetOrSetJSON`, `SetNX` lock with token + Lua release.
+- [x] **3.2** Worker lifecycle — `cmd/worker/main.go`. `signal.NotifyContext`, errgroup, graceful shutdown, heartbeat.
+- [x] **3.3** Swap poller — `internal/worker/poller.go`. Claim with `FOR UPDATE SKIP LOCKED`; bounded concurrency; `next_poll_at`; per-swap backoff persisted in DB.
+- [x] **3.4** Retry policy — `internal/worker/retry.go`. Only idempotent calls; max 3; 1s base; 30s cap; ±25% jitter; honor `Retry-After`; never retry executable `POST /v0/quote`.
+- [x] **3.5** Stuck-swap handling — `internal/worker/poller.go`. After `SWAP_STATUS_MAX_AGE_MINUTES`, stop polling and emit alert; do not silently mark `EXPIRED` if a deposit exists.
+- [x] **3.6** Catalogue refresh job — `internal/worker/catalogue.go`. Distributed lock; stale-on-error; soft-disable assets, never DELETE.
+- [x] **3.7** Provider health tracker — `internal/worker/health.go`. Track 429/5xx rates, last success, catalogue age.
+- [x] **3.8** Tests — `internal/worker/*_test.go`. Fake clock; mock provider; 429 `Retry-After`; worker restart resumes; two workers claim each swap once.
 
 **Watch out:** polling every 5 seconds for every active swap will hit provider rate limits quickly. Use a short minimum interval plus exponential backoff after each unchanged status.
 
