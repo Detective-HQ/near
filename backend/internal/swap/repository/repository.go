@@ -8,7 +8,6 @@
 package repository
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -133,6 +132,8 @@ const swapColumns = `id,
 	next_poll_at,
 	poll_attempts,
 	last_polled_at,
+	stuck_at,
+	COALESCE(last_error_code, ''),
 	created_at,
 	updated_at`
 
@@ -202,8 +203,8 @@ func scanQuote(row rowScanner) (domain.Quote, error) {
 
 func scanSwap(row rowScanner) (domain.Swap, error) {
 	var swap domain.Swap
-	var state, providerStatus string
-	var lastPolledAt pgtype.Timestamptz
+	var state, providerStatus, lastErrorCode string
+	var lastPolledAt, stuckAt pgtype.Timestamptz
 
 	err := row.Scan(
 		&swap.ID,
@@ -225,6 +226,8 @@ func scanSwap(row rowScanner) (domain.Swap, error) {
 		&swap.NextPollAt,
 		&swap.PollAttempts,
 		&lastPolledAt,
+		&stuckAt,
+		&lastErrorCode,
 		&swap.CreatedAt,
 		&swap.UpdatedAt,
 	)
@@ -234,8 +237,12 @@ func scanSwap(row rowScanner) (domain.Swap, error) {
 
 	swap.State = domain.State(state)
 	swap.ProviderStatus = domain.ProviderStatus(providerStatus)
+	swap.LastErrorCode = domain.Code(lastErrorCode)
 	if lastPolledAt.Valid {
 		swap.LastPolledAt = lastPolledAt.Time.UTC()
+	}
+	if stuckAt.Valid {
+		swap.StuckAt = stuckAt.Time.UTC()
 	}
 	swap.ExpiresAt = swap.ExpiresAt.UTC()
 	swap.NextPollAt = swap.NextPollAt.UTC()

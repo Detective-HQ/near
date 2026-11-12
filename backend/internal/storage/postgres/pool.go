@@ -15,9 +15,9 @@ import (
 
 const (
 	defaultPingTimeout = 2 * time.Second
-	poolMaxLifetime     = 30 * time.Minute
-	poolMaxIdleTime     = 5 * time.Minute
-	poolHealthPeriod    = 30 * time.Second
+	poolMaxLifetime    = 30 * time.Minute
+	poolMaxIdleTime    = 5 * time.Minute
+	poolHealthPeriod   = 30 * time.Second
 )
 
 // Pool wraps pgxpool with the SQL handle required by the embedded migration

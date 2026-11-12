@@ -153,7 +153,7 @@ Golden values from `lib/data.mjs:216-218`:
 The list is EVM, Solana, Stellar, Aptos, NEAR = **5 families**; Celo is EVM-compatible. Fix wording or count.
 
 ### D17 — Docker is a hard prerequisite
-Phase 2's concurrency tests and Phase 9's acceptance criteria both need Docker. Install Docker Desktop or run integration tests in CI. Do not block Phase 1 on this.
+Phase 2's concurrency tests and Phase 9's acceptance criteria both need Docker. Install Docker Desktop or run integration tests in CI. Do not block Phase 1 on this. Phase 2 now also supports `TEST_DATABASE_URL`, so its repository suite can run against any reachable PostgreSQL when Docker is unavailable locally.
 
 ### D18 — Missing workstreams
 The roadmap omits:
@@ -187,17 +187,19 @@ The roadmap omits:
 
 ### Phase 2 — PostgreSQL and repositories (5–7 days)
 
-- [ ] **2.1** Apply the schema fixes D5–D8 — `migrations/0000*.up.sql`. Reviewed DDL, reversible down migrations.
-- [ ] **2.2** Add missing indexes/constraints. `assets UNIQUE(provider_asset_id, chain_key)`; `swaps(state, next_poll_at)`; `quotes(expires_at)`; `metric_observations UNIQUE(...)`; `swap_events(created_at)`.
-- [ ] **2.3** Migration runner embedded in binary — `internal/storage/postgres/migrate.go`. `migrate up/down/status`; one transaction per migration; CI drift check.
-- [ ] **2.4** Pool + transaction helper — `internal/storage/postgres/pool.go`. Config timeouts/pool sizes; ping with 2s deadline; panic-safe `WithTransaction`.
-- [ ] **2.5** Error mapping — `internal/storage/postgres/errors.go`. `pgx.ErrNoRows` → `NOT_FOUND`; SQLSTATE 23505 → `CONFLICT`; 23503 → `VALIDATION_FAILED`.
-- [ ] **2.6** Quote repository — `internal/swap/repository/quotes.go`. Atomic amounts via `pgtype.Numeric`/`big.Int`, never float; JSONB raw response.
-- [ ] **2.7** Swap repository — `internal/swap/repository/swaps.go`. Idempotent create with payload hash; atomic state update + event in one tx; optimistic `WHERE state = old` with 0-row conflict handling.
-- [ ] **2.8** Transactions and listing. `RecordTransaction` `ON CONFLICT DO NOTHING`; keyset pagination `(created_at, id)`.
-- [ ] **2.9** Integration tests — `internal/swap/repository/*_test.go`. `testcontainers-go` + `postgres:16`; 50 concurrent identical keys → one row; different payload same key → 409; rollback test; migration up/down.
+- [x] **2.1** Apply the schema fixes D5–D8 — `backend/migrations/0000*.sql`. Reviewed DDL, reversible goose down migrations.
+- [x] **2.2** Add missing indexes/constraints. `assets UNIQUE(provider_asset_id, chain_key)`; `swaps(state, next_poll_at)`; `quotes(expires_at)`; `metric_observations UNIQUE(...)`; `swap_events(created_at)`.
+- [x] **2.3** Migration runner embedded in binary — `internal/storage/postgres/migrate.go`. `migrate up/down/down-to/status/version/check`; one transaction per migration; CI drift check via `check`.
+- [x] **2.4** Pool + transaction helper — `internal/storage/postgres/pool.go`. Config timeouts/pool sizes; ping with 2s deadline; panic-safe `WithTransaction`.
+- [x] **2.5** Error mapping — `internal/storage/postgres/errors.go`. `pgx.ErrNoRows` → `NOT_FOUND`; SQLSTATE 23505 → `CONFLICT`; 23503 → `VALIDATION_FAILED`; retryable classification for 40001/40P01/connection failures.
+- [x] **2.6** Quote repository — `internal/swap/repository/quotes.go`. Atomic amounts via `pgtype.Numeric`/`big.Int`, never float; JSONB raw response.
+- [x] **2.7** Swap repository — `internal/swap/repository/swaps.go`. Idempotent create with payload hash; atomic state update + event in one tx; optimistic `WHERE state = old` with 0-row conflict handling.
+- [x] **2.8** Transactions and listing. `RecordTransaction` `ON CONFLICT DO NOTHING`; keyset pagination `(created_at, id)` with opaque cursor; session-scoped listing for ownership.
+- [x] **2.9** Integration tests — `internal/swap/repository/*_test.go`. `testcontainers-go` + `postgres:16`, or `TEST_DATABASE_URL`; 50 concurrent identical keys → one row; different payload same key → conflict; rollback tests; migration up/down/down-to.
 
-**Key implementation detail:** `UpdateSwapState` must return a specific conflict error when the `WHERE id=$1 AND state=$2` update affects 0 rows, so the worker can re-read and retry rather than silently losing an event.
+**Key implementation detail:** `UpdateSwapState` returns `STATE_CONFLICT` when the `WHERE id=$1 AND state=$2` update affects 0 rows, so the worker can re-read and retry rather than silently losing an event.
+
+> **Phase 2 status (2026-11-13):** implemented in `backend/`. Five reversible goose migrations are embedded via `migrations.FS`; the pool, panic-safe transaction helper, SQLSTATE-to-domain error mapping, and the migrate CLI (`go run ./cmd/migrate ...`) are complete. Quote/swap/transaction repositories persist atomic amounts as `NUMERIC(78, 0)` and keep JSONB audit payloads. The Phase 2 acceptance criterion is covered by `TestCreateSwapConcurrentIdempotency`: 50 goroutines replay one `Idempotency-Key`, exactly one row and one initial event are inserted, and all callers receive the same swap; a different payload hash returns `IDEMPOTENCY_CONFLICT`. Validation against PostgreSQL 18 passed: `gofmt -l .`, `go build ./...`, `go build -tags tools ./...`, `go vet ./...`, `go test ./... -count=1`, and `go mod tidy -diff`. Set `TEST_DATABASE_URL` to run the integration suite without Docker; otherwise it auto-starts `postgres:16-alpine` through testcontainers and skips when neither is available. `go test -race` remains CI-only because the local MinGW gcc is 32-bit, and Docker is still not installed locally.
 
 ---
 
@@ -429,9 +431,9 @@ Non-errors (do not use the error envelope):
 | | ADR 0002 | TODO | |
 | 2026-11-12 | Go module scaffold | Done | `backend/go.mod`/`go.sum`; deps pinned in `internal/tools` |
 | 2026-11-12 | Domain package | Done | config, math, state machine, provider mapping, typed errors; domain coverage 99.0% |
-| | Schema corrections | TODO | |
-| | Migrations | TODO | |
-| | Repository layer | TODO | |
+| 2026-11-13 | Schema corrections | Done | D5–D8 and D13 applied in `migrations/00001`–`00005`; `amount_in_decimal` widened to 80 chars for full uint256 strings |
+| 2026-11-13 | Migrations | Done | Embedded goose migrations (`migrations.FS`), `migrate` CLI with up/down/down-to/status/version/check, reversible down sections |
+| 2026-11-13 | Repository layer | Done | Quote/swap/transaction repos; atomic NUMERIC(78,0) amounts; idempotent swap create + state/event tx; keyset listing; integration tests pass |
 | | 1Click client | TODO | |
 | | Worker + Redis | TODO | |
 | | Chains + wallets | TODO | |

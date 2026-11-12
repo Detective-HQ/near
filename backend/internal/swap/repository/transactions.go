@@ -146,9 +146,3 @@ func (s *Store) ListTransactions(ctx context.Context, swapID string) ([]domain.D
 	}
 	return transactions, nil
 }
-
-// roleScanTarget adapts a domain.TransactionRole to the *string target pgx
-// expects for a VARCHAR column.
-func roleScanTarget(target *domain.TransactionRole) *string {
-	return (*string)(target)
-}

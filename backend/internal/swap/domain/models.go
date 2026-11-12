@@ -20,6 +20,7 @@ type Asset struct {
 	Decimals        int
 	ContractAddress string
 	Source          string
+	Enabled         bool
 	ObservedAt      time.Time
 }
 
@@ -83,22 +84,24 @@ type Swap struct {
 	IdempotencyKey         string
 	IdempotencyPayloadHash string
 	SessionID              string
-	State            State
-	ProviderStatus   ProviderStatus
-	RealSettlement   bool
-	OriginChain      string
-	DestinationChain string
-	DepositAddress   string
-	DepositMemo      string
-	RecipientAddress string
-	RefundAddress    string
-	SourceTxHash     string
-	ExpiresAt        time.Time
-	NextPollAt       time.Time
-	PollAttempts     int
-	LastPolledAt     time.Time
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	State                  State
+	ProviderStatus         ProviderStatus
+	RealSettlement         bool
+	OriginChain            string
+	DestinationChain       string
+	DepositAddress         string
+	DepositMemo            string
+	RecipientAddress       string
+	RefundAddress          string
+	SourceTxHash           string
+	ExpiresAt              time.Time
+	NextPollAt             time.Time
+	PollAttempts           int
+	LastPolledAt           time.Time
+	StuckAt                time.Time
+	LastErrorCode          Code
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
 }
 
 // Event is an immutable audit entry for a swap state change. OldState is empty

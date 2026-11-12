@@ -18,19 +18,19 @@ import (
 // domain errors. Keeping the mapping in one place means a raw driver error can
 // never leak through the API.
 const (
-	sqlStateUniqueViolation        = "23505"
-	sqlStateForeignKeyViolation    = "23503"
-	sqlStateCheckViolation         = "23514"
-	sqlStateInvalidText            = "22P02"
-	sqlStateNumericOutOfRange      = "22003"
-	sqlStateInvalidDatetime        = "22007"
-	sqlStateDatetimeFieldOverflow  = "22008"
-	sqlStateSerializationFailure   = "40001"
-	sqlStateDeadlockDetected       = "40P01"
-	sqlStateQueryCanceled          = "57014"
-	sqlStateTooManyConnections     = "53300"
-	sqlStateAdminShutdown          = "57P01"
-	sqlStateCrashShutdown          = "57P02"
+	sqlStateUniqueViolation       = "23505"
+	sqlStateForeignKeyViolation   = "23503"
+	sqlStateCheckViolation        = "23514"
+	sqlStateInvalidText           = "22P02"
+	sqlStateNumericOutOfRange     = "22003"
+	sqlStateInvalidDatetime       = "22007"
+	sqlStateDatetimeFieldOverflow = "22008"
+	sqlStateSerializationFailure  = "40001"
+	sqlStateDeadlockDetected      = "40P01"
+	sqlStateQueryCanceled         = "57014"
+	sqlStateTooManyConnections    = "53300"
+	sqlStateAdminShutdown         = "57P01"
+	sqlStateCrashShutdown         = "57P02"
 )
 
 // MapError converts a pgx/pgconn error into a typed domain error.

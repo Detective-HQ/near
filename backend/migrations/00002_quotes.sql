@@ -8,7 +8,7 @@ CREATE TABLE quotes (
     origin_asset_id VARCHAR(255) NOT NULL,
     destination_asset_id VARCHAR(255) NOT NULL,
     amount_in_atomic NUMERIC(78, 0) NOT NULL,
-    amount_in_decimal VARCHAR(64) NOT NULL,
+    amount_in_decimal VARCHAR(80) NOT NULL,
     amount_out_estimate_atomic NUMERIC(78, 0) NOT NULL,
     min_amount_out_atomic NUMERIC(78, 0),
     fee_bps INT NOT NULL DEFAULT 0,
