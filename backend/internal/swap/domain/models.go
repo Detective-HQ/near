@@ -47,11 +47,13 @@ type Quote struct {
 	MinAmountOutAtomic      *big.Int
 	FeeBPS                  int
 	SlippageBPS             int
+	FeeData                 map[string]any
 	DepositAddress          string
 	DepositMemo             string
 	ExpiresAt               time.Time
 	RawResponse             []byte
 	CreatedAt               time.Time
+	UpdatedAt               time.Time
 }
 
 // TransactionRole identifies a transaction attached to a swap.
@@ -65,11 +67,13 @@ const (
 
 // Deposit records a source-chain transaction reported by the user.
 type Deposit struct {
+	ID         int64
 	SwapID     string
 	ChainKey   string
 	TxHash     string
 	Role       TransactionRole
 	ObservedAt time.Time
+	CreatedAt  time.Time
 }
 
 // Swap is the persistent swap lifecycle record.
@@ -89,6 +93,9 @@ type Swap struct {
 	RefundAddress    string
 	SourceTxHash     string
 	ExpiresAt        time.Time
+	NextPollAt       time.Time
+	PollAttempts     int
+	LastPolledAt     time.Time
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -96,6 +103,7 @@ type Swap struct {
 // Event is an immutable audit entry for a swap state change. OldState is empty
 // for the initial CREATED event.
 type Event struct {
+	ID             int64
 	SwapID         string
 	OldState       State
 	NewState       State
