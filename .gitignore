@@ -6,4 +6,14 @@ taste-skill/
 npm-debug.log*
 .next/
 *.tsbuildinfo
+havetoDO.md
+roadmap.md
+
+# Go backend build and test artifacts
+backend/bin/
+backend/coverage
+backend/coverage.out
+backend/coverage.html
+backend/*.test
+backend/*.exe
 
