@@ -1,0 +1,2241 @@
+{
+ "url": "http://127.0.0.1:8091",
+ "at": "2026-11-10T17:54:42.580Z",
+ "allow": [],
+ "viewports": [
+  {
+   "width": 1440,
+   "height": 900,
+   "load": "load",
+   "screens": 7,
+   "filled": [
+    0.31,
+    0.32,
+    1,
+    0.87,
+    0.16,
+    0.65,
+    0.41
+   ],
+   "motion": {
+    "elements": 24,
+    "css": 2,
+    "transitions": 22,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "page": {
+     "height": 6095,
+     "screens": 6.8,
+     "words": 505,
+     "img": 1,
+     "video": 0,
+     "canvas": 0,
+     "svg": 1,
+     "sections": 8,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 4,
+     "uiAbuse": false,
+     "realPictures": 1,
+     "videoCount": 0,
+     "uiPictures": 3,
+     "pictureSamples": [
+      "near-intelligence-2026-11-10.jpg"
+     ],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Across chains. With context.",
+     "words": 4,
+     "chars": 28,
+     "lines": 2,
+     "size": 88,
+     "vw": 6.1,
+     "font": "Geist",
+     "weight": 500,
+     "tracking": -0.065,
+     "leading": 0.98,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "left",
+     "widthRatio": 0.43,
+     "top": 256,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Across chains. With context.",
+     "words": 4,
+     "lines": 2,
+     "size": 88,
+     "font": "Geist"
+    },
+    "headings": [
+     {
+      "text": "Across chains. With context.",
+      "words": 4,
+      "chars": 28,
+      "lines": 2,
+      "size": 88,
+      "vw": 6.1,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.065,
+      "leading": 0.98,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.43,
+      "top": 256,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.3M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 56,
+      "vw": 3.9,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.34,
+      "top": 362,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "A quote is not a settlement.",
+      "words": 6,
+      "chars": 28,
+      "lines": 1,
+      "size": 56,
+      "vw": 3.9,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.47,
+      "top": 1103,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Read the source.",
+      "words": 3,
+      "chars": 16,
+      "lines": 1,
+      "size": 56,
+      "vw": 3.9,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.34,
+      "top": 1906,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.3M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 56,
+      "vw": 3.9,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.44,
+      "top": 2037,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "The details stay attached.",
+      "words": 4,
+      "chars": 26,
+      "lines": 2,
+      "size": 56,
+      "vw": 3.9,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.33,
+      "top": 3639,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Execution stays off.",
+      "words": 3,
+      "chars": 20,
+      "lines": 1,
+      "size": 56,
+      "vw": 3.9,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.31,
+      "top": 4717,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Good questions.",
+      "words": 2,
+      "chars": 15,
+      "lines": 1,
+      "size": 56,
+      "vw": 3.9,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.3,
+      "top": 5252,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Start with what can be verified.",
+      "words": 6,
+      "chars": 32,
+      "lines": 2,
+      "size": 56,
+      "vw": 3.9,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.42,
+      "top": 5796,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 9,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 2,
+     "centered": 0,
+     "medianWords": 3,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Geist",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      14,
+      17,
+      22,
+      56,
+      88
+     ],
+     "sizeCount": 5,
+     "notLoaded": [],
+     "body": {
+      "font": "Geist",
+      "size": 17,
+      "leading": 1.55,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 10.9
+     },
+     "measureChars": 74,
+     "max": {
+      "size": 88,
+      "vw": 6.1,
+      "font": "Geist",
+      "text": "Across chains."
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.01,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#0b100d",
+     "bodyBgHsl": {
+      "h": 144,
+      "s": 0.19,
+      "l": 0.05
+     },
+     "dark": true,
+     "sectionBgs": [
+      {
+       "color": "#121a15",
+       "top": 1752,
+       "hsl": {
+        "h": 143,
+        "s": 0.18,
+        "l": 0.09
+       }
+      },
+      {
+       "color": "#151d18",
+       "top": 2472,
+       "hsl": {
+        "h": 143,
+        "s": 0.16,
+        "l": 0.1
+       }
+      },
+      {
+       "color": "#d1f77a",
+       "top": 4563,
+       "hsl": {
+        "h": 78,
+        "s": 0.89,
+        "l": 0.72
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#bdc6bd",
+       "share": 0.63
+      },
+      {
+       "color": "#f2f5ef",
+       "share": 0.15
+      },
+      {
+       "color": "#26331e",
+       "share": 0.08
+      },
+      {
+       "color": "#a0aba1",
+       "share": 0.08
+      },
+      {
+       "color": "#11170e",
+       "share": 0.03
+      }
+     ],
+     "button": {
+      "bg": "#d1f77a",
+      "hsl": {
+       "h": 78,
+       "s": 0.89,
+       "l": 0.72
+      },
+      "fg": "#11170e"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 6,
+     "inHero": 3,
+     "radius": 0,
+     "height": 52,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Skip to content",
+      "Open workspace ↗",
+      "Explore the workspace ↗"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 0,
+     "boxRadius": 0,
+     "squareMedia": 1,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 5,
+     "fixed": false,
+     "height": 92,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "geist"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "pageH": 6095,
+    "margins": {
+     "left": 60,
+     "right": 60
+    },
+    "sections": [
+     {
+      "sel": "section.hero.page-frame",
+      "tag": "section",
+      "top": 92,
+      "height": 770,
+      "words": 104,
+      "media": 1,
+      "middle": 275,
+      "heading": {
+       "text": "Across chains.",
+       "size": 88,
+       "tag": "h1"
+      },
+      "left": 60,
+      "right": 96,
+      "textLeft": 60,
+      "textRight": 96,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section#workflow.workflow.section-space",
+      "tag": "section",
+      "top": 930,
+      "height": 822,
+      "words": 108,
+      "media": 0,
+      "middle": 95,
+      "heading": {
+       "text": "A quote is not a settlement.",
+       "size": 56,
+       "tag": "h2"
+      },
+      "left": 60,
+      "right": 64,
+      "textLeft": 60,
+      "textRight": 64,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "div.research-layout.page-frame",
+      "tag": "div",
+      "top": 1906,
+      "height": 474,
+      "words": 78,
+      "media": 0,
+      "middle": 157,
+      "heading": {
+       "text": "$168.3M",
+       "size": 56,
+       "tag": "p"
+      },
+      "left": 60,
+      "right": 112,
+      "textLeft": 60,
+      "textRight": 112,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "figure.research-capture.page-frame",
+      "tag": "figure",
+      "top": 2472,
+      "height": 859,
+      "words": 19,
+      "media": 1,
+      "middle": 0,
+      "heading": null,
+      "left": 60,
+      "right": 60,
+      "textLeft": 60,
+      "textRight": 665,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section.capabilities.section-space",
+      "tag": "section",
+      "top": 3485,
+      "height": 1078,
+      "words": 89,
+      "media": 0,
+      "middle": 274,
+      "heading": {
+       "text": "The details stay attached.",
+       "size": 56,
+       "tag": "h2"
+      },
+      "left": 60,
+      "right": 60,
+      "textLeft": 60,
+      "textRight": 60,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section#limits.limits.section-space",
+      "tag": "section",
+      "top": 4563,
+      "height": 535,
+      "words": 56,
+      "media": 0,
+      "middle": 245,
+      "heading": {
+       "text": "Execution stays off.",
+       "size": 56,
+       "tag": "h2"
+      },
+      "left": 60,
+      "right": 70,
+      "textLeft": 60,
+      "textRight": 70,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section.questions.section-space",
+      "tag": "section",
+      "top": 5098,
+      "height": 631,
+      "words": 120,
+      "media": 0,
+      "middle": 186,
+      "heading": {
+       "text": "Good questions.",
+       "size": 56,
+       "tag": "h2"
+      },
+      "left": 60,
+      "right": 104,
+      "textLeft": 60,
+      "textRight": 104,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section.closing.page-frame",
+      "tag": "section",
+      "top": 5729,
+      "height": 250,
+      "words": 9,
+      "media": 0,
+      "middle": 641,
+      "heading": {
+       "text": "Start with what can be verified.",
+       "size": 56,
+       "tag": "h2"
+      },
+      "left": 130,
+      "right": 178,
+      "textLeft": 130,
+      "textRight": 178,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [
+     {
+      "top": 1576,
+      "height": 328
+     }
+    ],
+    "h1s": [
+     {
+      "text": "Across chains. With context.",
+      "size": 88,
+      "top": 256,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 60,
+      "n": 15
+     },
+     {
+      "x": 657,
+      "n": 6
+     },
+     {
+      "x": 618,
+      "n": 4
+     },
+     {
+      "x": 747,
+      "n": 2
+     },
+     {
+      "x": 130,
+      "n": 1
+     },
+     {
+      "x": 906,
+      "n": 1
+     }
+    ],
+    "leftBlocks": 29,
+    "bodySize": 17,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0.13,
+    "voidBox": {
+     "x": 600,
+     "y": 120,
+     "w": 240,
+     "h": 720
+    }
+   },
+   "app": null,
+   "consoleErrors": []
+  },
+  {
+   "width": 768,
+   "height": 1024,
+   "load": "load",
+   "screens": 7,
+   "filled": [
+    0.58,
+    0.33,
+    0.85,
+    0.87,
+    0.39,
+    0.59,
+    0.39
+   ],
+   "motion": {
+    "elements": 24,
+    "css": 2,
+    "transitions": 22,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "page": {
+     "height": 6543,
+     "screens": 6.4,
+     "words": 505,
+     "img": 1,
+     "video": 0,
+     "canvas": 0,
+     "svg": 1,
+     "sections": 8,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 4,
+     "uiAbuse": false,
+     "realPictures": 1,
+     "videoCount": 0,
+     "uiPictures": 3,
+     "pictureSamples": [
+      "near-intelligence-2026-11-10.jpg"
+     ],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "$168.3M",
+     "words": 1,
+     "chars": 7,
+     "lines": 1,
+     "size": 56,
+     "vw": 7.3,
+     "font": "Geist",
+     "weight": 500,
+     "tracking": -0.06,
+     "leading": 1.08,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "center",
+     "widthRatio": 0.85,
+     "top": 758,
+     "tag": "p",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Across chains. With context.",
+     "words": 4,
+     "lines": 2,
+     "size": 54,
+     "font": "Geist"
+    },
+    "headings": [
+     {
+      "text": "Across chains. With context.",
+      "words": 4,
+      "chars": 28,
+      "lines": 2,
+      "size": 54,
+      "vw": 7,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.065,
+      "leading": 0.98,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.57,
+      "top": 157,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.3M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 56,
+      "vw": 7.3,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.85,
+      "top": 758,
+      "tag": "p",
+      "kind": "heading"
+     },
+     {
+      "text": "A quote is not a settlement.",
+      "words": 6,
+      "chars": 28,
+      "lines": 2,
+      "size": 56,
+      "vw": 7.3,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.53,
+      "top": 1429,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Read the source.",
+      "words": 3,
+      "chars": 16,
+      "lines": 1,
+      "size": 56,
+      "vw": 7.3,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.88,
+      "top": 2482,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.3M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 56,
+      "vw": 7.3,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.84,
+      "top": 2993,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "The details stay attached.",
+      "words": 4,
+      "chars": 26,
+      "lines": 1,
+      "size": 56,
+      "vw": 7.3,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.88,
+      "top": 4082,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Execution stays off.",
+      "words": 3,
+      "chars": 20,
+      "lines": 1,
+      "size": 56,
+      "vw": 7.3,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.59,
+      "top": 5104,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Good questions.",
+      "words": 2,
+      "chars": 15,
+      "lines": 1,
+      "size": 56,
+      "vw": 7.3,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.88,
+      "top": 5624,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Start with what can be verified.",
+      "words": 6,
+      "chars": 32,
+      "lines": 2,
+      "size": 56,
+      "vw": 7.3,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.5,
+      "top": 6245,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 9,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 1,
+     "centered": 0,
+     "medianWords": 4,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Geist",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      14,
+      17,
+      22,
+      54,
+      56
+     ],
+     "sizeCount": 5,
+     "notLoaded": [],
+     "body": {
+      "font": "Geist",
+      "size": 17,
+      "leading": 1.55,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 10.9
+     },
+     "measureChars": 74,
+     "max": {
+      "size": 56,
+      "vw": 7.3,
+      "font": "Geist",
+      "text": "$168.3M"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.01,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#0b100d",
+     "bodyBgHsl": {
+      "h": 144,
+      "s": 0.19,
+      "l": 0.05
+     },
+     "dark": true,
+     "sectionBgs": [
+      {
+       "color": "#151d18",
+       "top": 564,
+       "hsl": {
+        "h": 143,
+        "s": 0.16,
+        "l": 0.1
+       }
+      },
+      {
+       "color": "#121a15",
+       "top": 2378,
+       "hsl": {
+        "h": 143,
+        "s": 0.18,
+        "l": 0.09
+       }
+      },
+      {
+       "color": "#d1f77a",
+       "top": 5000,
+       "hsl": {
+        "h": 78,
+        "s": 0.89,
+        "l": 0.72
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#bdc6bd",
+       "share": 0.63
+      },
+      {
+       "color": "#f2f5ef",
+       "share": 0.15
+      },
+      {
+       "color": "#26331e",
+       "share": 0.08
+      },
+      {
+       "color": "#a0aba1",
+       "share": 0.08
+      },
+      {
+       "color": "#11170e",
+       "share": 0.03
+      }
+     ],
+     "button": {
+      "bg": "#d1f77a",
+      "hsl": {
+       "h": 78,
+       "s": 0.89,
+       "l": 0.72
+      },
+      "fg": "#11170e"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 6,
+     "inHero": 3,
+     "radius": 0,
+     "height": 52,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Skip to content",
+      "Open workspace ↗",
+      "Explore the workspace ↗"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 0,
+     "boxRadius": 0,
+     "squareMedia": 1,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [
+     {
+      "type": "svg",
+      "ratio": 0.11
+     }
+    ],
+    "nav": {
+     "links": 5,
+     "fixed": false,
+     "height": 92,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "geist"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "pageH": 6543,
+    "margins": {
+     "left": 32,
+     "right": 32
+    },
+    "sections": [
+     {
+      "sel": "section.hero.page-frame",
+      "tag": "section",
+      "top": 92,
+      "height": 1151,
+      "words": 104,
+      "media": 1,
+      "middle": 0,
+      "heading": {
+       "text": "Across chains.",
+       "size": 54,
+       "tag": "h1"
+      },
+      "left": 32,
+      "right": 56,
+      "textLeft": 32,
+      "textRight": 56,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section#workflow.workflow.section-space",
+      "tag": "section",
+      "top": 1311,
+      "height": 1066,
+      "words": 108,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "A quote is not a settlement.",
+       "size": 56,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 43,
+      "textLeft": 32,
+      "textRight": 43,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section#research.research.section-space",
+      "tag": "section",
+      "top": 2378,
+      "height": 1600,
+      "words": 100,
+      "media": 1,
+      "middle": 0,
+      "heading": {
+       "text": "Read the source.",
+       "size": 56,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 32,
+      "textLeft": 32,
+      "textRight": 73,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section.capabilities.section-space",
+      "tag": "section",
+      "top": 3978,
+      "height": 1022,
+      "words": 89,
+      "media": 0,
+      "middle": 17,
+      "heading": {
+       "text": "The details stay attached.",
+       "size": 56,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 32,
+      "textLeft": 32,
+      "textRight": 32,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section#limits.limits.section-space",
+      "tag": "section",
+      "top": 5000,
+      "height": 520,
+      "words": 56,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Execution stays off.",
+       "size": 56,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 113,
+      "textLeft": 32,
+      "textRight": 113,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section.questions.section-space",
+      "tag": "section",
+      "top": 5520,
+      "height": 657,
+      "words": 120,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Good questions.",
+       "size": 56,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 69,
+      "textLeft": 32,
+      "textRight": 69,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section.closing.page-frame",
+      "tag": "section",
+      "top": 6177,
+      "height": 250,
+      "words": 9,
+      "media": 0,
+      "middle": 89,
+      "heading": {
+       "text": "Start with what can be verified.",
+       "size": 56,
+       "tag": "h2"
+      },
+      "left": 70,
+      "right": 119,
+      "textLeft": 70,
+      "textRight": 119,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Across chains. With context.",
+      "size": 54,
+      "top": 157,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 32,
+      "n": 27
+     },
+     {
+      "x": 70,
+      "n": 1
+     },
+     {
+      "x": 493,
+      "n": 1
+     }
+    ],
+    "leftBlocks": 29,
+    "bodySize": 17,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": null,
+   "consoleErrors": []
+  },
+  {
+   "width": 390,
+   "height": 844,
+   "load": "load",
+   "screens": 8,
+   "filled": [
+    0.61,
+    0.67,
+    0.53,
+    0.93,
+    0.73,
+    0.56,
+    0.78,
+    0.66
+   ],
+   "motion": {
+    "elements": 24,
+    "css": 2,
+    "transitions": 22,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "page": {
+     "height": 6321,
+     "screens": 7.5,
+     "words": 505,
+     "img": 1,
+     "video": 0,
+     "canvas": 0,
+     "svg": 1,
+     "sections": 8,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 4,
+     "uiAbuse": false,
+     "realPictures": 1,
+     "videoCount": 0,
+     "uiPictures": 3,
+     "pictureSamples": [
+      "near-intelligence-2026-11-10.jpg"
+     ],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Across chains. With context.",
+     "words": 4,
+     "chars": 28,
+     "lines": 2,
+     "size": 40,
+     "vw": 10.3,
+     "font": "Geist",
+     "weight": 500,
+     "tracking": -0.065,
+     "leading": 0.98,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "center",
+     "widthRatio": 0.76,
+     "top": 171,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Across chains. With context.",
+     "words": 4,
+     "lines": 2,
+     "size": 40,
+     "font": "Geist"
+    },
+    "headings": [
+     {
+      "text": "Across chains. With context.",
+      "words": 4,
+      "chars": 28,
+      "lines": 2,
+      "size": 40,
+      "vw": 10.3,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.065,
+      "leading": 0.98,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.76,
+      "top": 171,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "NEAR, with its source",
+      "words": 4,
+      "chars": 21,
+      "lines": 1,
+      "size": 22,
+      "vw": 5.6,
+      "font": "Geist",
+      "weight": 600,
+      "tracking": -0.025,
+      "leading": 1.5,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.55,
+      "top": 584,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.3M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 39,
+      "vw": 10,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.82,
+      "top": 845,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "A quote is not a settlement.",
+      "words": 6,
+      "chars": 28,
+      "lines": 2,
+      "size": 36,
+      "vw": 9.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 1537,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Request",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 22,
+      "vw": 5.6,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.035,
+      "leading": 1.5,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.68,
+      "top": 1752,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Review",
+      "words": 1,
+      "chars": 6,
+      "lines": 1,
+      "size": 22,
+      "vw": 5.6,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.035,
+      "leading": 1.5,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.64,
+      "top": 1879,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Execute",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 22,
+      "vw": 5.6,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.035,
+      "leading": 1.5,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.64,
+      "top": 2032,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "No funds move here.",
+      "words": 4,
+      "chars": 19,
+      "lines": 1,
+      "size": 22,
+      "vw": 5.6,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.04,
+      "leading": 1.1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.81,
+      "top": 2289,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Read the source.",
+      "words": 3,
+      "chars": 16,
+      "lines": 1,
+      "size": 36,
+      "vw": 9.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 2660,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.3M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 39,
+      "vw": 10,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.08,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.82,
+      "top": 3040,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "The details stay attached.",
+      "words": 4,
+      "chars": 26,
+      "lines": 2,
+      "size": 36,
+      "vw": 9.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 3904,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Provider asset IDs",
+      "words": 3,
+      "chars": 18,
+      "lines": 1,
+      "size": 22,
+      "vw": 5.6,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.035,
+      "leading": 1.5,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 4022,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Exact quote amounts",
+      "words": 3,
+      "chars": 19,
+      "lines": 1,
+      "size": 22,
+      "vw": 5.6,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.035,
+      "leading": 1.5,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 4215,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Reproducible snapshots",
+      "words": 2,
+      "chars": 22,
+      "lines": 1,
+      "size": 22,
+      "vw": 5.6,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.035,
+      "leading": 1.5,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 4409,
+      "tag": "h3",
+      "kind": "heading"
+     },
+     {
+      "text": "Execution stays off.",
+      "words": 3,
+      "chars": 20,
+      "lines": 1,
+      "size": 36,
+      "vw": 9.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 4972,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Good questions.",
+      "words": 2,
+      "chars": 15,
+      "lines": 1,
+      "size": 36,
+      "vw": 9.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 5525,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Start with what can be verified.",
+      "words": 6,
+      "chars": 32,
+      "lines": 2,
+      "size": 36,
+      "vw": 9.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.06,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.79,
+      "top": 5990,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 17,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 3,
+     "centered": 0,
+     "medianWords": 3,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Geist",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      14,
+      17,
+      22,
+      36,
+      40
+     ],
+     "sizeCount": 5,
+     "notLoaded": [],
+     "body": {
+      "font": "Geist",
+      "size": 17,
+      "leading": 1.55,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 10.9
+     },
+     "measureChars": 42,
+     "max": {
+      "size": 40,
+      "vw": 10.3,
+      "font": "Geist",
+      "text": "Across chains."
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#0b100d",
+     "bodyBgHsl": {
+      "h": 144,
+      "s": 0.19,
+      "l": 0.05
+     },
+     "dark": true,
+     "sectionBgs": [
+      {
+       "color": "#151d18",
+       "top": 561,
+       "hsl": {
+        "h": 143,
+        "s": 0.16,
+        "l": 0.1
+       }
+      },
+      {
+       "color": "#121a15",
+       "top": 2578,
+       "hsl": {
+        "h": 143,
+        "s": 0.18,
+        "l": 0.09
+       }
+      },
+      {
+       "color": "#d1f77a",
+       "top": 4890,
+       "hsl": {
+        "h": 78,
+        "s": 0.89,
+        "l": 0.72
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#bdc6bd",
+       "share": 0.63
+      },
+      {
+       "color": "#f2f5ef",
+       "share": 0.15
+      },
+      {
+       "color": "#26331e",
+       "share": 0.08
+      },
+      {
+       "color": "#a0aba1",
+       "share": 0.08
+      },
+      {
+       "color": "#11170e",
+       "share": 0.03
+      }
+     ],
+     "button": {
+      "bg": "#d1f77a",
+      "hsl": {
+       "h": 78,
+       "s": 0.89,
+       "l": 0.72
+      },
+      "fg": "#11170e"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 6,
+     "inHero": 4,
+     "radius": 0,
+     "height": 52,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Skip to content",
+      "Open workspace ↗",
+      "Explore the workspace ↗",
+      "TVL"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 0,
+     "boxRadius": 0,
+     "squareMedia": 1,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 5,
+     "fixed": false,
+     "height": 115,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "geist"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "pageH": 6321,
+    "margins": {
+     "left": 16,
+     "right": 20
+    },
+    "sections": [
+     {
+      "sel": "section.hero.page-frame",
+      "tag": "section",
+      "top": 115,
+      "height": 1225,
+      "words": 104,
+      "media": 1,
+      "middle": 0,
+      "heading": {
+       "text": "Across chains.",
+       "size": 40,
+       "tag": "h1"
+      },
+      "left": 16,
+      "right": 35,
+      "textLeft": 16,
+      "textRight": 37,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#workflow.workflow.section-space",
+      "tag": "section",
+      "top": 1455,
+      "height": 1123,
+      "words": 108,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "A quote is not a settlement.",
+       "size": 36,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 20,
+      "textLeft": 16,
+      "textRight": 20,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#research.research.section-space",
+      "tag": "section",
+      "top": 2578,
+      "height": 1244,
+      "words": 100,
+      "media": 1,
+      "middle": 0,
+      "heading": {
+       "text": "$168.3M",
+       "size": 39,
+       "tag": "p"
+      },
+      "left": 16,
+      "right": 16,
+      "textLeft": 16,
+      "textRight": 23,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section.capabilities.section-space",
+      "tag": "section",
+      "top": 3822,
+      "height": 1067,
+      "words": 89,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "The details stay attached.",
+       "size": 36,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 25,
+      "textLeft": 16,
+      "textRight": 25,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#limits.limits.section-space",
+      "tag": "section",
+      "top": 4890,
+      "height": 553,
+      "words": 56,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Execution stays off.",
+       "size": 36,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 20,
+      "textLeft": 16,
+      "textRight": 20,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section.questions.section-space",
+      "tag": "section",
+      "top": 5443,
+      "height": 513,
+      "words": 120,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Good questions.",
+       "size": 36,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 20,
+      "textLeft": 16,
+      "textRight": 20,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section.closing.page-frame",
+      "tag": "section",
+      "top": 5956,
+      "height": 217,
+      "words": 9,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Start with what can be verified.",
+       "size": 36,
+       "tag": "h2"
+      },
+      "left": 40,
+      "right": 124,
+      "textLeft": 40,
+      "textRight": 124,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "footer.site-footer.page-frame",
+      "tag": "footer",
+      "top": 6173,
+      "height": 148,
+      "words": 12,
+      "media": 0,
+      "middle": 0,
+      "heading": null,
+      "left": 16,
+      "right": 144,
+      "textLeft": 16,
+      "textRight": 144,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Across chains. With context.",
+      "size": 40,
+      "top": 171,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 16,
+      "n": 28
+     },
+     {
+      "x": 40,
+      "n": 1
+     }
+    ],
+    "leftBlocks": 29,
+    "bodySize": 17,
+    "stage": false,
+    "explains": false,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": null,
+   "consoleErrors": []
+  }
+ ],
+ "findings": [
+  {
+   "level": "WARN",
+   "id": "no-real-pictures",
+   "width": 1440,
+   "message": "Only 1 real photograph(s) or clip(s); the rest are interface fragments.",
+   "fix": "Add two or more real pictures of the customer's world from scripts/assets.mjs, not stock of people at laptops."
+  },
+  {
+   "level": "WARN",
+   "id": "no-footage",
+   "width": 1440,
+   "message": "No video anywhere on the page.",
+   "fix": "Look for one honest clip with scripts/assets.mjs --video (the place, the material, the process) and use it as a muted loop with a poster frame. Defend its absence only if no clip fits the subject."
+  }
+ ],
+ "images": [
+  {
+   "viewport": "desktop",
+   "width": 1440,
+   "fold": "D:\\My Code\\Near\\.taste-skill\\after-landing-retheme-final\\desktop-fold.jpg",
+   "pages": [
+    "D:\\My Code\\Near\\.taste-skill\\after-landing-retheme-final\\desktop-page-01.jpg",
+    "D:\\My Code\\Near\\.taste-skill\\after-landing-retheme-final\\desktop-page-02.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "tablet",
+   "width": 768,
+   "fold": "D:\\My Code\\Near\\.taste-skill\\after-landing-retheme-final\\tablet-fold.jpg",
+   "pages": [
+    "D:\\My Code\\Near\\.taste-skill\\after-landing-retheme-final\\tablet-page-01.jpg",
+    "D:\\My Code\\Near\\.taste-skill\\after-landing-retheme-final\\tablet-page-02.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "mobile",
+   "width": 390,
+   "fold": "D:\\My Code\\Near\\.taste-skill\\after-landing-retheme-final\\mobile-fold.jpg",
+   "pages": [
+    "D:\\My Code\\Near\\.taste-skill\\after-landing-retheme-final\\mobile-page-01.jpg"
+   ],
+   "film": []
+  }
+ ]
+}

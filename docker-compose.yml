@@ -1,0 +1,32 @@
+services:
+  udi:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      API_HOST: 127.0.0.1
+      API_PORT: 8081
+      NEXT_HOST: 0.0.0.0
+      NEXT_PORT: 3000
+      UDI_API_ORIGIN: http://127.0.0.1:8081
+      DATA_FILE: /app/data/udi.json
+      DEMO_MODE: "false"
+      SWAP_QUOTE_MODE: ${SWAP_QUOTE_MODE:-demo}
+      ONECLICK_BASE_URL: ${ONECLICK_BASE_URL:-https://1click.chaindefuser.com}
+      ONECLICK_API_KEY: ${ONECLICK_API_KEY:-}
+      MARKET_DATA_MODE: ${MARKET_DATA_MODE:-fixture}
+      MARKET_DATA_TTL_SECONDS: ${MARKET_DATA_TTL_SECONDS:-300}
+      MARKET_DATA_TIMEOUT_MS: ${MARKET_DATA_TIMEOUT_MS:-10000}
+    volumes:
+      - udi-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  udi-data:

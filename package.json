@@ -1,0 +1,30 @@
+{
+  "name": "universal-defi-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env scripts/run-services.mjs dev",
+    "build": "next build",
+    "start": "node --env-file-if-exists=.env scripts/run-services.mjs start",
+    "start:web": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test",
+    "check": "npm run typecheck && node --check server.mjs && node --check lib/domain.mjs && node --check lib/repository.mjs && node --check lib/providers/nearoneclick.mjs && node --check lib/providers/defillama.mjs && node --test"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@defuse-protocol/one-click-sdk-typescript": "^0.1.26",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  }
+}

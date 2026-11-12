@@ -1,0 +1,2390 @@
+{
+ "url": "http://127.0.0.1:8091",
+ "at": "2026-11-10T17:02:58.277Z",
+ "allow": [],
+ "viewports": [
+  {
+   "width": 1440,
+   "height": 900,
+   "load": "load",
+   "screens": 6,
+   "filled": [
+    0.41,
+    0.2,
+    0.87,
+    0.53,
+    0.54,
+    0.46
+   ],
+   "motion": {
+    "elements": 22,
+    "css": 2,
+    "transitions": 20,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "page": {
+     "height": 4750,
+     "screens": 5.3,
+     "words": 494,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 1,
+     "sections": 8,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 3,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 3,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Know the route. Know the source.",
+     "words": 6,
+     "chars": 32,
+     "lines": 4,
+     "size": 69.1,
+     "vw": 4.8,
+     "font": "Geist",
+     "weight": 500,
+     "tracking": -0.055,
+     "leading": 1.02,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "left",
+     "widthRatio": 0.3,
+     "top": 214,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Know the route. Know the source.",
+     "words": 6,
+     "lines": 4,
+     "size": 69.1,
+     "font": "Geist"
+    },
+    "headings": [
+     {
+      "text": "Know the route. Know the source.",
+      "words": 6,
+      "chars": 32,
+      "lines": 4,
+      "size": 69.1,
+      "vw": 4.8,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.055,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.3,
+      "top": 214,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.8M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 50.4,
+      "vw": 3.5,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.055,
+      "leading": 1.18,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.42,
+      "top": 360,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "A quote is not a settlement.",
+      "words": 6,
+      "chars": 28,
+      "lines": 2,
+      "size": 59,
+      "vw": 4.1,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.47,
+      "top": 1101,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Read the number and the method.",
+      "words": 6,
+      "chars": 31,
+      "lines": 2,
+      "size": 59,
+      "vw": 4.1,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.36,
+      "top": 1976,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.8M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 59,
+      "vw": 4.1,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.055,
+      "leading": 1.12,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.42,
+      "top": 2064,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "The details stay attached.",
+      "words": 4,
+      "chars": 26,
+      "lines": 2,
+      "size": 59,
+      "vw": 4.1,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.33,
+      "top": 2755,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Useful now. Not custody-ready.",
+      "words": 4,
+      "chars": 30,
+      "lines": 2,
+      "size": 59,
+      "vw": 4.1,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.3,
+      "top": 3453,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Good questions.",
+      "words": 2,
+      "chars": 15,
+      "lines": 1,
+      "size": 59,
+      "vw": 4.1,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.31,
+      "top": 3966,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Start with what can be verified.",
+      "words": 6,
+      "chars": 32,
+      "lines": 2,
+      "size": 50.4,
+      "vw": 3.5,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.33,
+      "top": 4478,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 9,
+     "maxLines": 4,
+     "over2Lines": 1,
+     "statements": 2,
+     "centered": 0,
+     "medianWords": 4,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Geist",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      13,
+      14,
+      15,
+      17,
+      20,
+      21,
+      50,
+      59,
+      69
+     ],
+     "sizeCount": 9,
+     "notLoaded": [],
+     "body": {
+      "font": "Geist",
+      "size": 15,
+      "leading": 1.5,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 5.3
+     },
+     "measureChars": 66,
+     "max": {
+      "size": 69.1,
+      "vw": 4.8,
+      "font": "Geist",
+      "text": "Know the route."
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.01,
+     "smallText": 0
+    },
+    "eyebrows": [
+     {
+      "text": "A clear boundary",
+      "above": "A quote is not a settlement.",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 15,
+      "top": 1067
+     },
+     {
+      "text": "Research and execution, separate",
+      "above": "Start with what can be verified.",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 15,
+      "top": 4439
+     }
+    ],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#f2f4f7",
+     "bodyBgHsl": {
+      "h": 216,
+      "s": 0.24,
+      "l": 0.96
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#ffffff",
+       "top": 156,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      },
+      {
+       "color": "#e8edf4",
+       "top": 1788,
+       "hsl": {
+        "h": 215,
+        "s": 0.35,
+        "l": 0.93
+       }
+      },
+      {
+       "color": "#171b20",
+       "top": 3264,
+       "hsl": {
+        "h": 213,
+        "s": 0.16,
+        "l": 0.11
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#5f6670",
+       "share": 0.48
+      },
+      {
+       "color": "#111317",
+       "share": 0.15
+      },
+      {
+       "color": "#c8cdd4",
+       "share": 0.08
+      },
+      {
+       "color": "#1d5fbf",
+       "share": 0.05
+      },
+      {
+       "color": "#737b85",
+       "share": 0.04
+      }
+     ],
+     "button": {
+      "bg": "#111317",
+      "hsl": {
+       "h": 220,
+       "s": 0.15,
+       "l": 0.08
+      },
+      "fg": "#ffffff"
+     },
+     "lowContrast": [
+      {
+       "text": "A quote is an estimate. A deposit is not",
+       "ratio": 3.9,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#f2f4f7"
+      },
+      {
+       "text": "TVL is not available trading liquidity o",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 13,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Source",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Observed",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Method",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 6,
+     "inHero": 3,
+     "radius": 0,
+     "height": 50,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Skip to content",
+      "Open workspace ↗",
+      "Explore the workspace ↗"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 3,
+     "boxRadius": 10,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 5,
+     "fixed": false,
+     "height": 88,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "geist"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 1440,
+     "h": 900
+    },
+    "pageH": 4750,
+    "margins": {
+     "left": 60,
+     "right": 60
+    },
+    "sections": [
+     {
+      "sel": "section.hero.page-frame",
+      "tag": "section",
+      "top": 88,
+      "height": 768,
+      "words": 99,
+      "media": 1,
+      "middle": 133,
+      "heading": {
+       "text": "Know the route.",
+       "size": 69,
+       "tag": "h1"
+      },
+      "left": 60,
+      "right": 94,
+      "textLeft": 60,
+      "textRight": 94,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section#workflow.workflow.section-space",
+      "tag": "section",
+      "top": 923,
+      "height": 865,
+      "words": 111,
+      "media": 0,
+      "middle": 229,
+      "heading": {
+       "text": "A quote is not a settlement.",
+       "size": 59,
+       "tag": "h2"
+      },
+      "left": 60,
+      "right": 64,
+      "textLeft": 60,
+      "textRight": 64,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section#research.research.section-space",
+      "tag": "section",
+      "top": 1788,
+      "height": 779,
+      "words": 88,
+      "media": 0,
+      "middle": 157,
+      "heading": {
+       "text": "Read the number and the method.",
+       "size": 59,
+       "tag": "h2"
+      },
+      "left": 60,
+      "right": 111,
+      "textLeft": 60,
+      "textRight": 111,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": true
+     },
+     {
+      "sel": "section.capabilities.section-space",
+      "tag": "section",
+      "top": 2567,
+      "height": 698,
+      "words": 76,
+      "media": 0,
+      "middle": 248,
+      "heading": {
+       "text": "The details stay attached.",
+       "size": 59,
+       "tag": "h2"
+      },
+      "left": 60,
+      "right": 60,
+      "textLeft": 60,
+      "textRight": 60,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section#limits.limits.section-space",
+      "tag": "section",
+      "top": 3264,
+      "height": 514,
+      "words": 60,
+      "media": 0,
+      "middle": 366,
+      "heading": {
+       "text": "Useful now. Not custody-ready.",
+       "size": 59,
+       "tag": "h2"
+      },
+      "left": 60,
+      "right": 82,
+      "textLeft": 60,
+      "textRight": 82,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section.questions.section-space",
+      "tag": "section",
+      "top": 3778,
+      "height": 598,
+      "words": 123,
+      "media": 0,
+      "middle": 195,
+      "heading": {
+       "text": "Good questions.",
+       "size": 59,
+       "tag": "h2"
+      },
+      "left": 60,
+      "right": 150,
+      "textLeft": 60,
+      "textRight": 150,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section.closing.page-frame",
+      "tag": "section",
+      "top": 4376,
+      "height": 270,
+      "words": 13,
+      "media": 0,
+      "middle": 802,
+      "heading": {
+       "text": "Start with what can be verified.",
+       "size": 50,
+       "tag": "h2"
+      },
+      "left": 60,
+      "right": 108,
+      "textLeft": 60,
+      "textRight": 108,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [
+     {
+      "top": 1624,
+      "height": 304
+     }
+    ],
+    "h1s": [
+     {
+      "text": "Know the route. Know the source.",
+      "size": 69,
+      "top": 214,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 60,
+      "n": 10
+     },
+     {
+      "x": 656,
+      "n": 10
+     },
+     {
+      "x": 112,
+      "n": 5
+     },
+     {
+      "x": 816,
+      "n": 2
+     },
+     {
+      "x": 906,
+      "n": 1
+     }
+    ],
+    "leftBlocks": 28,
+    "bodySize": 15,
+    "stage": false,
+    "explains": true,
+    "slivers": [],
+    "voidShare": 0.1,
+    "voidBox": {
+     "x": 360,
+     "y": 120,
+     "w": 360,
+     "h": 360
+    }
+   },
+   "app": null,
+   "consoleErrors": []
+  },
+  {
+   "width": 768,
+   "height": 1024,
+   "load": "load",
+   "screens": 5,
+   "filled": [
+    0.47,
+    0.51,
+    0.53,
+    0.71,
+    0.56
+   ],
+   "motion": {
+    "elements": 22,
+    "css": 2,
+    "transitions": 20,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "page": {
+     "height": 4511,
+     "screens": 4.4,
+     "words": 494,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 1,
+     "sections": 8,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 3,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 2,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Know the route. Know the source.",
+     "words": 6,
+     "chars": 32,
+     "lines": 4,
+     "size": 39.2,
+     "vw": 5.1,
+     "font": "Geist",
+     "weight": 500,
+     "tracking": -0.055,
+     "leading": 1.02,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "left",
+     "widthRatio": 0.32,
+     "top": 234,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Know the route. Know the source.",
+     "words": 6,
+     "lines": 4,
+     "size": 39.2,
+     "font": "Geist"
+    },
+    "headings": [
+     {
+      "text": "Know the route. Know the source.",
+      "words": 6,
+      "chars": 32,
+      "lines": 4,
+      "size": 39.2,
+      "vw": 5.1,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.055,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.32,
+      "top": 234,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.8M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 34.4,
+      "vw": 4.5,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.055,
+      "leading": 1.18,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.45,
+      "top": 390,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "A quote is not a settlement.",
+      "words": 6,
+      "chars": 28,
+      "lines": 2,
+      "size": 34.4,
+      "vw": 4.5,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.51,
+      "top": 1112,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "No funds move here.",
+      "words": 4,
+      "chars": 19,
+      "lines": 2,
+      "size": 26,
+      "vw": 3.4,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.04,
+      "leading": 1.1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.28,
+      "top": 1310,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Read the number and the method.",
+      "words": 6,
+      "chars": 31,
+      "lines": 3,
+      "size": 34.4,
+      "vw": 4.5,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.27,
+      "top": 1906,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.8M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 36,
+      "vw": 4.7,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.055,
+      "leading": 1.12,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.44,
+      "top": 1982,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "The details stay attached.",
+      "words": 4,
+      "chars": 26,
+      "lines": 2,
+      "size": 34.4,
+      "vw": 4.5,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.33,
+      "top": 2599,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Useful now. Not custody-ready.",
+      "words": 4,
+      "chars": 30,
+      "lines": 2,
+      "size": 34.4,
+      "vw": 4.5,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.33,
+      "top": 3266,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Good questions.",
+      "words": 2,
+      "chars": 15,
+      "lines": 1,
+      "size": 34.4,
+      "vw": 4.5,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.31,
+      "top": 3787,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Start with what can be verified.",
+      "words": 6,
+      "chars": 32,
+      "lines": 2,
+      "size": 32,
+      "vw": 4.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.39,
+      "top": 4258,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 10,
+     "maxLines": 4,
+     "over2Lines": 2,
+     "statements": 3,
+     "centered": 0,
+     "medianWords": 4,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Geist",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      13,
+      14,
+      15,
+      17,
+      18,
+      20,
+      21,
+      32,
+      34,
+      39
+     ],
+     "sizeCount": 10,
+     "notLoaded": [],
+     "body": {
+      "font": "Geist",
+      "size": 15,
+      "leading": 1.5,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 5.3
+     },
+     "measureChars": 35,
+     "max": {
+      "size": 39.2,
+      "vw": 5.1,
+      "font": "Geist",
+      "text": "Know the route."
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0.01,
+     "smallText": 0
+    },
+    "eyebrows": [
+     {
+      "text": "A clear boundary",
+      "above": "A quote is not a settlement.",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 15,
+      "top": 1022
+     },
+     {
+      "text": "Research and execution, separate",
+      "above": "Start with what can be verified.",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 15,
+      "top": 4219
+     }
+    ],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#f2f4f7",
+     "bodyBgHsl": {
+      "h": 216,
+      "s": 0.24,
+      "l": 0.96
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#ffffff",
+       "top": 146,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      },
+      {
+       "color": "#e8edf4",
+       "top": 1777,
+       "hsl": {
+        "h": 215,
+        "s": 0.35,
+        "l": 0.93
+       }
+      },
+      {
+       "color": "#171b20",
+       "top": 3138,
+       "hsl": {
+        "h": 213,
+        "s": 0.16,
+        "l": 0.11
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#5f6670",
+       "share": 0.48
+      },
+      {
+       "color": "#111317",
+       "share": 0.15
+      },
+      {
+       "color": "#c8cdd4",
+       "share": 0.08
+      },
+      {
+       "color": "#1d5fbf",
+       "share": 0.05
+      },
+      {
+       "color": "#737b85",
+       "share": 0.04
+      }
+     ],
+     "button": {
+      "bg": "#111317",
+      "hsl": {
+       "h": 220,
+       "s": 0.15,
+       "l": 0.08
+      },
+      "fg": "#ffffff"
+     },
+     "lowContrast": [
+      {
+       "text": "A quote is an estimate. A deposit is not",
+       "ratio": 3.9,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#f2f4f7"
+      },
+      {
+       "text": "TVL is not available trading liquidity o",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 13,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Source",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Observed",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Method",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 6,
+     "inHero": 3,
+     "radius": 0,
+     "height": 50,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Skip to content",
+      "Open workspace ↗",
+      "Explore the workspace ↗"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 3,
+     "boxRadius": 10,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 5,
+     "fixed": false,
+     "height": 88,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "geist"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 768,
+     "h": 1024
+    },
+    "pageH": 4511,
+    "margins": {
+     "left": 32,
+     "right": 32
+    },
+    "sections": [
+     {
+      "sel": "section.hero.page-frame",
+      "tag": "section",
+      "top": 88,
+      "height": 783,
+      "words": 99,
+      "media": 1,
+      "middle": 60,
+      "heading": {
+       "text": "Know the route.",
+       "size": 39,
+       "tag": "h1"
+      },
+      "left": 32,
+      "right": 88,
+      "textLeft": 32,
+      "textRight": 88,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section#workflow.workflow.section-space",
+      "tag": "section",
+      "top": 938,
+      "height": 840,
+      "words": 111,
+      "media": 0,
+      "middle": 67,
+      "heading": {
+       "text": "A quote is not a settlement.",
+       "size": 34,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 51,
+      "textLeft": 32,
+      "textRight": 51,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section#research.research.section-space",
+      "tag": "section",
+      "top": 1777,
+      "height": 693,
+      "words": 88,
+      "media": 0,
+      "middle": 92,
+      "heading": {
+       "text": "$168.8M",
+       "size": 36,
+       "tag": "p"
+      },
+      "left": 32,
+      "right": 105,
+      "textLeft": 32,
+      "textRight": 105,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": true
+     },
+     {
+      "sel": "section.capabilities.section-space",
+      "tag": "section",
+      "top": 2470,
+      "height": 668,
+      "words": 76,
+      "media": 0,
+      "middle": 115,
+      "heading": {
+       "text": "The details stay attached.",
+       "size": 34,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 32,
+      "textLeft": 32,
+      "textRight": 32,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section#limits.limits.section-space",
+      "tag": "section",
+      "top": 3138,
+      "height": 521,
+      "words": 60,
+      "media": 0,
+      "middle": 176,
+      "heading": {
+       "text": "Useful now. Not custody-ready.",
+       "size": 34,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 43,
+      "textLeft": 32,
+      "textRight": 43,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section.questions.section-space",
+      "tag": "section",
+      "top": 3659,
+      "height": 478,
+      "words": 123,
+      "media": 0,
+      "middle": 94,
+      "heading": {
+       "text": "Good questions.",
+       "size": 34,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 91,
+      "textLeft": 32,
+      "textRight": 91,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "section.closing.page-frame",
+      "tag": "section",
+      "top": 4137,
+      "height": 270,
+      "words": 13,
+      "media": 0,
+      "middle": 275,
+      "heading": {
+       "text": "Start with what can be verified.",
+       "size": 32,
+       "tag": "h2"
+      },
+      "left": 32,
+      "right": 80,
+      "textLeft": 32,
+      "textRight": 80,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Know the route. Know the source.",
+      "size": 39,
+      "top": 234,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 32,
+      "n": 10
+     },
+     {
+      "x": 350,
+      "n": 10
+     },
+     {
+      "x": 84,
+      "n": 5
+     },
+     {
+      "x": 435,
+      "n": 2
+     },
+     {
+      "x": 493,
+      "n": 1
+     }
+    ],
+    "leftBlocks": 28,
+    "bodySize": 15,
+    "stage": false,
+    "explains": true,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": null,
+   "consoleErrors": []
+  },
+  {
+   "width": 390,
+   "height": 844,
+   "load": "load",
+   "screens": 7,
+   "filled": [
+    0.56,
+    0.64,
+    0.47,
+    1,
+    0.54,
+    0.69,
+    0.64
+   ],
+   "motion": {
+    "elements": 22,
+    "css": 2,
+    "transitions": 20,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "page": {
+     "height": 5857,
+     "screens": 6.9,
+     "words": 494,
+     "img": 0,
+     "video": 0,
+     "canvas": 0,
+     "svg": 1,
+     "sections": 8,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 3,
+     "uiAbuse": false,
+     "realPictures": 0,
+     "videoCount": 0,
+     "uiPictures": 3,
+     "pictureSamples": [],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "Know the route. Know the source.",
+     "words": 6,
+     "chars": 32,
+     "lines": 2,
+     "size": 32.8,
+     "vw": 8.4,
+     "font": "Geist",
+     "weight": 500,
+     "tracking": -0.055,
+     "leading": 1.02,
+     "upper": false,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "center",
+     "widthRatio": 0.92,
+     "top": 179,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "Know the route. Know the source.",
+     "words": 6,
+     "lines": 2,
+     "size": 32.8,
+     "font": "Geist"
+    },
+    "headings": [
+     {
+      "text": "Know the route. Know the source.",
+      "words": 6,
+      "chars": 32,
+      "lines": 2,
+      "size": 32.8,
+      "vw": 8.4,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.055,
+      "leading": 1.02,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 179,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.8M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 35.1,
+      "vw": 9,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.055,
+      "leading": 1.18,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.83,
+      "top": 822,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "A quote is not a settlement.",
+      "words": 6,
+      "chars": 28,
+      "lines": 2,
+      "size": 32,
+      "vw": 8.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 1524,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "No funds move here.",
+      "words": 4,
+      "chars": 19,
+      "lines": 1,
+      "size": 26,
+      "vw": 6.7,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.04,
+      "leading": 1.1,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.81,
+      "top": 2297,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "Read the number and the method.",
+      "words": 6,
+      "chars": 31,
+      "lines": 2,
+      "size": 32,
+      "vw": 8.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 2675,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "$168.8M",
+      "words": 1,
+      "chars": 7,
+      "lines": 1,
+      "size": 35.1,
+      "vw": 9,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.055,
+      "leading": 1.12,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.83,
+      "top": 3073,
+      "tag": "p",
+      "kind": "statement"
+     },
+     {
+      "text": "The details stay attached.",
+      "words": 4,
+      "chars": 26,
+      "lines": 1,
+      "size": 32,
+      "vw": 8.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 3660,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Useful now. Not custody-ready.",
+      "words": 4,
+      "chars": 30,
+      "lines": 2,
+      "size": 32,
+      "vw": 8.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.72,
+      "top": 4458,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Good questions.",
+      "words": 2,
+      "chars": 15,
+      "lines": 1,
+      "size": 32,
+      "vw": 8.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.92,
+      "top": 5041,
+      "tag": "h2",
+      "kind": "heading"
+     },
+     {
+      "text": "Start with what can be verified.",
+      "words": 6,
+      "chars": 32,
+      "lines": 2,
+      "size": 32,
+      "vw": 8.2,
+      "font": "Geist",
+      "weight": 500,
+      "tracking": -0.05,
+      "leading": 1.04,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.88,
+      "top": 5541,
+      "tag": "h2",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 10,
+     "maxLines": 2,
+     "over2Lines": 0,
+     "statements": 3,
+     "centered": 0,
+     "medianWords": 4,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "Geist",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      13,
+      14,
+      15,
+      16,
+      18,
+      19,
+      32,
+      33
+     ],
+     "sizeCount": 8,
+     "notLoaded": [],
+     "body": {
+      "font": "Geist",
+      "size": 15,
+      "leading": 1.5,
+      "weight": 400,
+      "tracking": 0,
+      "contrast": 5.3
+     },
+     "measureChars": 45,
+     "max": {
+      "size": 35.1,
+      "vw": 9,
+      "font": "Geist",
+      "text": "$168.8M"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0,
+     "centerShare": 0,
+     "smallText": 0
+    },
+    "eyebrows": [
+     {
+      "text": "A clear boundary",
+      "above": "A quote is not a settlement.",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 15,
+      "top": 1485
+     },
+     {
+      "text": "Evidence, not a verdict",
+      "above": "Read the number and the method.",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 15,
+      "top": 2630
+     },
+     {
+      "text": "Built for inspection",
+      "above": "The details stay attached.",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 15,
+      "top": 3616
+     },
+     {
+      "text": "Before you connect",
+      "above": "Useful now. Not custody-ready.",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 15,
+      "top": 4414
+     },
+     {
+      "text": "Before the workspace",
+      "above": "Good questions.",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 15,
+      "top": 4997
+     },
+     {
+      "text": "Research and execution, separate",
+      "above": "Start with what can be verified.",
+      "upper": false,
+      "tracked": false,
+      "mono": false,
+      "pill": false,
+      "size": 15,
+      "top": 5502
+     }
+    ],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#f2f4f7",
+     "bodyBgHsl": {
+      "h": 216,
+      "s": 0.24,
+      "l": 0.96
+     },
+     "dark": false,
+     "sectionBgs": [
+      {
+       "color": "#ffffff",
+       "top": 545,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 1
+       }
+      },
+      {
+       "color": "#e8edf4",
+       "top": 2552,
+       "hsl": {
+        "h": 215,
+        "s": 0.35,
+        "l": 0.93
+       }
+      },
+      {
+       "color": "#171b20",
+       "top": 4336,
+       "hsl": {
+        "h": 213,
+        "s": 0.16,
+        "l": 0.11
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#5f6670",
+       "share": 0.48
+      },
+      {
+       "color": "#111317",
+       "share": 0.15
+      },
+      {
+       "color": "#c8cdd4",
+       "share": 0.08
+      },
+      {
+       "color": "#1d5fbf",
+       "share": 0.05
+      },
+      {
+       "color": "#737b85",
+       "share": 0.04
+      }
+     ],
+     "button": {
+      "bg": "#111317",
+      "hsl": {
+       "h": 220,
+       "s": 0.15,
+       "l": 0.08
+      },
+      "fg": "#ffffff"
+     },
+     "lowContrast": [
+      {
+       "text": "A quote is an estimate. A deposit is not",
+       "ratio": 3.9,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#f2f4f7"
+      },
+      {
+       "text": "TVL is not available trading liquidity o",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 13,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Source",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Observed",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      },
+      {
+       "text": "Method",
+       "ratio": 4.3,
+       "need": 4.5,
+       "size": 14,
+       "fg": "#737b85",
+       "bg": "#ffffff"
+      }
+     ]
+    },
+    "buttons": {
+     "count": 6,
+     "inHero": 4,
+     "radius": 0,
+     "height": 48,
+     "withShadow": 0,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "Skip to content",
+      "Open workspace ↗",
+      "Explore the workspace ↗",
+      "TVL"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 0,
+     "shadowOverlay": 0,
+     "shadowSamples": [],
+     "gradients": 0,
+     "scrims": 0,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 3,
+     "boxRadius": 10,
+     "squareMedia": 0,
+     "roundedMedia": 0,
+     "mediaRadius": 0,
+     "textShadow": 0,
+     "cardRows": []
+    },
+    "heroMedia": [],
+    "nav": {
+     "links": 5,
+     "fixed": false,
+     "height": 113,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": [
+     "geist"
+    ]
+   },
+   "layout": {
+    "viewport": {
+     "w": 390,
+     "h": 844
+    },
+    "pageH": 5857,
+    "margins": {
+     "left": 16,
+     "right": 22
+    },
+    "sections": [
+     {
+      "sel": "section.hero.page-frame",
+      "tag": "section",
+      "top": 113,
+      "height": 1177,
+      "words": 99,
+      "media": 1,
+      "middle": 0,
+      "heading": {
+       "text": "Know the route.",
+       "size": 33,
+       "tag": "h1"
+      },
+      "left": 16,
+      "right": 34,
+      "textLeft": 16,
+      "textRight": 34,
+      "fullBleed": false,
+      "footer": false,
+      "hero": true,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#workflow.workflow.section-space",
+      "tag": "section",
+      "top": 1407,
+      "height": 1146,
+      "words": 111,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "A quote is not a settlement.",
+       "size": 32,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 22,
+      "textLeft": 16,
+      "textRight": 22,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#research.research.section-space",
+      "tag": "section",
+      "top": 2552,
+      "height": 985,
+      "words": 88,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "$168.8M",
+       "size": 35,
+       "tag": "p"
+      },
+      "left": 16,
+      "right": 35,
+      "textLeft": 16,
+      "textRight": 35,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section.capabilities.section-space",
+      "tag": "section",
+      "top": 3538,
+      "height": 798,
+      "words": 76,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "The details stay attached.",
+       "size": 32,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 22,
+      "textLeft": 16,
+      "textRight": 22,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section#limits.limits.section-space",
+      "tag": "section",
+      "top": 4336,
+      "height": 583,
+      "words": 60,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Useful now. Not custody-ready.",
+       "size": 32,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 23,
+      "textLeft": 16,
+      "textRight": 23,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section.questions.section-space",
+      "tag": "section",
+      "top": 4919,
+      "height": 548,
+      "words": 123,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Good questions.",
+       "size": 32,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 40,
+      "textLeft": 16,
+      "textRight": 40,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "section.closing.page-frame",
+      "tag": "section",
+      "top": 5467,
+      "height": 249,
+      "words": 13,
+      "media": 0,
+      "middle": 0,
+      "heading": {
+       "text": "Start with what can be verified.",
+       "size": 32,
+       "tag": "h2"
+      },
+      "left": 16,
+      "right": 138,
+      "textLeft": 16,
+      "textRight": 138,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": true,
+      "pinned": false
+     },
+     {
+      "sel": "footer.site-footer.page-frame",
+      "tag": "footer",
+      "top": 5716,
+      "height": 141,
+      "words": 12,
+      "media": 0,
+      "middle": 0,
+      "heading": null,
+      "left": 16,
+      "right": 144,
+      "textLeft": 16,
+      "textRight": 144,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "Know the route. Know the source.",
+      "size": 33,
+      "top": 179,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [],
+    "edges": [
+     {
+      "x": 16,
+      "n": 19
+     },
+     {
+      "x": 54,
+      "n": 5
+     },
+     {
+      "x": 32,
+      "n": 4
+     }
+    ],
+    "leftBlocks": 28,
+    "bodySize": 15,
+    "stage": false,
+    "explains": true,
+    "slivers": [],
+    "voidShare": 0,
+    "voidBox": null
+   },
+   "app": null,
+   "consoleErrors": []
+  }
+ ],
+ "findings": [
+  {
+   "level": "FAIL",
+   "id": "headline-lines",
+   "width": 1440,
+   "message": "1 headline(s) wrap past two lines at 1440px: \"Know the route. Know the source.\" → 4 lines (6 words, 69.1px)",
+   "fix": "Cut words first (a headline is a title, not a sentence). Then give it a wider measure. Lower the size only as a last resort and never below the scale you chose. A real statement paragraph belongs in a <p> or <blockquote> at 36px or less."
+  },
+  {
+   "level": "FAIL",
+   "id": "eyebrow",
+   "width": 1440,
+   "message": "2 eyebrow/kicker label(s) above headings: \"A clear boundary\" above \"A quote is not a settlement.\"; \"Research and execution, separate\" above \"Start with what can be verified.\"",
+   "fix": "Delete them. If the label carried real information, fold it into the headline or the supporting sentence.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "contrast",
+   "width": 1440,
+   "message": "Low-contrast text: \"A quote is an estimate. A deposit is not\" 3.9:1 needs 4.5:1; \"TVL is not available trading liquidity o\" 4.3:1 needs 4.5:1; \"Source\" 4.3:1 needs 4.5:1; \"Observed\" 4.3:1 needs 4.5:1",
+   "fix": "Darken or lighten the text colour.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "body-size",
+   "width": 1440,
+   "message": "Body text is 15px.",
+   "fix": "Body copy 16–20px.",
+   "alsoAt": [
+    768
+   ]
+  },
+  {
+   "level": "WARN",
+   "id": "grey-body",
+   "width": 1440,
+   "message": "The running text is a soft grey on its ground (5.3:1).",
+   "fix": "Set body copy in the full ink (7:1 or more). Keep the muted ink for secondary notes; pages read thin and unfinished when everything is grey.",
+   "alsoAt": [
+    768,
+    390
+   ]
+  },
+  {
+   "level": "FAIL",
+   "id": "few-pictures",
+   "width": 1440,
+   "message": "Only 3 picture(s) on the page (0 photographs, footage or raster images, 3 interface fragments). Drawings in SVG do not count.",
+   "fix": "Find real pictures of the subject's world with scripts/assets.mjs (photographs, archival images, maps, engravings, footage), download them to assets/ and give them room: a hero picture, one per section that has a subject, a full-width band. At least four, usually six to twelve."
+  },
+  {
+   "level": "WARN",
+   "id": "no-footage",
+   "width": 1440,
+   "message": "No video anywhere on the page.",
+   "fix": "Look for one honest clip with scripts/assets.mjs --video (the place, the material, the process) and use it as a muted loop with a poster frame. Defend its absence only if no clip fits the subject."
+  },
+  {
+   "level": "FAIL",
+   "id": "headline-lines",
+   "width": 768,
+   "message": "2 headline(s) wrap past two lines at 768px: \"Know the route. Know the source.\" → 4 lines (6 words, 39.2px); \"Read the number and the method.\" → 3 lines (6 words, 34.4px)",
+   "fix": "Cut words first (a headline is a title, not a sentence). Then give it a wider measure. Lower the size only as a last resort and never below the scale you chose. A real statement paragraph belongs in a <p> or <blockquote> at 32px or less."
+  },
+  {
+   "level": "WARN",
+   "id": "size-count",
+   "width": 768,
+   "message": "10 different font sizes (13, 14, 15, 17, 18, 20, 21, 32, 34, 39).",
+   "fix": "A page needs about five: display, heading, lead, body, small."
+  }
+ ],
+ "images": [
+  {
+   "viewport": "desktop",
+   "width": 1440,
+   "fold": "D:\\My Code\\Near\\.taste-skill\\followup\\landing\\inspect-1\\desktop-fold.jpg",
+   "pages": [
+    "D:\\My Code\\Near\\.taste-skill\\followup\\landing\\inspect-1\\desktop-page-01.jpg",
+    "D:\\My Code\\Near\\.taste-skill\\followup\\landing\\inspect-1\\desktop-page-02.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "tablet",
+   "width": 768,
+   "fold": "D:\\My Code\\Near\\.taste-skill\\followup\\landing\\inspect-1\\tablet-fold.jpg",
+   "pages": [
+    "D:\\My Code\\Near\\.taste-skill\\followup\\landing\\inspect-1\\tablet-page-01.jpg"
+   ],
+   "film": []
+  },
+  {
+   "viewport": "mobile",
+   "width": 390,
+   "fold": "D:\\My Code\\Near\\.taste-skill\\followup\\landing\\inspect-1\\mobile-fold.jpg",
+   "pages": [
+    "D:\\My Code\\Near\\.taste-skill\\followup\\landing\\inspect-1\\mobile-page-01.jpg"
+   ],
+   "film": []
+  }
+ ]
+}

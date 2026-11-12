@@ -1,0 +1,173 @@
+openapi: 3.1.0
+info:
+  title: Universal DeFi Intelligence Local API
+  version: 0.1.0
+  description: Local API with fixture data, optional DeFiLlama public analytics, and optional NEAR Intents 1Click catalogue/dry quotes. This API never builds or broadcasts transactions.
+servers:
+  - url: http://127.0.0.1:8081
+paths:
+  /api/v1/health:
+    get:
+      summary: Local process health and configured data modes
+      responses:
+        "200":
+          description: Includes quoteMode, marketDataMode, liveQuotesConfigured, and executionEnabled=false. Never includes credentials.
+  /api/v1/chains:
+    get:
+      summary: Configured chain registry
+      responses:
+        "200":
+          description: Chain flags, with wallet and swap support disabled.
+  /api/v1/assets:
+    get:
+      summary: Fixture catalogue or current 1Click provider catalogue
+      parameters:
+        - in: query
+          name: chain
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Fixture IDs in demo mode; exact provider asset IDs in live mode. Catalogue presence does not guarantee a route.
+        "503":
+          description: Provider catalogue unavailable.
+  /api/v1/markets/overview:
+    get:
+      summary: Fixture overview or optional live NEAR ecosystem analytics
+      parameters:
+        - in: query
+          name: refresh
+          description: Set to true to bypass the live market-data cache.
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Fixture metrics or live DeFiLlama metrics with source, retrieval time, status, and methodology version.
+        "503":
+          description: Live provider adapter is not configured.
+  /api/v1/intelligence/near:
+    get:
+      summary: Fixture or live NEAR metric dictionary
+      responses:
+        "200":
+          description: Fixture values or the cached live DeFiLlama snapshot. Missing observations remain null and are not replaced with fixtures.
+  /api/v1/research/scenarios:
+    get:
+      summary: Scenario assumptions and formula
+      responses:
+        "200":
+          description: Fictional assumptions for reproducible UI calculation.
+  /api/v1/activity:
+    get:
+      summary: Local simulation history
+      responses:
+        "200":
+          description: Saved local simulation records.
+  /api/v1/quotes:
+    post:
+      summary: Create a demo estimate or live provider dry quote
+      description: In live mode, requests only dry=true exact-input quotes. No deposit address or executable transaction is returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [originAssetId, destinationAssetId, amountIn]
+              properties:
+                originAssetId:
+                  type: string
+                destinationAssetId:
+                  type: string
+                amountIn:
+                  type: string
+                  pattern: "^\\d+(\\.\\d+)?$"
+                  description: Human decimal amount; server converts using selected asset decimals.
+                recipient:
+                  type: string
+                  maxLength: 256
+                  description: Required in live mode; passed to provider and not chain-wallet validated.
+                refundTo:
+                  type: string
+                  maxLength: 256
+                  description: Required in live mode; passed to provider and not chain-wallet validated.
+                slippageBps:
+                  type: integer
+                  minimum: 0
+                  maximum: 5000
+                  default: 100
+      responses:
+        "200":
+          description: Live provider dry quote with no deposit instructions.
+        "201":
+          description: Local fixture estimate; no deposit instructions are returned.
+        "400":
+          description: Invalid asset, amount, or precision.
+        "502":
+          description: Provider unavailable, malformed, or invalid response.
+        "503":
+          description: Provider credentials are not configured, provider is rate-limited, or demo writes are disabled.
+  /api/v1/swaps:
+    post:
+      summary: Create a local simulation record
+      description: Demo mode only. Fails closed in live quote mode; does not execute a provider quote.
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quoteId]
+              properties:
+                quoteId:
+                  type: string
+      responses:
+        "200":
+          description: Existing record returned for a repeated idempotency key.
+        "201":
+          description: New QUOTE_READY simulation record.
+        "400":
+          description: Missing idempotency key or expired quote.
+        "503":
+          description: Live execution is disabled or demo writes are disabled.
+  /api/v1/swaps/{id}:
+    get:
+      summary: Get a local simulation record
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Simulation state and event history.
+        "404":
+          description: Record not found.
+  /api/v1/swaps/{id}/simulate:
+    post:
+      summary: Advance a local-only demo lifecycle
+      description: Disabled in live quote mode; this endpoint never submits deposits or provider status.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: One simulated transition; this is not provider settlement.
+        "503":
+          description: Live execution is unavailable.
+        "400":
+          description: Simulation is already in its final state.
+        "503":
+          description: Live execution is unavailable or demo mode is disabled.
