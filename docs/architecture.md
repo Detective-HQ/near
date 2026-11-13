@@ -35,6 +35,10 @@ The JSON repository is suitable only for a single-instance local prototype. It h
 - Simulation states are prefixed with `SIMULATED_` or `SIMULATION_`; `realSettlement` remains false for them.
 - The DeFiLlama integration is read-only. It does not provide active-account/transaction indexing, portfolio balances, persisted snapshots, or a live investment model.
 
+## Go backend migration
+
+The Go services under `backend/` are being built alongside the prototype. Phase 1–3 cover the domain/state machine, PostgreSQL migrations and repositories, Redis cache/locks, and the worker daemon (poller, retry policy, stuck handling, catalogue refresh, health). Phase 4 adds `internal/swap/providers`: a provider-agnostic `Adapter` contract, the hardened 1Click HTTP client (`nearoneclick`), and an `alternative` fallback stub composed through `providers.Chain`. Provider credentials stay in the worker/API process; quote signatures are verified with `ONECLICK_QUOTE_PUBLIC_KEY`, and a missing key is reported as `signatureVerified=false` instead of silently trusting the quote. The HTTP API and swap orchestration service (Phases 6 and 8) are not implemented yet.
+
 ## Production boundary
 
 The original product direction calls for a Go API, PostgreSQL, Redis-backed workers, multiple chain-specific wallet clients, provider adapters, and separate analytics connectors. This prototype currently uses Next.js, a Node API, and local JSON persistence. It does not have PostgreSQL, Redis, a durable worker, user auth/ownership, broad-chain wallet integrations, or production monitoring. Split these concerns into independently deployable web, API, worker, and analytics services before production. Keep provider payloads behind adapters and retain the original provider status alongside a versioned internal state mapping.

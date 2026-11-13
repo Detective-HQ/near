@@ -27,6 +27,9 @@ import (
 	"universal-defi-intelligence/internal/config"
 	"universal-defi-intelligence/internal/storage/postgres"
 	rediscache "universal-defi-intelligence/internal/storage/redis"
+	"universal-defi-intelligence/internal/swap/providers"
+	"universal-defi-intelligence/internal/swap/providers/alternative"
+	"universal-defi-intelligence/internal/swap/providers/nearoneclick"
 	"universal-defi-intelligence/internal/swap/repository"
 	"universal-defi-intelligence/internal/worker"
 )
@@ -71,13 +74,29 @@ func run() error {
 		defer func() { _ = cache.Close() }()
 	}
 
-	// Phase 4 replaces this placeholder with the authenticated 1Click adapter.
-	// Until then the worker runs but every provider call reports
-	// PROVIDER_NOT_CONFIGURED, and polling stays paused rather than failing swaps.
-	provider := worker.NewUnavailableProvider("oneclick")
-	if cfg.OneClick.JWT != "" {
-		logger.Warn("ONECLICK_JWT is configured but the provider adapter is not implemented yet; polling stays paused")
+	oneclick, err := nearoneclick.New(nearoneclick.Config{
+		BaseURL:          cfg.OneClick.BaseURL,
+		JWT:              cfg.OneClick.JWT,
+		Timeout:          cfg.OneClick.Timeout,
+		MaxResponseBytes: cfg.OneClick.MaxResponseBytes,
+		QuotePublicKey:   cfg.OneClick.QuotePublicKey,
+		Logger:           logger,
+	})
+	if err != nil {
+		return fmt.Errorf("configure 1click provider: %w", err)
 	}
+	if cfg.OneClick.JWT == "" {
+		logger.Warn("ONECLICK_JWT is not configured; provider status polling stays paused")
+	}
+	if cfg.OneClick.QuotePublicKey == "" {
+		logger.Warn("ONECLICK_QUOTE_PUBLIC_KEY is not configured; quote signatures cannot be verified")
+	}
+
+	// The 1Click adapter is primary. The alternative stub is a real fallback
+	// entry that reports NO_ROUTE until another provider is integrated.
+	chain := providers.NewChain(oneclick, alternative.New())
+	logger.Info("provider fallback chain configured", "providers", chain.JoinNames())
+	provider := worker.NewAdapterProvider(chain)
 
 	health := worker.NewHealth()
 

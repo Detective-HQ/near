@@ -60,15 +60,22 @@ const (
 	CodeQuoteExpired Code = "QUOTE_EXPIRED"
 
 	// Provider errors.
-	CodeProviderNotConfigured   Code = "PROVIDER_NOT_CONFIGURED"
-	CodeProviderAuthFailed      Code = "PROVIDER_AUTH_FAILED"
-	CodeProviderRateLimited     Code = "PROVIDER_RATE_LIMITED"
-	CodeProviderDelayed         Code = "PROVIDER_DELAYED"
-	CodeProviderRefunded        Code = "PROVIDER_REFUNDED"
-	CodeProviderInvalidStatus   Code = "PROVIDER_INVALID_STATUS"
-	CodeProviderInvalidResponse Code = "PROVIDER_INVALID_RESPONSE"
-	CodeUnknownProviderStatus   Code = "UNKNOWN_PROVIDER_STATUS"
-	CodeRPCTimeout              Code = "RPC_TIMEOUT"
+	CodeProviderNotConfigured    Code = "PROVIDER_NOT_CONFIGURED"
+	CodeProviderAuthFailed       Code = "PROVIDER_AUTH_FAILED"
+	CodeProviderRateLimited      Code = "PROVIDER_RATE_LIMITED"
+	CodeProviderDelayed          Code = "PROVIDER_DELAYED"
+	CodeProviderRefunded         Code = "PROVIDER_REFUNDED"
+	CodeProviderInvalidStatus    Code = "PROVIDER_INVALID_STATUS"
+	CodeProviderInvalidResponse  Code = "PROVIDER_INVALID_RESPONSE"
+	CodeProviderRequestRejected  Code = "PROVIDER_REQUEST_REJECTED"
+	CodeProviderInvalidCatalogue Code = "PROVIDER_INVALID_CATALOGUE"
+	CodeProviderInvalidQuote     Code = "PROVIDER_INVALID_QUOTE"
+	CodeProviderQuoteMismatch    Code = "PROVIDER_QUOTE_MISMATCH"
+	CodeProviderSignatureInvalid Code = "PROVIDER_SIGNATURE_INVALID"
+	CodeProviderUnexpectedData   Code = "PROVIDER_UNEXPECTED_DEPOSIT_DATA"
+	CodeProviderResponseTooLarge Code = "PROVIDER_RESPONSE_TOO_LARGE"
+	CodeUnknownProviderStatus    Code = "UNKNOWN_PROVIDER_STATUS"
+	CodeRPCTimeout               Code = "RPC_TIMEOUT"
 
 	// Infrastructure and feature gates.
 	CodeMarketProviderUnavailable Code = "MARKET_PROVIDER_UNAVAILABLE"
@@ -129,6 +136,13 @@ var ErrCodeHTTPStatus = map[Code]int{
 	CodeProviderRefunded:           http.StatusOK,
 	CodeProviderInvalidStatus:      http.StatusBadGateway,
 	CodeProviderInvalidResponse:    http.StatusBadGateway,
+	CodeProviderRequestRejected:    http.StatusUnprocessableEntity,
+	CodeProviderInvalidCatalogue:   http.StatusBadGateway,
+	CodeProviderInvalidQuote:       http.StatusBadGateway,
+	CodeProviderQuoteMismatch:      http.StatusBadGateway,
+	CodeProviderSignatureInvalid:   http.StatusBadGateway,
+	CodeProviderUnexpectedData:     http.StatusBadGateway,
+	CodeProviderResponseTooLarge:   http.StatusBadGateway,
 	CodeUnknownProviderStatus:      http.StatusBadGateway,
 	CodeRPCTimeout:                 http.StatusGatewayTimeout,
 	CodeMarketProviderUnavailable:  http.StatusServiceUnavailable,

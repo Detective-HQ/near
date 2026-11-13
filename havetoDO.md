@@ -222,14 +222,16 @@ The roadmap omits:
 
 ### Phase 4 — Provider integration (5–7 days)
 
-- [ ] **4.1** Refine `ProviderAdapter` — `internal/swap/providers/adapter.go`. Add `Name()`, `Capabilities()`, `Health()`; methods accept `context`; typed errors.
-- [ ] **4.2** 1Click HTTP client — `internal/swap/providers/nearoneclick/client.go`. `http.Client` timeouts; JWT server-side only; 2 MB `io.LimitReader`; request IDs.
-- [ ] **4.3** Response validation — `.../normalize.go`. Validate required fields, amounts, timestamps, status strings; preserve raw JSON.
-- [ ] **4.4** Error mapping — `.../errors.go`. 401/403 → `PROVIDER_AUTH_FAILED`; 429 → `PROVIDER_RATE_LIMITED` + `Retry-After`; 5xx/timeout → `PROVIDER_DELAYED`/`RPC_TIMEOUT`; malformed → `UNKNOWN_PROVIDER_STATUS`.
-- [ ] **4.5** Quote signature — `.../signature.go`. Requires a documented key source. Add `ONECLICK_QUOTE_PUBLIC_KEY`; if unavailable, verify echoed request fields and mark `signature_verified=false` — never silently claim verified.
-- [ ] **4.6** Deposit submit — `.../deposit.go`. Idempotent by tx hash; no blind retry unless contract confirms.
-- [ ] **4.7** Alternative provider stub — `internal/swap/providers/alternative/`. Implements interface, returns `NO_ROUTE`/`NOT_CONFIGURED`; registered in fallback chain.
-- [ ] **4.8** Contract tests — `testdata/*.json`. Redacted recorded responses; timeout, 2 MB, 401, 429, 5xx, malformed JSON; normalization goldens.
+- [x] **4.1** Refine `ProviderAdapter` — `internal/swap/providers/adapter.go`. Add `Name()`, `Capabilities()`, `Health()`; methods accept `context`; typed errors.
+- [x] **4.2** 1Click HTTP client — `internal/swap/providers/nearoneclick/client.go`. `http.Client` timeouts; JWT server-side only; 2 MB `io.LimitReader`; request IDs.
+- [x] **4.3** Response validation — `.../normalize.go`. Validate required fields, amounts, timestamps, status strings; preserve raw JSON.
+- [x] **4.4** Error mapping — `.../errors.go`. 401/403 → `PROVIDER_AUTH_FAILED`; 429 → `PROVIDER_RATE_LIMITED` + `Retry-After`; 5xx/timeout → `PROVIDER_DELAYED`/`RPC_TIMEOUT`; malformed → `UNKNOWN_PROVIDER_STATUS`.
+- [x] **4.5** Quote signature — `.../signature.go`. Requires a documented key source. Add `ONECLICK_QUOTE_PUBLIC_KEY`; if unavailable, verify echoed request fields and mark `signature_verified=false` — never silently claim verified.
+- [x] **4.6** Deposit submit — `.../deposit.go`. Idempotent by tx hash; no blind retry unless contract confirms.
+- [x] **4.7** Alternative provider stub — `internal/swap/providers/alternative/`. Implements interface, returns `NO_ROUTE`/`NOT_CONFIGURED`; registered in fallback chain.
+- [x] **4.8** Contract tests — `testdata/*.json`. Redacted recorded responses; timeout, 2 MB, 401, 429, 5xx, malformed JSON; normalization goldens.
+
+**Phase 4 status (2026-11-13):** implemented in `backend/internal/swap/providers/`. The 1Click adapter (`nearoneclick`) keeps the JWT server-side, bounds responses to 2 MB, applies per-request timeouts and request IDs, validates catalogue/quote/status payloads, verifies Ed25519 quote signatures against `ONECLICK_QUOTE_PUBLIC_KEY` (or reports `signatureVerified=false` when the key is absent), and maps 401/403/429/5xx/timeout/malformed responses to typed domain errors. `alternative` is a full stub registered behind `providers.Chain`, which only falls through on `NO_ROUTE`/`PROVIDER_NOT_CONFIGURED`. The worker now runs the real adapter instead of the placeholder. Contract tests use redacted fixtures plus an in-memory Ed25519 key; canonical quote hashes were cross-checked against the official TypeScript SDK.
 
 ---
 
