@@ -22,6 +22,7 @@ import (
 	"universal-defi-intelligence/internal/risk"
 	"universal-defi-intelligence/internal/swap/domain"
 	"universal-defi-intelligence/internal/swap/service"
+	"universal-defi-intelligence/internal/trading"
 )
 
 // Probe is one readiness dependency check.
@@ -36,6 +37,7 @@ type HandlerOptions struct {
 	Auth     *auth.Manager
 	Risk     *risk.Engine
 	Market   *analyticsservice.Reader // nil in fixture mode
+	Trading  *trading.Engine          // nil in fixture mode
 	Research *scenarios.Engine
 	Config   *config.Config
 	Probes   []Probe
@@ -50,6 +52,7 @@ type Handler struct {
 	auth          *auth.Manager
 	risk          *risk.Engine
 	market        *analyticsservice.Reader
+	trading       *trading.Engine
 	research      *scenarios.Engine
 	cfg           *config.Config
 	probes        []Probe
@@ -90,6 +93,7 @@ func NewHandler(opts HandlerOptions) (*Handler, error) {
 		auth:          opts.Auth,
 		risk:          opts.Risk,
 		market:        opts.Market,
+		trading:       opts.Trading,
 		research:      opts.Research,
 		cfg:           opts.Config,
 		probes:        opts.Probes,

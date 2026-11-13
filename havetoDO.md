@@ -353,11 +353,34 @@ Verification: `gofmt`, `go vet ./...`, `go mod tidy -diff`, `go test ./...` (all
 - [x] **12.6** gzip (BestSpeed, pooled) for JSON ≥1 KB to direct clients; the Next proxy requests `identity` to avoid double compression on the internal hop.
 - [x] **12.7** In-memory quote eviction made O(1) amortized: quote creation went from 379 to 2,767 req/s (p50 9.8 ms -> 0.67 ms) under load.
 
-### Open items
+### Phase 13 — Trading intelligence backend & verification (2026-11-13)
 
-- [ ] Run the PostgreSQL integration suite locally (`TEST_DATABASE_URL`) or confirm it in CI.
-- [ ] `/api/v1/trading/*` (signals, order blocks, liquidity, backtests) used by the new frontend pages has no backend; needs a market-data source and methodology decision.
-- [ ] Regenerate `docs/openapi.yaml` for the wrapped response shapes and auth endpoints.
+- [x] **13.1** `internal/trading`: 20-asset universe, DeFiLlama coins price source (500-point request cap respected), OHLC candles approximated from sampled prices (4h from hourly, 1d from 4-hourly; no `1h` because no sub-hour data exists).
+- [x] **13.2** Model `trend-structure-1.0` (momentum, EMA trend, structure breaks), structure rules `structure-1.0` (swings, BOS/CHoCH, order blocks, fair value gaps, zone status), liquidity levels, scenarios. Volume/depth/derivatives returned as `null` + `unavailable`, never estimated.
+- [x] **13.3** Signal journal (immutable, idempotent; Postgres `trading_signals` via migration 00008, memory fallback) graded on executable prices; walk-forward backtests net of 10 bps. A look-ahead bias (grading limit entries as filled) was found on live data and fixed, with a regression test.
+- [x] **13.4** All nine `/api/v1/trading/*` routes served, typed errors (404/400/503), worker job records the journal continuously.
+- [x] **13.5** Latency: concurrency 8, stale-while-revalidate (serve cached up to 4x TTL while one background refresh runs), warm-up at startup; cached reads ~3 ms.
+- [x] **13.6** `docs/openapi.yaml` regenerated; router registers from one route table and `TestOpenAPIMatchesRoutes` fails on drift. Trading methodology documented in `docs/research-methodology.md#trading-signals`.
+- [x] **13.7** PostgreSQL integration suite run locally against a throwaway PostgreSQL 16: all 43 repository/storage/trading DB tests pass (536 tests total, 0 skipped). Migration up/down/down-to verified for 7 and 8; a test helper that leaked across schemas was fixed.
+- [x] **13.8** End-to-end on Postgres: migrate -> API -> smoke script passes; swaps survive an API restart; live DeFiLlama trading endpoints verified.
+
+- [x] **13.9** `go test -race ./...` run locally in WSL Ubuntu (Go 1.26.2, gcc 13): all packages pass with no data races (database tests skipped; no `TEST_DATABASE_URL`).
+
+### Phase 14 — Cloud database production readiness (2026-11-13)
+
+- [x] **14.1** Production refuses plaintext database connections (`DB_REQUIRE_TLS`, default on in production; requires `sslmode=require|verify-ca|verify-full`).
+- [x] **14.2** `DB_PGBOUNCER=true` makes pgx safe behind PgBouncer transaction pooling (Neon pooler, Supabase 6543).
+- [x] **14.3** `backend/.env.production.example` and `docs/deploy.md` (cloud DB setup, migrate-then-deploy order, scaling, launch checks, operations).
+
+- [x] **14.4** Prometheus monitoring: `/metrics` (optional bearer token) with per-route request/latency, provider outcomes, swap transitions, stuck swaps and trading scan duration; worker metrics on `WORKER_METRICS_ADDR`. Race-clean.
+- [x] **14.5** Render deployment section in `docs/deploy.md`.
+
+### Remaining (needs the owner)
+
+- [ ] Choose the cloud database provider and hosting, create the accounts and secrets.
+- [ ] Commit the current changes on `jiban` (owner commits) and deploy following `docs/deploy.md`.
+- [ ] Before enabling real-money swaps: obtain `ONECLICK_JWT`, run one small live swap end to end, then set `ENABLE_LIVE_EXECUTION=true`.
+- [ ] After the first deploy: confirm `TRUSTED_PROXY_CIDRS` by checking real client IPs in the API logs.
 
 ---
 
@@ -503,3 +526,4 @@ Non-errors (do not use the error envelope):
 | 2026-11-13 | Frontend integration & proxy cutover | Done | Phase 10: Next.js API route proxy forwarding auth & session headers, risk & auth endpoints enabled, dev runner verified |
 | 2026-11-13 | Audit remediation & integration | Done | Phase 11: API wired to real service/storage/provider; auth, ownership, funds-safety, lifecycle and edge fixes |
 | 2026-11-13 | Latency pass | Done | Phase 12: pooled clients, concurrent analytics, caches, batched views, gzip, O(1) quote eviction |
+| 2026-11-13 | Trading backend + full verification | Done | Phase 13: trading analytics, OpenAPI with drift test, Postgres integration suite and E2E verified locally |

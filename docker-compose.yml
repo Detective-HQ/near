@@ -6,6 +6,9 @@
 x-backend-env: &backend-env
   APP_ENV: production
   DATABASE_URL: postgres://${POSTGRES_USER:-udi}:${POSTGRES_PASSWORD:-udi}@postgres:5432/${POSTGRES_DB:-udi}?sslmode=disable
+  # The database is on the private Compose network. Cloud deployments must keep
+  # the production default (TLS required) and use sslmode=require.
+  DB_REQUIRE_TLS: "false"
   REDIS_URL: redis://redis:6379
   SWAP_QUOTE_MODE: ${SWAP_QUOTE_MODE:-demo}
   ENABLE_LIVE_EXECUTION: ${ENABLE_LIVE_EXECUTION:-false}

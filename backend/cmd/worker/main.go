@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,12 +27,14 @@ import (
 
 	"universal-defi-intelligence/internal/config"
 	"universal-defi-intelligence/internal/httpclient"
+	"universal-defi-intelligence/internal/metrics"
 	"universal-defi-intelligence/internal/storage/postgres"
 	rediscache "universal-defi-intelligence/internal/storage/redis"
 	"universal-defi-intelligence/internal/swap/providers"
 	"universal-defi-intelligence/internal/swap/providers/alternative"
 	"universal-defi-intelligence/internal/swap/providers/nearoneclick"
 	"universal-defi-intelligence/internal/swap/repository"
+	"universal-defi-intelligence/internal/trading"
 	"universal-defi-intelligence/internal/worker"
 )
 
@@ -149,6 +152,17 @@ func run() error {
 	group.Go(func() error { return poller.Run(groupCtx) })
 	group.Go(func() error { return catalogue.Run(groupCtx) })
 	group.Go(func() error { return heartbeat(groupCtx, logger) })
+	if addr := cfg.Security.WorkerMetricsAddr; addr != "" {
+		group.Go(func() error { return serveMetrics(groupCtx, addr, cfg.Security.MetricsToken, logger) })
+	}
+	if cfg.MarketData.Mode == config.MarketDataLive {
+		engine := trading.NewEngine(trading.Config{
+			Source:  &trading.DefiLlamaPrices{Client: httpclient.New(cfg.MarketData.Timeout)},
+			Journal: trading.NewPostgresJournal(pool.Pool),
+			Logger:  logger,
+		})
+		group.Go(func() error { return tradingJournal(groupCtx, engine, logger) })
+	}
 
 	err = group.Wait()
 	if err == nil || errors.Is(err, context.Canceled) {
@@ -156,6 +170,40 @@ func run() error {
 		return nil
 	}
 	return err
+}
+
+// tradingJournal recomputes trading signals on the shortest timeframe TTL so
+// the signal journal is recorded continuously, not only when users visit.
+func tradingJournal(ctx context.Context, engine *trading.Engine, logger *slog.Logger) error {
+	interval := trading.Timeframes[0].TTL
+	for {
+		if err := engine.Refresh(ctx); err != nil && ctx.Err() == nil {
+			logger.Warn("trading journal refresh failed", "error", err)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(interval):
+		}
+	}
+}
+
+// serveMetrics exposes the worker's Prometheus metrics until ctx ends.
+func serveMetrics(ctx context.Context, addr, token string, logger *slog.Logger) error {
+	mux := http.NewServeMux()
+	mux.Handle("GET /metrics", metrics.Handler(token))
+	server := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdownCtx)
+	}()
+	logger.Info("worker metrics listening", "addr", addr)
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return ctx.Err()
 }
 
 func heartbeat(ctx context.Context, logger *slog.Logger) error {

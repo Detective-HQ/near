@@ -67,8 +67,8 @@ func TestEmbeddedMigrationsAreSequentialAndReversible(t *testing.T) {
 		}
 	}
 
-	if versions[len(versions)-1] != 7 {
-		t.Fatalf("expected seven migrations, got %d", versions[len(versions)-1])
+	if versions[len(versions)-1] != 8 {
+		t.Fatalf("expected eight migrations, got %d", versions[len(versions)-1])
 	}
 	t.Logf("embedded migrations: %v", formatVersions(versions))
 }

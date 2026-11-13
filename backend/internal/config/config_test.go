@@ -211,7 +211,7 @@ func TestInvalidConfiguration(t *testing.T) {
 func TestSecretsAreRedacted(t *testing.T) {
 	cfg, err := LoadFrom([]string{
 		"APP_ENV=production",
-		"DATABASE_URL=postgres://udi:db-password@db:5432/udi",
+		"DATABASE_URL=postgres://udi:db-password@db:5432/udi?sslmode=require",
 		"REDIS_URL=redis://:redis-password@cache:6379",
 		"ONECLICK_JWT=super-secret-jwt",
 	})
@@ -239,7 +239,7 @@ func TestSecretsAreRedacted(t *testing.T) {
 func TestDSNSecretsAreRedacted(t *testing.T) {
 	cfg, err := LoadFrom([]string{
 		"APP_ENV=production",
-		"DATABASE_URL=host=db user=udi password=dsn-password dbname=udi",
+		"DATABASE_URL=host=db user=udi password=dsn-password dbname=udi sslmode=require",
 	})
 	if err != nil {
 		t.Fatalf("LoadFrom: %v", err)
@@ -473,4 +473,32 @@ func TestSecurityConfig(t *testing.T) {
 	requireConfigError(t, err, "wildcard")
 	_, err = LoadFrom([]string{"TRUSTED_PROXY_CIDRS=not-a-cidr"})
 	requireConfigError(t, err, "TRUSTED_PROXY_CIDRS")
+}
+
+func TestDatabaseTLSPolicy(t *testing.T) {
+	cloud := "postgres://u:p@db.example.com:5432/udi"
+
+	_, err := LoadFrom([]string{"APP_ENV=production", "DATABASE_URL=" + cloud + "?sslmode=disable"})
+	requireConfigError(t, err, "allows unencrypted")
+	_, err = LoadFrom([]string{"APP_ENV=production", "DATABASE_URL=" + cloud})
+	requireConfigError(t, err, "sslmode is not set")
+
+	cfg, err := LoadFrom([]string{"APP_ENV=production", "DATABASE_URL=" + cloud + "?sslmode=require", "DB_PGBOUNCER=true"})
+	if err != nil {
+		t.Fatalf("TLS URL rejected: %v", err)
+	}
+	if !cfg.Database.RequireTLS || !cfg.Database.PgBouncer {
+		t.Fatalf("database = %+v", cfg.Database)
+	}
+
+	// A private network (Compose) can opt out explicitly.
+	if _, err := LoadFrom([]string{"APP_ENV=production", "DB_REQUIRE_TLS=false", "DATABASE_URL=postgres://u:p@postgres:5432/udi?sslmode=disable"}); err != nil {
+		t.Fatalf("explicit opt-out rejected: %v", err)
+	}
+	// Staging/local do not require TLS unless asked.
+	if _, err := LoadFrom([]string{"APP_ENV=staging", "DATABASE_URL=postgres://u:p@localhost:5432/udi?sslmode=disable"}); err != nil {
+		t.Fatalf("staging plaintext rejected: %v", err)
+	}
+	_, err = LoadFrom([]string{"DB_REQUIRE_TLS=maybe"})
+	requireConfigError(t, err, "DB_REQUIRE_TLS")
 }

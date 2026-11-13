@@ -1,72 +1,423 @@
 openapi: 3.1.0
 info:
-  title: Universal DeFi Intelligence Local API
-  version: 0.1.0
-  description: Local prototype API with fixture data, optional DeFiLlama analytics, optional NEAR Intents quotes, and an opt-in EVM wallet deposit lifecycle. Live execution is disabled by default; the API does not authenticate users or independently verify source-chain receipts.
+  title: Universal DeFi Intelligence API
+  version: 1.0.0
+  description: |
+    Go API behind the Next.js `/api/*` proxy.
+
+    * Errors always use the envelope `{ "error": { "code", "message" }, "requestId" }`.
+    * Swaps: demo mode serves simulation quotes and records; live mode uses NEAR Intents 1Click
+      dry quotes and, only with `ENABLE_LIVE_EXECUTION=true`, executable deposit instructions.
+      The server never holds keys; the user's wallet sends the deposit.
+    * Auth: wallet sign-in (EVM personal_sign, NEAR ed25519 with access-key check, Solana ed25519).
+      Routes marked `x-auth: optional-or-required` require a session when `AUTH_REQUIRED=true`.
+      Swaps created by a signed-in wallet are only visible to that wallet.
+    * Market data and trading analytics are live only with `MARKET_DATA_MODE=live`; trading routes
+      return 503 `MARKET_DATA_UNAVAILABLE` otherwise.
+    * This document is checked against the router by `TestOpenAPIMatchesRoutes`.
 servers:
   - url: http://127.0.0.1:8081
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: udi_session
+  parameters:
+    SwapId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    AssetId:
+      name: id
+      in: path
+      required: true
+      description: Trading universe id, `<chain>:<symbol>` (for example `near:near`).
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: 8-128 printable ASCII characters. Replays with the same body return the same swap.
+      schema: { type: string, minLength: 8, maxLength: 128 }
+  responses:
+    Error:
+      description: Error envelope.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, examples: [VALIDATION_FAILED, UNAUTHORIZED, FORBIDDEN, SWAP_NOT_FOUND, IDEMPOTENCY_CONFLICT, QUOTE_EXPIRED, INVALID_SWAP_STATE, BODY_TOO_LARGE, RATE_LIMITED, PROVIDER_NOT_CONFIGURED, MARKET_DATA_UNAVAILABLE, INTERNAL] }
+            message: { type: string }
+        requestId: { type: string }
+    Chain:
+      type: object
+      properties:
+        key: { type: string }
+        name: { type: string }
+        family: { type: string, enum: [EVM, SOLANA, STELLAR, MOVE, NEAR] }
+        status: { type: string }
+        chainId: { type: [string, "null"] }
+        nativeCurrency: { type: object, properties: { symbol: { type: string }, decimals: { type: integer } } }
+        walletSupported: { type: boolean }
+        portfolioBalanceSupported: { type: boolean }
+        swapEnabled: { type: boolean }
+        source: { type: string }
+    Asset:
+      type: object
+      properties:
+        id: { type: string }
+        providerAssetId: { type: string }
+        symbol: { type: string }
+        name: { type: string }
+        chain: { type: string, description: Canonical chain registry key. }
+        decimals: { type: integer }
+        contractAddress: { type: [string, "null"] }
+        priceUsd: { type: [number, "null"], description: Illustrative fixture price (demo mode only). }
+        source: { type: string }
+        observedAt: { type: [string, "null"], format: date-time }
+        enabledForLiveSwap: { type: boolean }
+        sourceDepositSupported: { type: boolean }
+    QuoteAsset:
+      type: object
+      properties:
+        id: { type: string }
+        symbol: { type: string }
+        chain: { type: string }
+        decimals: { type: integer }
+        contractAddress: { type: [string, "null"] }
+    Quote:
+      type: object
+      properties:
+        id: { type: string }
+        mode: { type: string, enum: [simulation, provider_dry_quote, provider_executable_quote] }
+        provider: { type: string }
+        providerQuoteId: { type: string }
+        providerTimestamp: { type: [string, "null"] }
+        signatureVerified: { type: boolean }
+        originAssetId: { type: string }
+        destinationAssetId: { type: string }
+        originAsset: { $ref: "#/components/schemas/QuoteAsset" }
+        destinationAsset: { $ref: "#/components/schemas/QuoteAsset" }
+        amountInAtomic: { type: string, description: Integer string in the origin asset's smallest unit. }
+        amountIn: { type: string }
+        amountOutEstimateAtomic: { type: string }
+        amountOutEstimate: { type: string }
+        minimumAmountOutAtomic: { type: [string, "null"] }
+        minimumAmountOut: { type: [string, "null"] }
+        feeBps: { type: integer }
+        slippageBps: { type: integer }
+        expiresAt: { type: [string, "null"], format: date-time }
+        deadline: { type: [string, "null"], format: date-time }
+        timeWhenInactive: { type: [string, "null"] }
+        timeEstimateSeconds: { type: [integer, "null"] }
+        depositAddress: { type: [string, "null"] }
+        depositMemo: { type: [string, "null"] }
+        recipient: { type: [string, "null"] }
+        refundTo: { type: [string, "null"] }
+        route: { type: array, items: { type: string } }
+        warning: { type: string }
+    TxRefs:
+      type: object
+      properties:
+        source: { type: [string, "null"] }
+        destination: { type: [string, "null"] }
+        refund: { type: [string, "null"] }
+    Swap:
+      type: object
+      properties:
+        id: { type: string }
+        quoteId: { type: string }
+        state:
+          type: string
+          enum: [CREATED, QUOTING, QUOTE_UNAVAILABLE, QUOTED, AWAITING_USER_DEPOSIT, DEPOSIT_SUBMITTED, INCOMPLETE_DEPOSIT, PROCESSING, SUCCEEDED, REFUNDED, FAILED, CANCELLED, EXPIRED]
+        providerStatus: { type: [string, "null"] }
+        mode: { type: string, enum: [provider, simulation] }
+        realSettlement: { type: boolean, description: True only for a provider-verified SUCCESS; never for simulations. }
+        simulated: { type: boolean }
+        providerUpdatedAt: { type: string, format: date-time }
+        transactions: { $ref: "#/components/schemas/TxRefs" }
+        transactionLinks: { $ref: "#/components/schemas/TxRefs" }
+        depositAddress: { type: [string, "null"] }
+        depositMemo: { type: [string, "null"] }
+        expiresAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              state: { type: string }
+              detail: { type: string }
+              at: { type: string, format: date-time }
+        quote: { $ref: "#/components/schemas/Quote" }
+    SwapEnvelope:
+      type: object
+      properties:
+        swap: { $ref: "#/components/schemas/Swap" }
+    DataSnapshot:
+      type: object
+      properties:
+        mode: { type: string, enum: [fixture, live] }
+        provider: { type: string }
+        chain: { type: string }
+        status: { type: string, enum: [available, stale, partial, unavailable] }
+        retrievedAt: { type: [string, "null"] }
+        capturedAt: { type: [string, "null"] }
+        methodologyVersion: { type: string }
+        notice: { type: string }
+        metrics: { type: array, items: { type: object } }
+        series: { type: array, items: { type: object } }
+        chainComparisons: { type: array, items: { type: object } }
+    Provenance:
+      type: object
+      properties:
+        source: { type: string }
+        asOf: { type: [string, "null"], format: date-time }
+        quality: { type: string, enum: [live, delayed, stale, partial, unavailable] }
+    TradingDocument:
+      description: |
+        Trading responses follow `frontend/src/lib/trading-contracts.ts`. Every response carries
+        provenance; numbers are decimal strings. Candles are approximated from sampled aggregate
+        prices (DeFiLlama coins API). Volume, depth and derivatives are null with quality
+        `unavailable` because the source does not provide them.
+      allOf:
+        - $ref: "#/components/schemas/Provenance"
+        - type: object
+          additionalProperties: true
 paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      responses:
+        "200": { description: "`{\"status\":\"ok\"}`" }
+  /readyz:
+    get:
+      summary: Readiness probe (database ping when configured)
+      responses:
+        "200": { description: Ready. }
+        "503": { description: A dependency check failed. }
   /api/v1/health:
     get:
-      summary: Local process health and configured data modes
+      summary: Capability report (modes, execution gate, auth requirement)
       responses:
-        "200":
-          description: Includes quoteMode, marketDataMode, liveQuotesConfigured, and the computed executionEnabled flag. Never includes credentials.
+        "200": { description: "quoteMode, demoMode, marketDataMode, executionEnabled, authRequired. Never includes credentials." }
   /api/v1/chains:
     get:
-      summary: Configured chain registry
+      summary: Chain registry
       responses:
         "200":
-          description: Chain registry flags. EVM swap flags are enabled only when the server execution gate is active; a pair still requires a provider quote.
+          description: Chains.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chains: { type: array, items: { $ref: "#/components/schemas/Chain" } }
   /api/v1/assets:
     get:
-      summary: Fixture catalogue or current 1Click provider catalogue
+      summary: Enabled asset catalogue
       parameters:
-        - in: query
-          name: chain
-          schema:
-            type: string
+        - name: chain
+          in: query
+          description: Chain key or provider alias (eth, arb, sol, bsc, ...).
+          schema: { type: string }
       responses:
         "200":
-          description: Fixture IDs in demo mode; exact provider asset IDs in live mode. Catalogue presence does not guarantee a route.
-        "503":
-          description: Provider catalogue unavailable.
+          description: Catalogue (demo fixtures or the provider catalogue).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mode: { type: string, enum: [fixture, live] }
+                  notice: { type: string }
+                  servedAt: { type: string, format: date-time }
+                  catalogueAt: { type: string, format: date-time }
+                  assets: { type: array, items: { $ref: "#/components/schemas/Asset" } }
+        "503": { $ref: "#/components/responses/Error" }
   /api/v1/markets/overview:
     get:
-      summary: Fixture overview or optional live NEAR ecosystem analytics
+      summary: Market overview (live DeFiLlama or fixtures)
       parameters:
-        - in: query
-          name: refresh
-          description: Set to true to bypass the live market-data cache.
-          schema:
-            type: boolean
+        - name: refresh
+          in: query
+          description: "`true` bypasses the cache at most once per 30 seconds."
+          schema: { type: string, enum: ["true"] }
       responses:
         "200":
-          description: Fixture metrics or live DeFiLlama metrics with source, retrieval time, status, and methodology version.
-        "503":
-          description: Live provider adapter is not configured.
+          description: Snapshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DataSnapshot" }
   /api/v1/intelligence/near:
     get:
-      summary: Fixture or live NEAR metric dictionary
+      summary: NEAR ecosystem snapshot
       responses:
         "200":
-          description: Fixture values or the cached live DeFiLlama snapshot. Missing observations remain null and are not replaced with fixtures.
+          description: Snapshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DataSnapshot" }
   /api/v1/research/scenarios:
     get:
-      summary: Scenario assumptions and formula
+      summary: Fee-capture research scenarios (Bear/Base/Bull)
       responses:
-        "200":
-          description: Fictional assumptions for reproducible UI calculation.
+        "200": { description: "unit, note, formula and scenarios with projectedAnnualFeesUsd." }
+  /api/v1/risk/status:
+    get:
+      summary: Operational risk report (provider circuit breaker, catalogue freshness)
+      responses:
+        "200": { description: Risk report. }
+  /api/v1/trading/overview:
+    get:
+      summary: Market regime and breadth on the default (4h) timeframe
+      responses:
+        "200": { description: TradingOverview, content: { application/json: { schema: { $ref: "#/components/schemas/TradingDocument" } } } }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/v1/trading/signals:
+    get:
+      summary: Ranked bullish and bearish signals
+      parameters:
+        - { name: timeframe, in: query, schema: { type: string, enum: ["4h", "1d"] } }
+        - { name: chain, in: query, schema: { type: string } }
+        - { name: venue, in: query, schema: { type: string } }
+        - { name: quote, in: query, schema: { type: string } }
+        - { name: liquidityTier, in: query, schema: { type: string } }
+        - { name: asset, in: query, schema: { type: string } }
+      responses:
+        "200": { description: SignalsResponse, content: { application/json: { schema: { $ref: "#/components/schemas/TradingDocument" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/v1/trading/top-movers:
+    get:
+      summary: Ranked assets with the largest absolute 24h change
+      parameters:
+        - { name: timeframe, in: query, schema: { type: string, enum: ["4h", "1d"] } }
+      responses:
+        "200": { description: "`{ source, asOf, quality, items: Signal[] }`" }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/v1/trading/history:
+    get:
+      summary: Signal journal with outcomes graded on later price data
+      parameters:
+        - { name: asset, in: query, schema: { type: string } }
+        - { name: direction, in: query, schema: { type: string, enum: [bullish, bearish] } }
+        - { name: timeframe, in: query, schema: { type: string, enum: ["4h", "1d"] } }
+        - { name: outcome, in: query, schema: { type: string, enum: [target_hit, stop_hit, expired, open] } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        "200": { description: HistoryResponse, content: { application/json: { schema: { $ref: "#/components/schemas/TradingDocument" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+  /api/v1/trading/backtests:
+    get:
+      summary: Walk-forward backtests per timeframe (costs and methodology included)
+      responses:
+        "200": { description: BacktestsResponse, content: { application/json: { schema: { $ref: "#/components/schemas/TradingDocument" } } } }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/v1/trading/assets/{id}:
+    get:
+      summary: Asset detail (price, scores, evidence, risk)
+      parameters: [{ $ref: "#/components/parameters/AssetId" }]
+      responses:
+        "200": { description: AssetDetail, content: { application/json: { schema: { $ref: "#/components/schemas/TradingDocument" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/v1/trading/orderblocks/{id}:
+    get:
+      summary: Candles, order blocks, fair value gaps, BOS/CHoCH and swings
+      parameters:
+        - $ref: "#/components/parameters/AssetId"
+        - { name: timeframe, in: query, schema: { type: string, enum: ["4h", "1d"] } }
+      responses:
+        "200": { description: StructureResponse, content: { application/json: { schema: { $ref: "#/components/schemas/TradingDocument" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /api/v1/trading/liquidity/{id}:
+    get:
+      summary: Structural liquidity levels (unswept swing highs/lows)
+      parameters: [{ $ref: "#/components/parameters/AssetId" }]
+      responses:
+        "200": { description: LiquidityResponse, content: { application/json: { schema: { $ref: "#/components/schemas/TradingDocument" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /api/v1/trading/scenarios/{id}:
+    get:
+      summary: Rule-based trade scenario (entry area, invalidation, targets)
+      parameters: [{ $ref: "#/components/parameters/AssetId" }]
+      responses:
+        "200": { description: ScenarioResponse, content: { application/json: { schema: { $ref: "#/components/schemas/TradingDocument" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /api/v1/auth/nonce:
+    post:
+      summary: Issue a single-use sign-in nonce
+      responses:
+        "200": { description: "`{ nonce, message }` — sign `message` (it contains the nonce)." }
+  /api/v1/auth/verify:
+    post:
+      summary: Verify a wallet signature and start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chain, walletAddress, nonce, message, signature]
+              properties:
+                chain: { type: string, description: Registry key or alias (ethereum, base, near, solana, ...). }
+                walletAddress: { type: string }
+                nonce: { type: string }
+                message: { type: string, description: Must contain the nonce. }
+                signature: { type: string, description: "EVM: 65-byte hex r||s||v. NEAR/Solana: base58 or hex ed25519." }
+                publicKey: { type: string, description: "NEAR only: ed25519:<base58>." }
+      responses:
+        "200": { description: "`{ token, session }` and an HttpOnly `udi_session` cookie." }
+        "401": { $ref: "#/components/responses/Error" }
+  /api/v1/auth/logout:
+    post:
+      summary: Revoke the current session
+      security: [{ bearer: [] }, { sessionCookie: [] }]
+      responses:
+        "200": { description: "`{ status: logged_out }`" }
   /api/v1/activity:
     get:
-      summary: Prototype swap activity
+      summary: The caller's swaps, newest first (anonymous swaps for anonymous callers)
+      x-auth: optional-or-required
+      security: [{}, { bearer: [] }, { sessionCookie: [] }]
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: cursor, in: query, schema: { type: string } }
       responses:
         "200":
-          description: Saved simulation and live-prototype records. No user ownership filter is applied.
+          description: Page of swaps.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  swaps: { type: array, items: { $ref: "#/components/schemas/Swap" } }
+                  nextCursor: { type: string }
+        "401": { $ref: "#/components/responses/Error" }
   /api/v1/quotes:
     post:
-      summary: Create a demo estimate or live provider dry quote
-      description: In live mode, requests only a dry=true exact-input quote. Executable quotes are requested separately by POST /api/v1/swaps and require the execution gate.
+      summary: Create a dry quote (simulation in demo mode, provider dry quote in live mode)
+      x-auth: optional-or-required
+      security: [{}, { bearer: [] }, { sessionCookie: [] }]
       requestBody:
         required: true
         content:
@@ -75,50 +426,34 @@ paths:
               type: object
               required: [originAssetId, destinationAssetId, amountIn]
               properties:
-                originAssetId:
-                  type: string
-                destinationAssetId:
-                  type: string
-                amountIn:
-                  type: string
-                  pattern: "^\\d+(\\.\\d+)?$"
-                  description: Human decimal amount; server converts using selected asset decimals.
-                recipient:
-                  type: string
-                  maxLength: 256
-                  description: Required in live mode; must be a valid EVM address for the current live quote slice.
-                refundTo:
-                  type: string
-                  maxLength: 256
-                  description: Required in live mode; must be a valid EVM address for the current live quote slice.
-                slippageBps:
-                  type: integer
-                  minimum: 0
-                  maximum: 5000
-                  default: 100
+                originAssetId: { type: string }
+                destinationAssetId: { type: string }
+                amountIn: { type: string, pattern: "^[0-9]+(\\.[0-9]+)?$" }
+                recipient: { type: string, description: Required in live mode; validated for the destination chain. }
+                refundTo: { type: string, description: Required in live mode; validated for the origin chain. }
+                slippageBps: { type: integer, minimum: 0, maximum: 500 }
       responses:
-        "200":
-          description: Live provider dry quote with no deposit instructions.
         "201":
-          description: Local fixture estimate; no deposit instructions are returned.
-        "400":
-          description: Invalid asset, amount, or precision.
-        "502":
-          description: Provider unavailable, malformed, or invalid response.
-        "503":
-          description: Provider credentials are not configured, provider is rate-limited, or demo writes are disabled.
+          description: Quote.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  quote: { $ref: "#/components/schemas/Quote" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "413": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
   /api/v1/swaps:
     post:
-      summary: Create a simulated record or executable live quote
-      description: Demo mode creates a local simulation. Live mode requires an EVM pair, server-side NEAR Intents partner JWT, and ENABLE_LIVE_EXECUTION=true; it requests and verifies a fresh executable quote but does not sign or broadcast.
-      parameters:
-        - in: header
-          name: Idempotency-Key
-          required: true
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 128
+      summary: Create a swap from a reviewed quote (idempotent)
+      description: |
+        Live swaps require ENABLE_LIVE_EXECUTION and reuse the recipient and refund address from the
+        dry quote; supplying different ones is rejected. A replay never requests a second deposit address.
+      x-auth: optional-or-required
+      security: [{}, { bearer: [] }, { sessionCookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
       requestBody:
         required: true
         content:
@@ -127,104 +462,89 @@ paths:
               type: object
               required: [quoteId]
               properties:
-                quoteId:
-                  type: string
-                  description: ID of the provider dry quote in live mode or fixture quote in demo mode.
-                recipient:
-                  type: string
-                  description: Required in live mode; EVM destination address.
-                refundTo:
-                  type: string
-                  description: Required in live mode; EVM refund address.
+                quoteId: { type: string }
+                recipient: { type: string }
+                refundTo: { type: string }
       responses:
-        "200":
-          description: Existing swap returned for a repeated idempotency key.
         "201":
-          description: New simulation record or live swap awaiting user deposit.
-        "400":
-          description: Invalid request, missing idempotency key, or expired quote.
-        "503":
-          description: Live execution is disabled, provider credential is unavailable, or demo writes are disabled.
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  swap: { $ref: "#/components/schemas/Swap" }
+                  created: { type: boolean, const: true }
+        "200":
+          description: Idempotent replay.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  swap: { $ref: "#/components/schemas/Swap" }
+                  created: { type: boolean, const: false }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "410": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
   /api/v1/swaps/{id}:
     get:
-      summary: Get a simulation or live-prototype swap
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
+      summary: One swap with quote, transactions and audit events
+      x-auth: optional-or-required
+      security: [{}, { bearer: [] }, { sessionCookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/SwapId" }]
       responses:
-        "200":
-          description: State, event history, provider status, and separate transaction references when present.
-        "404":
-          description: Swap not found.
+        "200": { description: Swap., content: { application/json: { schema: { $ref: "#/components/schemas/SwapEnvelope" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
   /api/v1/swaps/{id}/deposit:
     post:
-      summary: Record a wallet-reported EVM deposit transaction
-      description: Records a transaction hash, optionally notifies the provider, and relies on provider status polling for settlement. The source transaction is not independently verified against an RPC.
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
+      summary: Record the wallet's source transaction (advances to DEPOSIT_SUBMITTED atomically)
+      x-auth: optional-or-required
+      security: [{}, { bearer: [] }, { sessionCookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/SwapId" }]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [txHash, chainId]
+              required: [txHash]
               properties:
-                txHash:
-                  type: string
-                  pattern: "^0x[a-fA-F0-9]{64}$"
-                chainId:
-                  type: string
-                  description: Decimal EVM chain ID for the quoted source asset.
+                txHash: { type: string, description: Validated for the origin chain family. }
+                chainId: { type: string, description: EVM chain id; must match the origin chain when given. }
       responses:
-        "200":
-          description: Duplicate report of the same source transaction hash.
         "202":
-          description: Source hash recorded; provider settlement is pending.
-        "404":
-          description: Swap not found.
-        "409":
-          description: Wrong state, duplicate hash on another swap, or conflicting source transaction.
-        "503":
-          description: Live execution is disabled.
+          description: "Recorded (or `duplicate: true` for a replay of the same hash)."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  swap: { $ref: "#/components/schemas/Swap" }
+                  duplicate: { type: boolean }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
   /api/v1/swaps/{id}/cancel:
     post:
-      summary: Discard unfunded executable quote instructions
-      description: Does not cancel an on-chain transaction. Only allowed before a source transaction is recorded.
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
+      summary: Cancel an unfunded swap (expires it instead when past the deadline)
+      x-auth: optional-or-required
+      security: [{}, { bearer: [] }, { sessionCookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/SwapId" }]
       responses:
-        "200":
-          description: Instructions marked cancelled or expired.
-        "404":
-          description: Swap not found.
-        "409":
-          description: A deposit was already recorded or the swap is not awaiting a deposit.
+        "200": { description: Swap., content: { application/json: { schema: { $ref: "#/components/schemas/SwapEnvelope" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
   /api/v1/swaps/{id}/simulate:
     post:
-      summary: Advance a local-only demo lifecycle
-      description: Disabled in live quote mode; this endpoint never submits deposits or provider status.
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
+      summary: Advance a simulation record one step (simulations only)
+      x-auth: optional-or-required
+      security: [{}, { bearer: [] }, { sessionCookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/SwapId" }]
       responses:
-        "200":
-          description: One simulated transition; this is not provider settlement.
-        "400":
-          description: Simulation is already in its final state.
-        "503":
-          description: Live execution is unavailable or demo mode is disabled.
+        "200": { description: Swap., content: { application/json: { schema: { $ref: "#/components/schemas/SwapEnvelope" } } } }
+        "409": { $ref: "#/components/responses/Error" }

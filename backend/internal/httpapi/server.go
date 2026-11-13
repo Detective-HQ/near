@@ -9,6 +9,7 @@ import (
 
 	"universal-defi-intelligence/internal/config"
 	"universal-defi-intelligence/internal/httpapi/middleware"
+	"universal-defi-intelligence/internal/metrics"
 )
 
 // RouterOptions configures the edge middleware.
@@ -18,6 +19,7 @@ type RouterOptions struct {
 	MaxBodyBytes       int64
 	RateLimitRPS       float64
 	RateLimitBurst     int
+	MetricsToken       string
 }
 
 // RouterOptionsFromConfig derives router options from validated config.
@@ -31,6 +33,7 @@ func RouterOptionsFromConfig(cfg *config.Config) RouterOptions {
 		MaxBodyBytes:       cfg.Security.MaxBodyBytes,
 		RateLimitRPS:       cfg.Security.RateLimitRPS,
 		RateLimitBurst:     cfg.Security.RateLimitBurst,
+		MetricsToken:       cfg.Security.MetricsToken,
 	}
 }
 
@@ -49,33 +52,20 @@ func NewRouter(h *Handler, logger *slog.Logger, opts RouterOptions) http.Handler
 		opts.RateLimitBurst = 40
 	}
 
-	protected := func(handler http.HandlerFunc) http.Handler {
+	protected := func(handler http.Handler) http.Handler {
 		return middleware.RequireAuth(h.auth)(handler)
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", h.Healthz)
-	mux.HandleFunc("GET /readyz", h.Readyz)
-
-	mux.HandleFunc("GET /api/v1/health", h.Health)
-	mux.HandleFunc("GET /api/v1/chains", h.Chains)
-	mux.HandleFunc("GET /api/v1/assets", h.Assets)
-	mux.HandleFunc("GET /api/v1/markets/overview", h.MarketsOverview)
-	mux.HandleFunc("GET /api/v1/intelligence/near", h.IntelligenceNear)
-	mux.HandleFunc("GET /api/v1/research/scenarios", h.ResearchScenarios)
-	mux.HandleFunc("GET /api/v1/risk/status", h.RiskStatus)
-
-	mux.HandleFunc("POST /api/v1/auth/nonce", h.AuthNonce)
-	mux.HandleFunc("POST /api/v1/auth/verify", h.AuthVerify)
-	mux.HandleFunc("POST /api/v1/auth/logout", h.AuthLogout)
-
-	mux.Handle("GET /api/v1/activity", protected(h.Activity))
-	mux.Handle("POST /api/v1/quotes", protected(h.Quotes))
-	mux.Handle("POST /api/v1/swaps", protected(h.Swaps))
-	mux.Handle("GET /api/v1/swaps/{id}", protected(h.SwapByID))
-	mux.Handle("POST /api/v1/swaps/{id}/deposit", protected(h.Deposit))
-	mux.Handle("POST /api/v1/swaps/{id}/cancel", protected(h.Cancel))
-	mux.Handle("POST /api/v1/swaps/{id}/simulate", protected(h.Simulate))
+	for _, route := range h.Routes() {
+		var handler http.Handler = route.Handler
+		if route.Protected {
+			handler = protected(route.Handler)
+		}
+		pattern := route.Method + " " + route.Path
+		mux.Handle(pattern, metrics.Instrument(pattern, handler))
+	}
+	mux.Handle("GET /metrics", metrics.Handler(opts.MetricsToken))
 
 	// Unknown API paths get the JSON envelope; everything else is a plain 404.
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -114,6 +104,49 @@ func NewRouter(h *Handler, logger *slog.Logger, opts RouterOptions) http.Handler
 	handler = middleware.RealIP(opts.TrustedProxies)(handler)
 	handler = middleware.RequestID(handler)
 	return handler
+}
+
+// Route is one registered endpoint. docs/openapi.yaml must document exactly
+// this table (enforced by TestOpenAPIMatchesRoutes).
+type Route struct {
+	Method    string
+	Path      string
+	Handler   http.HandlerFunc
+	Protected bool // requires a session when AUTH_REQUIRED=true
+}
+
+// Routes returns the API route table.
+func (h *Handler) Routes() []Route {
+	return []Route{
+		{"GET", "/healthz", h.Healthz, false},
+		{"GET", "/readyz", h.Readyz, false},
+		{"GET", "/api/v1/health", h.Health, false},
+		{"GET", "/api/v1/chains", h.Chains, false},
+		{"GET", "/api/v1/assets", h.Assets, false},
+		{"GET", "/api/v1/markets/overview", h.MarketsOverview, false},
+		{"GET", "/api/v1/intelligence/near", h.IntelligenceNear, false},
+		{"GET", "/api/v1/research/scenarios", h.ResearchScenarios, false},
+		{"GET", "/api/v1/risk/status", h.RiskStatus, false},
+		{"GET", "/api/v1/trading/overview", h.TradingOverview, false},
+		{"GET", "/api/v1/trading/signals", h.TradingSignals, false},
+		{"GET", "/api/v1/trading/top-movers", h.TradingTopMovers, false},
+		{"GET", "/api/v1/trading/history", h.TradingHistory, false},
+		{"GET", "/api/v1/trading/backtests", h.TradingBacktests, false},
+		{"GET", "/api/v1/trading/assets/{id}", h.TradingAsset, false},
+		{"GET", "/api/v1/trading/orderblocks/{id}", h.TradingStructure, false},
+		{"GET", "/api/v1/trading/liquidity/{id}", h.TradingLiquidity, false},
+		{"GET", "/api/v1/trading/scenarios/{id}", h.TradingScenario, false},
+		{"POST", "/api/v1/auth/nonce", h.AuthNonce, false},
+		{"POST", "/api/v1/auth/verify", h.AuthVerify, false},
+		{"POST", "/api/v1/auth/logout", h.AuthLogout, false},
+		{"GET", "/api/v1/activity", h.Activity, true},
+		{"POST", "/api/v1/quotes", h.Quotes, true},
+		{"POST", "/api/v1/swaps", h.Swaps, true},
+		{"GET", "/api/v1/swaps/{id}", h.SwapByID, true},
+		{"POST", "/api/v1/swaps/{id}/deposit", h.Deposit, true},
+		{"POST", "/api/v1/swaps/{id}/cancel", h.Cancel, true},
+		{"POST", "/api/v1/swaps/{id}/simulate", h.Simulate, true},
+	}
 }
 
 // NewServer configures an http.Server with bounded timeouts and header limits.

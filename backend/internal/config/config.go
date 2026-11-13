@@ -74,6 +74,10 @@ type SecurityConfig struct {
 	MaxBodyBytes   int64
 	RateLimitRPS   float64
 	RateLimitBurst int
+	// MetricsToken, when set, is required as a bearer token on /metrics.
+	MetricsToken string
+	// WorkerMetricsAddr, when set, makes the worker serve /metrics there.
+	WorkerMetricsAddr string
 }
 
 // HTTPConfig contains HTTP server limits and timeouts.
@@ -100,6 +104,13 @@ type DatabaseConfig struct {
 	MinConns       int32
 	ConnectTimeout time.Duration
 	PingTimeout    time.Duration
+	// RequireTLS rejects connection strings that allow plaintext
+	// (sslmode=disable/allow/prefer or none). Defaults to true in production.
+	RequireTLS bool
+	// PgBouncer switches pgx to a query mode without cached named prepared
+	// statements, which PgBouncer in transaction mode (Neon, Supabase pooled
+	// endpoints) cannot route. Migrations should use a direct, unpooled URL.
+	PgBouncer bool
 }
 
 // RedisConfig contains Redis connection settings.
@@ -162,6 +173,8 @@ type rawConfig struct {
 	DBMinConns              int32  `env:"DB_MIN_CONNS" envDefault:"0"`
 	DBConnectTimeoutSeconds int    `env:"DB_CONNECT_TIMEOUT_SECONDS" envDefault:"5"`
 	DBPingTimeoutSeconds    int    `env:"DB_PING_TIMEOUT_SECONDS" envDefault:"2"`
+	DBRequireTLS            string `env:"DB_REQUIRE_TLS"`
+	DBPgBouncer             bool   `env:"DB_PGBOUNCER" envDefault:"false"`
 
 	RedisURL            string `env:"REDIS_URL" envDefault:"redis://localhost:6379"`
 	RedisTimeoutSeconds int    `env:"REDIS_TIMEOUT_SECONDS" envDefault:"2"`
@@ -190,6 +203,8 @@ type rawConfig struct {
 	HTTPMaxBodyBytes      int64  `env:"HTTP_MAX_BODY_BYTES" envDefault:"65536"`
 	RateLimitRPS          int    `env:"RATE_LIMIT_RPS" envDefault:"20"`
 	RateLimitBurst        int    `env:"RATE_LIMIT_BURST" envDefault:"40"`
+	MetricsToken          string `env:"METRICS_TOKEN"`
+	WorkerMetricsAddr     string `env:"WORKER_METRICS_ADDR"`
 
 	LogLevel  string `env:"LOG_LEVEL" envDefault:"info"`
 	LogFormat string `env:"LOG_FORMAT" envDefault:"json"`
@@ -332,6 +347,21 @@ func build(raw rawConfig) (*Config, error) {
 	if err := validateDatabaseURL(raw.DatabaseURL, appEnv); err != nil {
 		add("DATABASE_URL: %v", err)
 	}
+	requireTLS := appEnv == EnvProduction
+	switch strings.ToLower(strings.TrimSpace(raw.DBRequireTLS)) {
+	case "":
+	case "true", "1", "yes":
+		requireTLS = true
+	case "false", "0", "no":
+		requireTLS = false
+	default:
+		add("DB_REQUIRE_TLS must be true or false (got %q)", raw.DBRequireTLS)
+	}
+	if requireTLS && strings.TrimSpace(raw.DatabaseURL) != "" {
+		if err := requireDatabaseTLS(raw.DatabaseURL); err != nil {
+			add("DATABASE_URL: %v (set sslmode=require or verify-full, or DB_REQUIRE_TLS=false for a private network)", err)
+		}
+	}
 	if raw.DBMaxConns <= 0 {
 		add("DB_MAX_CONNS must be greater than zero")
 	}
@@ -453,6 +483,8 @@ func build(raw rawConfig) (*Config, error) {
 			MinConns:       raw.DBMinConns,
 			ConnectTimeout: time.Duration(raw.DBConnectTimeoutSeconds) * time.Second,
 			PingTimeout:    time.Duration(raw.DBPingTimeoutSeconds) * time.Second,
+			RequireTLS:     requireTLS,
+			PgBouncer:      raw.DBPgBouncer,
 		},
 		Redis: RedisConfig{
 			URL:     strings.TrimSpace(raw.RedisURL),
@@ -486,6 +518,8 @@ func build(raw rawConfig) (*Config, error) {
 			MaxBodyBytes:       raw.HTTPMaxBodyBytes,
 			RateLimitRPS:       float64(raw.RateLimitRPS),
 			RateLimitBurst:     raw.RateLimitBurst,
+			MetricsToken:       strings.TrimSpace(raw.MetricsToken),
+			WorkerMetricsAddr:  strings.TrimSpace(raw.WorkerMetricsAddr),
 		},
 		Log: LogConfig{
 			Level:  logLevel,
@@ -648,6 +682,32 @@ func validateDatabaseURL(value string, appEnv Environment) error {
 		return nil
 	}
 	return errors.New("must be a postgres:// URL or a host= DSN")
+}
+
+// requireDatabaseTLS accepts only sslmode values that refuse plaintext.
+func requireDatabaseTLS(value string) error {
+	mode := ""
+	if strings.HasPrefix(value, "postgres://") || strings.HasPrefix(value, "postgresql://") {
+		parsed, err := url.Parse(value)
+		if err != nil {
+			return err
+		}
+		mode = parsed.Query().Get("sslmode")
+	} else {
+		for _, field := range strings.Fields(value) {
+			if key, val, ok := strings.Cut(field, "="); ok && key == "sslmode" {
+				mode = strings.Trim(val, "'")
+			}
+		}
+	}
+	switch strings.ToLower(mode) {
+	case "require", "verify-ca", "verify-full":
+		return nil
+	case "":
+		return errors.New("sslmode is not set; plaintext fallback is possible")
+	default:
+		return fmt.Errorf("sslmode=%s allows unencrypted connections", mode)
+	}
 }
 
 // String implements fmt.Stringer and never includes secrets or database

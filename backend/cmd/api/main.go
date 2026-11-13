@@ -38,6 +38,7 @@ import (
 	"universal-defi-intelligence/internal/swap/providers/nearoneclick"
 	"universal-defi-intelligence/internal/swap/repository"
 	"universal-defi-intelligence/internal/swap/service"
+	"universal-defi-intelligence/internal/trading"
 	"universal-defi-intelligence/migrations"
 )
 
@@ -103,6 +104,7 @@ func run() error {
 
 	// ---- persistence ------------------------------------------------------
 	var (
+		pool       *postgres.Pool
 		store      service.Store
 		authStore  *auth.PostgresStore
 		analytics  analyticsservice.Store
@@ -110,7 +112,7 @@ func run() error {
 		closeStore = func() {}
 	)
 	if cfg.Database.URL != "" {
-		pool, err := postgres.Open(ctx, cfg.Database)
+		pool, err = postgres.Open(ctx, cfg.Database)
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
@@ -183,7 +185,20 @@ func run() error {
 
 	// ---- analytics ----------------------------------------------------------
 	var market *analyticsservice.Reader
+	var tradingEngine *trading.Engine
 	if cfg.MarketData.Mode == config.MarketDataLive {
+		var journal trading.Journal
+		if pool != nil {
+			journal = trading.NewPostgresJournal(pool.Pool)
+		}
+		tradingEngine = trading.NewEngine(trading.Config{
+			Source:  &trading.DefiLlamaPrices{Client: httpclient.New(cfg.MarketData.Timeout)},
+			Journal: journal,
+			Logger:  logger,
+		})
+		// Compute the first scan in the background so the first user request
+		// does not pay for ~40 upstream calls.
+		tradingEngine.Warm()
 		connector := defillama.New(defillama.Config{
 			Timeout:    cfg.MarketData.Timeout,
 			Logger:     logger,
@@ -203,6 +218,7 @@ func run() error {
 		Auth:          authManager,
 		Risk:          riskEngine,
 		Market:        market,
+		Trading:       tradingEngine,
 		Research:      scenarios.New(),
 		Config:        cfg,
 		Probes:        probes,

@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"universal-defi-intelligence/internal/metrics"
 	"universal-defi-intelligence/internal/swap/domain"
 	"universal-defi-intelligence/internal/swap/repository"
 )
@@ -175,6 +176,7 @@ func (p *Poller) pollSwap(ctx context.Context, swap domain.Swap) {
 			p.logger.Error("mark swap stuck", "swap_id", swap.ID, "error", err)
 			return
 		}
+		metrics.ObserveStuck()
 		p.logger.Error("swap exceeded max poll age; polling stopped for manual review",
 			"swap_id", swap.ID,
 			"state", string(swap.State),
@@ -293,6 +295,7 @@ func (p *Poller) pollSwap(ctx context.Context, swap domain.Swap) {
 			return
 		}
 		current = updated.State
+		metrics.ObserveTransition(string(current))
 	}
 
 	p.logger.Info("swap state advanced",

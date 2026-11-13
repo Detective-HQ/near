@@ -105,7 +105,7 @@ func (i *IPRateLimiter) limiterFor(ip string) *TokenBucket {
 func RateLimit(limiter *IPRateLimiter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if limiter == nil || r.URL.Path == "/healthz" || r.URL.Path == "/readyz" {
+			if limiter == nil || r.URL.Path == "/healthz" || r.URL.Path == "/readyz" || r.URL.Path == "/metrics" {
 				next.ServeHTTP(w, r)
 				return
 			}

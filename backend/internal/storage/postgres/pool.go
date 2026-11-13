@@ -50,6 +50,12 @@ func Open(ctx context.Context, cfg config.DatabaseConfig) (*Pool, error) {
 	if cfg.ConnectTimeout > 0 {
 		poolCfg.ConnConfig.ConnectTimeout = cfg.ConnectTimeout
 	}
+	if cfg.PgBouncer {
+		// Unnamed statements are prepared per execution, so they survive
+		// PgBouncer transaction pooling where a server connection can change
+		// between statements.
+		poolCfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+	}
 	poolCfg.MaxConnLifetime = poolMaxLifetime
 	poolCfg.MaxConnLifetimeJitter = 5 * time.Minute
 	poolCfg.MaxConnIdleTime = poolMaxIdleTime
