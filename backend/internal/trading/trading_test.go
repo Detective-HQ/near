@@ -221,8 +221,13 @@ func TestEngineEndToEnd(t *testing.T) {
 
 func TestEngineCachesAndServesStaleOnOutage(t *testing.T) {
 	src := newFake()
-	now := testNow
-	engine := NewEngine(Config{Source: src, Now: func() time.Time { return now }})
+	// The engine reads the clock from background refresh goroutines, so the
+	// test clock must be safe for concurrent use.
+	var clock atomic.Int64
+	clock.Store(testNow.UnixNano())
+	nowFn := func() time.Time { return time.Unix(0, clock.Load()).UTC() }
+	advance := func(d time.Duration) { clock.Add(int64(d)) }
+	engine := NewEngine(Config{Source: src, Now: nowFn})
 	ctx := context.Background()
 	tf := Timeframes[0]
 
@@ -235,20 +240,23 @@ func TestEngineCachesAndServesStaleOnOutage(t *testing.T) {
 	}
 
 	// Within 4x TTL the cached run is served immediately (refresh in background).
-	now = now.Add(tf.TTL + time.Minute)
+	advance(tf.TTL + time.Minute)
 	if run, err := engine.Get(ctx, tf); err != nil || run.Quality != "live" {
 		t.Fatalf("refresh-ahead run = %v err=%v", run, err)
 	}
+	// Join the in-flight background refresh (if any) so it cannot race with
+	// the outage below.
+	engine.flight.Do(tf.Key, func() (any, error) { return nil, nil })
 
 	// Past 4x TTL with the upstream down, the previous run is served as stale.
 	src.down.Store(true)
-	now = now.Add(4 * tf.TTL)
+	advance(5 * tf.TTL)
 	run, err := engine.Get(ctx, tf)
 	if err != nil || run.Quality != "stale" {
 		t.Fatalf("outage run = %v err=%v, want stale previous run", run, err)
 	}
 
-	cold := NewEngine(Config{Source: src, Now: func() time.Time { return now }})
+	cold := NewEngine(Config{Source: src, Now: nowFn})
 	if _, err := cold.Get(ctx, tf); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("cold outage err = %v", err)
 	}
