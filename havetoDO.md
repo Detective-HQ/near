@@ -216,6 +216,8 @@ The roadmap omits:
 
 **Watch out:** polling every 5 seconds for every active swap will hit provider rate limits quickly. Use a short minimum interval plus exponential backoff after each unchanged status.
 
+> **Phase 3 status (2026-11-13):** implemented in `backend/`. Redis client/lock, swap poller, retry policy, stuck handling, catalogue refresher, health tracker, and the worker daemon are complete. Tests cover fake clock, mock provider, `Retry-After`, restart-resume, two-worker single-claim, lease/claim repository behavior, and migration round-trips. PR CI (`.github/workflows/ci.yml`) runs the backend race suite against a PostgreSQL service plus frontend typecheck/tests/build.
+
 ---
 
 ### Phase 4 — Provider integration (5–7 days)
@@ -297,6 +299,8 @@ The roadmap omits:
 - [ ] **9.5** Docs — `docs/runbook.md`, `docs/architecture.md`, ADR 0002. Commands for migrate/rollback/backup/restore; architecture diagram; on-call notes.
 - [ ] **9.6** E2E smoke — `scripts/smoke.sh`/`.ps1`. health → assets → dry quote → swap → mock deposit → status → terminal state; restart DB/Redis and re-check.
 - [ ] **9.7** CI — `.github/workflows/backend.yml`. build, test, race, vet, staticcheck, govulncheck, migration check, docker build, compose smoke.
+  - [x] `.github/workflows/ci.yml` runs on PR/push: backend (gofmt, tidy, build, vet, `-race` tests with a PostgreSQL service, migration drift check, coverage artifact), frontend (`npm ci`, typecheck, tests, build), staticcheck, and a Docker web image build. `govulncheck` runs report-only because stdlib advisories are fixed by a toolchain bump, not a PR.
+  - [ ] compose smoke (needs the Phase 9 Compose stack).
 
 **Blocker:** Docker isn't installed on this machine. Either install Docker Desktop/Podman or make 9.6/9.7 CI-only. Do not claim Phase 9 "done" locally until Compose has actually run.
 
@@ -346,7 +350,7 @@ Every phase should ship with:
 3. [ ] Fix the roadmap's **state enum** to include `INCOMPLETE_DEPOSIT`.
 4. [ ] Approve the **schema corrections** D5–D8 and write `migrations/000001–000005`.
 5. [ ] Implement `internal/swap/domain` (math, state machine, errors) + tests — first mergeable PR.
-6. [ ] Add CI workflow (build, test, race, vet, staticcheck, govulncheck).
+6. [x] Add CI workflow (build, test, race, vet, staticcheck, govulncheck).
 7. [ ] Install Docker (or set up CI testcontainers) before starting Phase 2 integration tests.
 8. [ ] Implement the repository layer with idempotency + concurrency tests.
 9. [ ] Add a minimal `GET /api/v1/health` + `GET /api/v1/assets` on `:8081` to prove proxy parity early.
