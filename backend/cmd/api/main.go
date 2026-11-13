@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,10 +19,43 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		if err := runHealthcheck(); err != nil {
+			fmt.Fprintf(os.Stderr, "healthcheck failed: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "api: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func runHealthcheck() error {
+	client := &http.Client{Timeout: 3 * time.Second}
+	addr := os.Getenv("HTTP_ADDR")
+	if addr == "" {
+		addr = ":8081"
+	}
+	if !strings.HasPrefix(addr, ":") && !strings.HasPrefix(addr, "http://") {
+		if idx := strings.LastIndex(addr, ":"); idx != -1 {
+			addr = addr[idx:]
+		}
+	}
+	if strings.HasPrefix(addr, ":") {
+		addr = "http://127.0.0.1" + addr
+	}
+	resp, err := client.Get(addr + "/healthz")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func run() error {

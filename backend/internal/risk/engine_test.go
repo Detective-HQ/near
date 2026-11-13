@@ -73,4 +73,3 @@ func TestRiskEngine_CatalogueStaleness(t *testing.T) {
 		t.Fatalf("Expected alert for stale catalogue")
 	}
 }
-

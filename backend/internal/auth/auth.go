@@ -322,4 +322,3 @@ func verifyNEARSignature(accountID, pubKeyStr, message, sigHex string) error {
 	}
 	return nil
 }
-
