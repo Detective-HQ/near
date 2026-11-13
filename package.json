@@ -9,13 +9,13 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:frontend": "npm --prefix frontend run dev",
-    "dev:backend": "cd backend && go run -mod=vendor ./cmd/api",
-    "build": "npm --prefix frontend run build && cd backend && go build -mod=vendor ./cmd/api",
+    "dev:backend": "cd backend && go run ./cmd/api",
+    "build": "npm --prefix frontend run build && cd backend && go build ./cmd/api",
     "build:frontend": "npm --prefix frontend run build",
-    "build:backend": "cd backend && go build -mod=vendor ./cmd/api",
+    "build:backend": "cd backend && go build ./cmd/api",
     "start": "npm --prefix frontend run start",
     "typecheck": "npm --prefix frontend run typecheck",
-    "test:backend": "cd backend && go test -mod=vendor ./internal/httpapi ./internal/swap/domain",
+    "test:backend": "cd backend && go test ./internal/httpapi ./internal/swap/domain",
     "check": "npm run typecheck && npm run test:backend"
   },
   "devDependencies": {
