@@ -13,7 +13,8 @@ const STATIC_GET_ROUTES = new Set([
   "/api/v1/markets/overview",
   "/api/v1/intelligence/near",
   "/api/v1/research/scenarios",
-  "/api/v1/activity"
+  "/api/v1/activity",
+  "/api/v1/risk/status"
 ]);
 
 function isAllowedRoute(method: string, pathname: string): boolean {
@@ -24,6 +25,9 @@ function isAllowedRoute(method: string, pathname: string): boolean {
   if (method === "POST") {
     return pathname === "/api/v1/quotes"
       || pathname === "/api/v1/swaps"
+      || pathname === "/api/v1/auth/nonce"
+      || pathname === "/api/v1/auth/verify"
+      || pathname === "/api/v1/auth/logout"
       || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/deposit$/.test(pathname)
       || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/cancel$/.test(pathname)
       || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/simulate$/.test(pathname);
@@ -80,6 +84,14 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
   const idempotencyKey = request.headers.get("idempotency-key");
   if (idempotencyKey && idempotencyKey.length <= 128) {
     headers.set("idempotency-key", idempotencyKey);
+  }
+  const authHeader = request.headers.get("authorization");
+  if (authHeader) {
+    headers.set("authorization", authHeader);
+  }
+  const cookieHeader = request.headers.get("cookie");
+  if (cookieHeader) {
+    headers.set("cookie", cookieHeader);
   }
 
   let body: string | undefined;

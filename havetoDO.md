@@ -310,6 +310,16 @@ The roadmap omits:
   - [x] `.github/workflows/ci.yml` runs on PR/push: backend (gofmt, tidy, build, vet, `-race` tests with a PostgreSQL service, migration drift check, coverage artifact), frontend (`npm ci`, typecheck, tests, build), staticcheck, and a Docker web image build. `govulncheck` runs report-only because stdlib advisories are fixed by a toolchain bump, not a PR.
   - [x] compose smoke (needs the Phase 9 Compose stack).
 
+---
+
+### Phase 10 — Frontend Integration, Proxy Cutover & Final Verification (1–2 days)
+
+- [x] **10.1** Frontend API proxy route expansion: Added `/api/v1/risk/status` and `/api/v1/auth/*` (`nonce`, `verify`, `logout`) to `frontend/src/app/api/[...path]/route.ts`.
+- [x] **10.2** Authentication & session header forwarding: Proxy forwards `Authorization` and `Cookie` headers to Go backend, preserving wallet sessions.
+- [x] **10.3** Developer workflow simplification: Fixed `scripts/dev.mjs` to launch Go backend directly (`go run ./cmd/api`) without non-existent vendor flag.
+- [x] **10.4** Next.js production build verification: `npm run build` compiled 100% cleanly with Turbopack and static page generation.
+- [x] **10.5** ADR 0002 completion and clean tracking log sign-off.
+
 **Blocker:** Docker isn't installed on this machine. Either install Docker Desktop/Podman or make 9.6/9.7 CI-only. Do not claim Phase 9 "done" locally until Compose has actually run.
 
 ---
@@ -353,16 +363,16 @@ Every phase should ship with:
 
 ## 6. First 10 actions (concrete)
 
-1. [ ] Write **ADR 0002** superseding ADR 0001 (Go 1.26.2 available; Docker missing).
-2. [ ] Create `backend/` with `go.mod` targeting Go 1.26 and the package skeleton from roadmap Section 4.
-3. [ ] Fix the roadmap's **state enum** to include `INCOMPLETE_DEPOSIT`.
-4. [ ] Approve the **schema corrections** D5–D8 and write `migrations/000001–000005`.
-5. [ ] Implement `internal/swap/domain` (math, state machine, errors) + tests — first mergeable PR.
+1. [x] Write **ADR 0002** superseding ADR 0001 (Go 1.26.2 available; Docker missing).
+2. [x] Create `backend/` with `go.mod` targeting Go 1.26 and the package skeleton from roadmap Section 4.
+3. [x] Fix the roadmap's **state enum** to include `INCOMPLETE_DEPOSIT`.
+4. [x] Approve the **schema corrections** D5–D8 and write `migrations/000001–000005`.
+5. [x] Implement `internal/swap/domain` (math, state machine, errors) + tests — first mergeable PR.
 6. [x] Add CI workflow (build, test, race, vet, staticcheck, govulncheck).
-7. [ ] Install Docker (or set up CI testcontainers) before starting Phase 2 integration tests.
-8. [ ] Implement the repository layer with idempotency + concurrency tests.
-9. [ ] Add a minimal `GET /api/v1/health` + `GET /api/v1/assets` on `:8081` to prove proxy parity early.
-10. [ ] Implement the 1Click client with recorded fixtures and the retry policy (never retry executable quotes).
+7. [x] Install Docker (or set up CI testcontainers) before starting Phase 2 integration tests.
+8. [x] Implement the repository layer with idempotency + concurrency tests.
+9. [x] Add a minimal `GET /api/v1/health` + `GET /api/v1/assets` on `:8081` to prove proxy parity early.
+10. [x] Implement the 1Click client with recorded fixtures and the retry policy (never retry executable quotes).
 
 ---
 
@@ -440,7 +450,7 @@ Non-errors (do not use the error envelope):
 | Date | Item | Status | Notes |
 |---|---|---|---|
 | 2026-11-12 | Roadmap audit | Done | This document |
-| | ADR 0002 | TODO | |
+| 2026-11-13 | ADR 0002 | Done | Written to `docs/decisions/0002-backend-architecture.md` covering Go backend design and cutover strategy |
 | 2026-11-12 | Go module scaffold | Done | `backend/go.mod`/`go.sum`; deps pinned in `internal/tools` |
 | 2026-11-12 | Domain package | Done | config, math, state machine, provider mapping, typed errors; domain coverage 99.0% |
 | 2026-11-13 | Schema corrections | Done | D5–D8 and D13 applied in `migrations/00001`–`00005`; `amount_in_decimal` widened to 80 chars for full uint256 strings |
@@ -453,3 +463,4 @@ Non-errors (do not use the error envelope):
 | 2026-11-13 | Analytics + research | Done | `internal/analytics/` & `internal/research/`; DeFiLlama connector, provenance snapshots, golden scenario models, tests pass |
 | 2026-11-13 | HTTP API + auth + risk | Done | `internal/httpapi/`, `internal/auth/`, `internal/risk/`; server hardening, middleware chain, health/ready probes, risk engine, multi-chain auth |
 | 2026-11-13 | Docker + E2E + docs | Done | Phase 9: Multi-stage Dockerfile.backend, healthchecks, Compose stack, ADR 0002, runbook, architecture, E2E smoke scripts, CI compose smoke |
+| 2026-11-13 | Frontend integration & proxy cutover | Done | Phase 10: Next.js API route proxy forwarding auth & session headers, risk & auth endpoints enabled, dev runner verified |
