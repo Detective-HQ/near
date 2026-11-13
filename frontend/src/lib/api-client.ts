@@ -17,6 +17,7 @@ import type {
   ScenarioResponse,
   SignalsResponse,
   StructureResponse,
+  TopMoversResponse,
   TradingOverview
 } from "./trading-contracts";
 
@@ -232,6 +233,26 @@ export const api = {
     const m = await import("./mocks");
     return mockOr(m.mockBacktests, () => apiRequest<BacktestsResponse>("/api/v1/trading/backtests"));
   },
+  tradingTopMovers: async (timeframe?: string) => {
+    const m = await import("./mocks");
+    const p = new URLSearchParams(timeframe ? { timeframe } : {});
+    return mockOr(
+      () => {
+        const sigs = m.mockSignals(p);
+        const all = [...sigs.bullish, ...sigs.bearish];
+        return { source: sigs.source, asOf: sigs.asOf, quality: sigs.quality, items: all.slice(0, 10) };
+      },
+      () => apiRequest<TopMoversResponse>(`/api/v1/trading/top-movers${qs(p)}`)
+    );
+  },
+
+  authNonce: async () => apiRequest<{ nonce: string; message: string }>("/api/v1/auth/nonce", { method: "POST", body: "{}" }),
+  authVerify: async (input: { walletAddress: string; chainFamily: string; signature: string; nonce: string; message?: string }) =>
+    apiRequest<{ token: string; session: { id: string; walletAddress: string; expiresAt: string } }>("/api/v1/auth/verify", {
+      method: "POST",
+      body: JSON.stringify(input)
+    }),
+  authLogout: async () => apiRequest<{ status: string }>("/api/v1/auth/logout", { method: "POST", body: "{}" }),
 
   /** No portfolio endpoint exists; only wallet-read native balances are real. */
   portfolioTestData: async (): Promise<PortfolioBalance[] | null> => {

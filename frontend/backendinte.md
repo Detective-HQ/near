@@ -384,6 +384,40 @@ Historical swaps and audit events. Supports keyset cursor pagination (`?limit=20
 
 ---
 
+### 4.6 Trading Intelligence & Signals
+
+*Requires `MARKET_DATA_MODE=live` on the Go backend or `NEXT_PUBLIC_USE_MOCKS=true` for offline demonstration.*
+
+#### `GET /api/v1/trading/overview`
+Returns high-level market structure regime (bullish / bearish / mixed), universe coverage, model version, and market breadth.
+
+#### `GET /api/v1/trading/signals?timeframe=4h&chain=near`
+Returns ranked bullish and bearish trading signals with score metrics, rank change, 24h change, and evidence breakdown.
+- **Query Params:** `timeframe` (`1h`, `4h`, `1d`), `chain`, `venue`, `quote`, `liquidityTier`, `asset`.
+
+#### `GET /api/v1/trading/top-movers?timeframe=4h`
+Returns the universe sorted by absolute 24h price change (top 10 movers).
+
+#### `GET /api/v1/trading/assets/{id}`
+Detailed structural and derivatives breakdown for a specific asset (e.g. `ethereum:eth`, `near:near`). Includes funding rates, open interest, liquidations, futures volume, and risk volatility metrics.
+
+#### `GET /api/v1/trading/orderblocks/{id}?timeframe=4h`
+Identifies algorithmic order blocks, fair value gaps (FVG), market structure shifts (BOS / CHoCH), and swing highs/lows with candle history.
+
+#### `GET /api/v1/trading/liquidity/{id}`
+Calculates key liquidity levels (bids, asks, cumulative volume delta - CVD, spread depth).
+
+#### `GET /api/v1/trading/scenarios/{id}`
+Generates probabilistic scenario projections: reference price, optimal entry area, target 1, target 2, invalidation price, and risk/reward ratio.
+
+#### `GET /api/v1/trading/history?timeframe=4h&page=1&pageSize=20`
+Historical published signals log with outcome tracking (`target_hit`, `stop_hit`, `expired`, `open`), Maximum Favourable Excursion (MFE), and Maximum Adverse Excursion (MAE).
+
+#### `GET /api/v1/trading/backtests`
+Historical model backtest verification results with benchmark comparisons, sample sizes, and Sharpe/drawdown metrics.
+
+---
+
 ## 5. Swap State Machine Reference
 
 ```text
