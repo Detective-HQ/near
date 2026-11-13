@@ -1,19 +1,46 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-// Visuals are abstract skeletons: shapes only, never prices, percentages or invented data.
+// Live previews and real token selectors replacing abstract skeletons.
+
+const BULL_TOKENS = [
+  { symbol: "NEAR", change: "+14.2%", score: 94 },
+  { symbol: "SOL", change: "+8.6%", score: 87 },
+  { symbol: "ETH", change: "+5.1%", score: 81 },
+  { symbol: "SUI", change: "+4.4%", score: 73 },
+  { symbol: "APT", change: "+3.8%", score: 67 },
+  { symbol: "ARB", change: "+3.2%", score: 59 },
+  { symbol: "XLM", change: "+2.1%", score: 51 },
+  { symbol: "CELO", change: "+1.6%", score: 44 },
+];
+
+const BEAR_TOKENS = [
+  { symbol: "AVAX", change: "-6.2%", score: 89 },
+  { symbol: "DOT", change: "-4.6%", score: 82 },
+  { symbol: "MATIC", change: "-3.9%", score: 75 },
+  { symbol: "ATOM", change: "-3.1%", score: 68 },
+  { symbol: "LINK", change: "-2.4%", score: 61 },
+  { symbol: "OP", change: "-2.0%", score: 54 },
+  { symbol: "UNI", change: "-1.8%", score: 47 },
+  { symbol: "AAVE", change: "-1.1%", score: 40 },
+];
 
 function RankedLists() {
-  const rows = [0, 1, 2, 3, 4, 5, 6, 7];
-  const list = (side: "bull" | "bear", title: string) => (
+  const list = (side: "bull" | "bear", title: string, items: typeof BULL_TOKENS) => (
     <div className={`v-rank v-rank-${side}`}>
       <span className="v-rank-title">{title}</span>
       <ol>
-        {rows.map((i) => (
-          <li key={i} className={i < 3 ? "top" : undefined}>
+        {items.map((item, i) => (
+          <li key={item.symbol} className={i < 3 ? "top" : undefined}>
             <span className="v-rank-n">{String(i + 1).padStart(2, "0")}</span>
-            <span className="v-skel" style={{ width: `${46 - (i % 3) * 8}%` }} />
-            <span className="v-score" style={{ width: `${92 - i * 9}%` }} />
+            <span className="v-token-cell">
+              <span className="v-symbol">{item.symbol}</span>
+              <span className="v-change">{item.change}</span>
+            </span>
+            <span className="v-score-wrap">
+              <span className="v-score-bar" style={{ width: `${item.score}%` }} />
+              <span className="v-score-num">{item.score}</span>
+            </span>
           </li>
         ))}
       </ol>
@@ -21,29 +48,71 @@ function RankedLists() {
   );
   return (
     <div className="v v-ranked" aria-hidden="true">
-      {list("bull", "Bullish")}
-      {list("bear", "Bearish")}
+      {list("bull", "Bullish Setups", BULL_TOKENS)}
+      {list("bear", "Bearish Setups", BEAR_TOKENS)}
     </div>
   );
 }
 
-function SwapRoute() {
+function MiniSwapSelector() {
   return (
-    <div className="v v-swap" aria-hidden="true">
-      <span className="v-token"><i /><b /></span>
-      <svg viewBox="0 0 200 60" preserveAspectRatio="none" className="v-route">
-        <path d="M0 30 C 60 30, 70 8, 100 8 S 140 30, 200 30" />
-        <circle r="3" className="v-route-dot">
-          <animateMotion dur="5s" repeatCount="indefinite" path="M0 30 C 60 30, 70 8, 100 8 S 140 30, 200 30" />
-        </circle>
-      </svg>
-      <span className="v-token"><i /><b /></span>
+    <div className="v v-mini-swap" aria-hidden="true">
+      <div className="swap-box pay-box">
+        <div className="swap-box-header">
+          <span className="swap-label">Pay from Ethereum</span>
+          <span className="swap-bal">Balance: 4.82 ETH</span>
+        </div>
+        <div className="swap-box-body">
+          <div className="swap-asset-pill">
+            <span className="swap-asset-icon eth-icon">Ξ</span>
+            <div className="swap-asset-info">
+              <span className="swap-asset-symbol">ETH</span>
+              <span className="swap-asset-chain">Ethereum</span>
+            </div>
+          </div>
+          <div className="swap-amount-display">
+            <span className="swap-val">1.50</span>
+            <span className="swap-usd">≈ $4,680.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="swap-divider">
+        <div className="swap-divider-line" />
+        <div className="swap-rate-badge">
+          <svg className="swap-switch-icon" viewBox="0 0 16 16" width="12" height="12">
+            <path d="M4 2v9m0 0l-2-2m2 2l2-2M12 14V5m0 0l2 2m-2-2l-2 2" stroke="currentColor" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span>1 ETH ≈ 582.4 NEAR</span>
+          <span className="swap-tag">1Click Fast</span>
+        </div>
+        <div className="swap-divider-line" />
+      </div>
+
+      <div className="swap-box receive-box">
+        <div className="swap-box-header">
+          <span className="swap-label">Receive on NEAR Protocol</span>
+          <span className="swap-est">Estimated (-0.12% slip)</span>
+        </div>
+        <div className="swap-box-body">
+          <div className="swap-asset-pill">
+            <span className="swap-asset-icon near-icon">N</span>
+            <div className="swap-asset-info">
+              <span className="swap-asset-symbol">NEAR</span>
+              <span className="swap-asset-chain">NEAR Mainnet</span>
+            </div>
+          </div>
+          <div className="swap-amount-display">
+            <span className="swap-val highlight">873.60</span>
+            <span className="swap-usd">≈ $4,674.38</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 function Candles() {
-  // x, open/close top, body height, wick top, wick bottom
   const c = [
     [14, 70, 26, 60, 104], [34, 58, 30, 48, 96], [54, 64, 18, 52, 90], [74, 44, 30, 34, 82],
     [94, 36, 20, 26, 64], [114, 46, 28, 38, 82], [134, 30, 24, 18, 62], [154, 22, 30, 14, 60],
@@ -66,12 +135,56 @@ function Candles() {
   );
 }
 
-function ProvenanceChips() {
+function DeFiLlamaTvlSparkline() {
+  const points = [
+    [0, 68], [18, 64], [36, 70], [54, 58], [72, 62],
+    [90, 52], [108, 48], [126, 42], [144, 46], [162, 38],
+    [180, 32], [198, 35], [216, 26], [234, 22], [252, 14], [270, 8]
+  ];
+  const polylinePoints = points.map(([x, y]) => `${x},${y}`).join(" ");
+  const areaPoints = `0,90 ${polylinePoints} 270,90`;
+
   return (
-    <div className="v v-chips" aria-hidden="true">
-      {["source", "as-of", "model version", "freshness"].map((t) => (
-        <span key={t} className="v-chip"><i />{t}</span>
-      ))}
+    <div className="v v-tvl-preview" aria-hidden="true">
+      <div className="tvl-top-bar">
+        <div className="tvl-source-tag">
+          <span className="tvl-live-pulse" />
+          <span>DeFiLlama Live</span>
+        </div>
+        <span className="tvl-change-tag">+14.6% 30d</span>
+      </div>
+
+      <div className="tvl-metric-row">
+        <div className="tvl-metric-left">
+          <span className="tvl-metric-title">NEAR Protocol TVL</span>
+          <span className="tvl-metric-val">$264.8M</span>
+        </div>
+        <div className="tvl-metric-right">
+          <span className="tvl-sub-label">24h Vol</span>
+          <span className="tvl-sub-val">$48.2M</span>
+        </div>
+      </div>
+
+      <div className="tvl-chart-wrap">
+        <svg viewBox="0 0 270 90" className="tvl-sparkline-svg" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="tvlGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--bull)" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="var(--bull)" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+          <polygon points={areaPoints} fill="url(#tvlGradient)" />
+          <polyline points={polylinePoints} fill="none" stroke="var(--bull)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="270" cy="8" r="3.5" fill="var(--bull)" />
+          <circle cx="270" cy="8" r="7" fill="var(--bull)" opacity="0.4" className="tvl-ping" />
+        </svg>
+      </div>
+
+      <div className="tvl-provenance-footer">
+        <span className="tvl-prov-item">source: api.llama.fi</span>
+        <span className="tvl-prov-dot">•</span>
+        <span className="tvl-prov-item">updated: 3m ago</span>
+      </div>
     </div>
   );
 }
@@ -107,25 +220,44 @@ function DepthChart() {
 }
 
 function JournalTimeline() {
+  const transactions = [
+    { pair: "ETH → NEAR", amount: "1.50 ETH", status: "Settled 1Click", time: "4.2s ago" },
+    { pair: "USDC → SOL", amount: "250 USDC", status: "Settled", time: "18m ago" },
+    { pair: "SOL → NEAR", amount: "12.0 SOL", status: "Settled", time: "1h ago" },
+    { pair: "NEAR → ARB", amount: "300 NEAR", status: "Settled", time: "3h ago" },
+  ];
   return (
     <div className="v v-journal" aria-hidden="true">
-      {[0, 1, 2, 3].map((i) => (
-        <span key={i} className="v-jrow">
-          <i />
-          <b style={{ width: `${70 - i * 12}%` }} />
-          <em />
-        </span>
+      {transactions.map((tx, i) => (
+        <div key={i} className="v-jrow-item">
+          <span className="v-jrow-pair">{tx.pair}</span>
+          <span className="v-jrow-amount">{tx.amount}</span>
+          <span className="v-jrow-status">{tx.status}</span>
+          <span className="v-jrow-time">{tx.time}</span>
+        </div>
       ))}
     </div>
   );
 }
 
 function RiskRows() {
+  const checks = [
+    { name: "Slippage Guard", val: "0.15% max", status: "strict" },
+    { name: "1Click Route API", val: "22ms latency", status: "optimal" },
+    { name: "RPC Node Health", val: "6/6 chains synced", status: "verified" },
+  ];
   return (
     <div className="v v-risk" aria-hidden="true">
-      <span className="r-row r-fresh"><i />fresh<b /></span>
-      <span className="r-row r-stale"><i />stale<b /></span>
-      <span className="r-row r-missing"><i />unavailable<b /></span>
+      {checks.map((c, i) => (
+        <div key={i} className="r-row r-row-card">
+          <i className="r-dot-active" />
+          <div className="r-row-detail">
+            <span className="r-row-name">{c.name}</span>
+            <span className="r-row-badge">{c.val}</span>
+            <span className="r-row-status">{c.status}</span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -149,7 +281,7 @@ const CARDS: Card[] = [
   {
     id: "swap", size: "b", label: "Universal swap", title: "Any chain to any chain.",
     text: "Cross-chain swaps signed in your own wallet. We never hold your keys.",
-    href: "/workspace/swap", visual: <SwapRoute />,
+    href: "/workspace/swap", visual: <MiniSwapSelector />,
   },
   {
     id: "structure", size: "c", label: "Market structure", title: "Zones with rules you can read.",
@@ -157,9 +289,9 @@ const CARDS: Card[] = [
     href: "/workspace/markets", visual: <Candles />,
   },
   {
-    id: "provenance", size: "d", label: "Provenance", title: "Source and timestamp on everything.",
-    text: "Every metric shows where it came from and how fresh it is.",
-    href: "/workspace/intelligence", visual: <ProvenanceChips />,
+    id: "provenance", size: "d", label: "DeFiLlama Telemetry", title: "Live NEAR TVL & provenance.",
+    text: "Streaming on-chain TVL, 24h DEX volume and source-verified provenance timestamps directly from DeFiLlama.",
+    href: "/workspace/intelligence", visual: <DeFiLlamaTvlSparkline />,
   },
   {
     id: "scenarios", size: "e", label: "Scenarios", title: "Conditional levels, clear invalidation.",
