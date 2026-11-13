@@ -14,7 +14,8 @@ const STATIC_GET_ROUTES = new Set([
   "/api/v1/intelligence/near",
   "/api/v1/research/scenarios",
   "/api/v1/activity",
-  "/api/v1/risk/status"
+  "/api/v1/risk/status",
+  "/api/v1/portfolio"
 ]);
 
 function isAllowedRoute(method: string, pathname: string): boolean {
@@ -75,6 +76,7 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
   const upstreamUrl = new URL(pathname, process.env.UDI_API_ORIGIN ?? "http://127.0.0.1:8081");
   for (const key of [
     "chain",
+    "address",
     "refresh",
     "cursor",
     "limit",

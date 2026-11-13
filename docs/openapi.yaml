@@ -198,6 +198,28 @@ components:
         - $ref: "#/components/schemas/Provenance"
         - type: object
           additionalProperties: true
+    PortfolioBalance:
+      type: object
+      required: [assetId, symbol, chain, balance, source]
+      properties:
+        assetId: { type: string }
+        symbol: { type: string }
+        chain: { type: string }
+        balance: { type: string }
+        valueUsd: { type: [string, "null"] }
+        source: { type: string }
+        asOf: { type: [string, "null"], format: date-time }
+    PortfolioResponse:
+      type: object
+      required: [source, asOf, quality, balances]
+      properties:
+        source: { type: string }
+        asOf: { type: string, format: date-time }
+        quality: { type: string, enum: [live, delayed, stale, partial, unavailable] }
+        address: { type: [string, "null"] }
+        chain: { type: [string, "null"] }
+        totalValueUsd: { type: [string, "null"] }
+        balances: { type: array, items: { $ref: "#/components/schemas/PortfolioBalance" } }
 paths:
   /healthz:
     get:
@@ -282,6 +304,25 @@ paths:
       summary: Operational risk report (provider circuit breaker, catalogue freshness)
       responses:
         "200": { description: Risk report. }
+  /api/v1/portfolio:
+    get:
+      summary: Portfolio balances and USD valuations for an address
+      parameters:
+        - name: address
+          in: query
+          description: Wallet address or account identifier.
+          schema: { type: string }
+        - name: chain
+          in: query
+          description: Optional chain key filter.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Portfolio balances with valuations.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioResponse" }
+        "500": { $ref: "#/components/responses/Error" }
   /api/v1/trading/overview:
     get:
       summary: Market regime and breadth on the default (4h) timeframe

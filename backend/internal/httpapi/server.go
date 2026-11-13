@@ -127,6 +127,7 @@ func (h *Handler) Routes() []Route {
 		{"GET", "/api/v1/intelligence/near", h.IntelligenceNear, false},
 		{"GET", "/api/v1/research/scenarios", h.ResearchScenarios, false},
 		{"GET", "/api/v1/risk/status", h.RiskStatus, false},
+		{"GET", "/api/v1/portfolio", h.Portfolio, false},
 		{"GET", "/api/v1/trading/overview", h.TradingOverview, false},
 		{"GET", "/api/v1/trading/signals", h.TradingSignals, false},
 		{"GET", "/api/v1/trading/top-movers", h.TradingTopMovers, false},

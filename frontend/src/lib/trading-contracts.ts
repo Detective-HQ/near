@@ -210,3 +210,10 @@ export interface PortfolioBalance {
   source: string;
   asOf: string | null;
 }
+
+export interface PortfolioResponse extends Provenance {
+  address: string | null;
+  chain: string | null;
+  totalValueUsd: string | null;
+  balances: PortfolioBalance[];
+}

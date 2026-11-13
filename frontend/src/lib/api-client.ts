@@ -14,6 +14,7 @@ import type {
   HistoryResponse,
   LiquidityResponse,
   PortfolioBalance,
+  PortfolioResponse,
   ScenarioResponse,
   SignalsResponse,
   StructureResponse,
@@ -253,6 +254,28 @@ export const api = {
       body: JSON.stringify(input)
     }),
   authLogout: async () => apiRequest<{ status: string }>("/api/v1/auth/logout", { method: "POST", body: "{}" }),
+
+  portfolio: async (address?: string, chain?: string) => {
+    const m = await import("./mocks");
+    const p = new URLSearchParams();
+    if (address) p.set("address", address);
+    if (chain) p.set("chain", chain);
+    return mockOr(
+      () => {
+        const balances = m.mockPortfolio().filter((b) => !chain || b.chain === chain);
+        return {
+          source: "TEST DATA",
+          asOf: "2026-11-13T12:00:00Z",
+          quality: "live" as const,
+          address: address ?? null,
+          chain: chain ?? null,
+          totalValueUsd: "6745.51",
+          balances,
+        };
+      },
+      () => apiRequest<PortfolioResponse>(`/api/v1/portfolio${qs(p)}`)
+    );
+  },
 
   /** No portfolio endpoint exists; only wallet-read native balances are real. */
   portfolioTestData: async (): Promise<PortfolioBalance[] | null> => {
