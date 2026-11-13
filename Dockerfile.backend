@@ -1,0 +1,19 @@
+FROM golang:1.26-alpine AS build
+
+WORKDIR /app
+COPY backend/ ./
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /app/bin/api ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /app/bin/worker ./cmd/worker
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /app/bin/migrate ./cmd/migrate
+
+FROM alpine:3.20 AS runtime
+
+WORKDIR /app
+COPY --from=build /app/bin/api /app/bin/worker /app/bin/migrate /app/bin/
+
+ENV APP_ENV=production \
+    HTTP_ADDR=:8081
+
+EXPOSE 8081
+CMD ["/app/bin/api"]
+
