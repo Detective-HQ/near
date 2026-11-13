@@ -1,109 +1,75 @@
 #!/usr/bin/env bash
+# End-to-end smoke test for the Go API in demo mode.
+# Usage: scripts/smoke.sh [base-url]   (requires curl and python3)
 set -euo pipefail
 
 BASE_URL="${1:-http://127.0.0.1:8081}"
+step=0
+
+json() { python3 -c "import sys, json; d=json.load(sys.stdin); print($1)"; }
+ok() { echo "OK${1:+ ($1)}"; }
+begin() { step=$((step + 1)); echo -n "$step. $1... "; }
 
 echo "============================================="
-echo "Running E2E Smoke Test against $BASE_URL"
+echo "E2E smoke test against $BASE_URL"
 echo "============================================="
 
-# 1. /healthz
-echo -n "1. Checking /healthz... "
-curl -sf "$BASE_URL/healthz" > /dev/null
-echo "OK"
+begin "GET /healthz";  curl -sf "$BASE_URL/healthz" > /dev/null; ok
+begin "GET /readyz";   curl -sf "$BASE_URL/readyz" > /dev/null; ok
+begin "GET /api/v1/health"
+MODE=$(curl -sf "$BASE_URL/api/v1/health" | json "d['quoteMode']"); ok "quoteMode=$MODE"
+begin "GET /api/v1/chains"
+CHAINS=$(curl -sf "$BASE_URL/api/v1/chains" | json "len(d['chains'])"); ok "$CHAINS chains"
+begin "GET /api/v1/assets?chain=eth (provider alias)"
+ASSETS=$(curl -sf "$BASE_URL/api/v1/assets?chain=eth" | json "len(d['assets'])"); ok "$ASSETS assets"
+begin "GET /api/v1/research/scenarios"
+curl -sf "$BASE_URL/api/v1/research/scenarios" | json "d['scenarios'][1]['projectedAnnualFeesUsd']" > /dev/null; ok
 
-# 2. /readyz
-echo -n "2. Checking /readyz... "
-curl -sf "$BASE_URL/readyz" > /dev/null
-echo "OK"
+begin "POST /api/v1/quotes"
+QUOTE_ID=$(curl -sf -X POST "$BASE_URL/api/v1/quotes" -H "Content-Type: application/json" \
+  -d '{"originAssetId":"demo:ethereum:usdc","destinationAssetId":"demo:base:usdc","amountIn":"25"}' \
+  | json "d['quote']['id']")
+ok "$QUOTE_ID"
 
-# 3. /api/v1/health
-echo -n "3. Checking /api/v1/health... "
-curl -sf "$BASE_URL/api/v1/health" > /dev/null
-echo "OK"
+IDEMP_KEY="smoke-$(date +%s)-$RANDOM"
+begin "POST /api/v1/swaps"
+SWAP_ID=$(curl -sf -X POST "$BASE_URL/api/v1/swaps" -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $IDEMP_KEY" -d "{\"quoteId\":\"$QUOTE_ID\"}" | json "d['swap']['id']")
+ok "$SWAP_ID"
 
-# 4. /api/v1/chains
-echo -n "4. Checking /api/v1/chains... "
-curl -sf "$BASE_URL/api/v1/chains" > /dev/null
-echo "OK"
+begin "replay POST /api/v1/swaps (idempotent)"
+REPLAY=$(curl -sf -X POST "$BASE_URL/api/v1/swaps" -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $IDEMP_KEY" -d "{\"quoteId\":\"$QUOTE_ID\"}" | json "d['swap']['id'] + ' ' + str(d['created'])")
+[ "$REPLAY" = "$SWAP_ID False" ] || { echo "FAILED: replay returned '$REPLAY'"; exit 1; }
+ok
 
-# 5. /api/v1/assets
-echo -n "5. Checking /api/v1/assets?chain=near... "
-curl -sf "$BASE_URL/api/v1/assets?chain=near" > /dev/null
-echo "OK"
+begin "POST /api/v1/swaps/{id}/deposit"
+TX_HASH="0x$(printf '%064x' "$RANDOM$RANDOM$RANDOM")"
+STATE=$(curl -sf -X POST "$BASE_URL/api/v1/swaps/$SWAP_ID/deposit" -H "Content-Type: application/json" \
+  -d "{\"txHash\":\"$TX_HASH\",\"chainId\":\"1\"}" | json "d['swap']['state']")
+[ "$STATE" = "DEPOSIT_SUBMITTED" ] || { echo "FAILED: state $STATE"; exit 1; }
+ok "$STATE"
 
-# 6. /api/v1/quotes
-echo -n "6. Creating quote via POST /api/v1/quotes... "
-QUOTE_RESP=$(curl -sf -X POST "$BASE_URL/api/v1/quotes" \
-  -H "Content-Type: application/json" \
-  -d '{"originAssetId":"demo:near:near","destinationAssetId":"demo:base:usdc","amountIn":"10"}')
-if command -v python3 > /dev/null 2>&1; then
-  QUOTE_ID=$(echo "$QUOTE_RESP" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
-else
-  QUOTE_ID=$(echo "$QUOTE_RESP" | grep -o '"id":"[^"]*' | head -n1 | cut -d'"' -f4)
-fi
-if [ -z "$QUOTE_ID" ]; then
-  echo "FAILED: could not extract quoteId"
-  exit 1
-fi
-echo "OK (Quote ID: $QUOTE_ID)"
+for want in PROCESSING SUCCEEDED; do
+  begin "POST /api/v1/swaps/{id}/simulate -> $want"
+  STATE=$(curl -sf -X POST "$BASE_URL/api/v1/swaps/$SWAP_ID/simulate" -H "Content-Type: application/json" -d '{}' \
+    | json "d['swap']['state'] + ' ' + str(d['swap']['realSettlement'])")
+  [ "$STATE" = "$want False" ] || { echo "FAILED: got '$STATE'"; exit 1; }
+  ok
+done
 
-# 7. /api/v1/swaps
-IDEMP_KEY="smoke-idemp-$(date +%s)-$RANDOM"
-echo -n "7. Creating swap via POST /api/v1/swaps... "
-SWAP_RESP=$(curl -sf -X POST "$BASE_URL/api/v1/swaps" \
-  -H "Content-Type: application/json" \
-  -H "Idempotency-Key: $IDEMP_KEY" \
-  -d "{\"quoteId\":\"$QUOTE_ID\"}")
-if command -v python3 > /dev/null 2>&1; then
-  SWAP_ID=$(echo "$SWAP_RESP" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
-else
-  SWAP_ID=$(echo "$SWAP_RESP" | grep -o '"id":"[^"]*' | head -n1 | cut -d'"' -f4)
-fi
-if [ -z "$SWAP_ID" ]; then
-  echo "FAILED: could not extract swapId"
-  exit 1
-fi
-echo "OK (Swap ID: $SWAP_ID)"
+begin "cancel after success is rejected"
+CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/api/v1/swaps/$SWAP_ID/cancel" -H "Content-Type: application/json" -d '{}')
+[ "$CODE" = "409" ] || { echo "FAILED: HTTP $CODE"; exit 1; }
+ok
 
-# 8. /api/v1/swaps/{id}/deposit
-echo -n "8. Submitting deposit via POST /api/v1/swaps/$SWAP_ID/deposit... "
-curl -sf -X POST "$BASE_URL/api/v1/swaps/$SWAP_ID/deposit" \
-  -H "Content-Type: application/json" \
-  -d '{"txHash":"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef","chainId":"8453"}' > /dev/null
-echo "OK"
-
-# 9. /api/v1/swaps/{id}
-echo -n "9. Verifying swap state via GET /api/v1/swaps/$SWAP_ID... "
-STATE_RESP=$(curl -sf "$BASE_URL/api/v1/swaps/$SWAP_ID")
-if echo "$STATE_RESP" | grep -q "DEPOSIT_SUBMITTED"; then
-  echo "OK (State: DEPOSIT_SUBMITTED)"
-else
-  echo "FAILED: State is not DEPOSIT_SUBMITTED"
-  exit 1
-fi
-
-# 10. /api/v1/swaps/{id}/simulate
-echo -n "10. Advancing simulation via POST /api/v1/swaps/$SWAP_ID/simulate... "
-curl -sf -X POST "$BASE_URL/api/v1/swaps/$SWAP_ID/simulate" > /dev/null
-echo "OK"
-
-# 11. /api/v1/activity
-echo -n "11. Checking activity via GET /api/v1/activity... "
-curl -sf "$BASE_URL/api/v1/activity" > /dev/null
-echo "OK"
-
-# 12. /api/v1/risk/status
-echo -n "12. Checking risk engine status via GET /api/v1/risk/status... "
-RISK_RESP=$(curl -sf "$BASE_URL/api/v1/risk/status")
-if echo "$RISK_RESP" | grep -q "HEALTHY"; then
-  echo "OK (Status: HEALTHY)"
-else
-  echo "FAILED: Risk status is not HEALTHY"
-  exit 1
-fi
+begin "GET /api/v1/swaps/{id}"
+EVENTS=$(curl -sf "$BASE_URL/api/v1/swaps/$SWAP_ID" | json "len(d['swap']['events'])"); ok "$EVENTS events"
+begin "GET /api/v1/activity"
+curl -sf "$BASE_URL/api/v1/activity" | json "len(d['swaps'])" > /dev/null; ok
+begin "GET /api/v1/risk/status"
+RISK=$(curl -sf "$BASE_URL/api/v1/risk/status" | json "d['status']"); ok "$RISK"
 
 echo "============================================="
-echo "All E2E Smoke Tests PASSED successfully!"
+echo "All E2E smoke tests passed."
 echo "============================================="
-

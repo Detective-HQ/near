@@ -18,6 +18,11 @@ const backend = spawn("go", ["run", "./cmd/api"], {
     ...process.env,
     HTTP_ADDR: process.env.HTTP_ADDR || ":8081",
     APP_ENV: process.env.APP_ENV || "local",
+    // Local development defaults to the illustrative demo catalogue and fixture
+    // market data so the stack runs without provider credentials or a database.
+    SWAP_QUOTE_MODE: process.env.SWAP_QUOTE_MODE || "demo",
+    MARKET_DATA_MODE: process.env.MARKET_DATA_MODE || "fixture",
+    LOG_FORMAT: process.env.LOG_FORMAT || "text",
   },
 });
 

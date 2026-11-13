@@ -198,7 +198,7 @@ export const api = {
 
   swap: async (swapId: string) => unwrap<SwapRecord>(await apiRequest<unknown>(`/api/v1/swaps/${enc(swapId)}`), "swap"),
 
-  // Trading intelligence: read-only. Not yet served by the Go API (see trading-contracts.ts).
+  // Trading intelligence: read-only, served by the Go API when MARKET_DATA_MODE=live (see trading-contracts.ts).
   tradingOverview: async () => {
     const m = await import("./mocks");
     return mockOr(m.mockOverview, () => apiRequest<TradingOverview>("/api/v1/trading/overview"));

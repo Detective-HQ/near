@@ -129,3 +129,22 @@ func TestParseRejectsDuplicateChainID(t *testing.T) {
 		t.Fatalf("Parse() error = %v, want duplicate chain ID", err)
 	}
 }
+
+func TestProviderAliasesResolveToCanonicalKeys(t *testing.T) {
+	reg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for alias, want := range map[string]string{
+		"eth": "ethereum", "arb": "arbitrum", "bsc": "bnb", "sol": "solana",
+		"pol": "polygon", "avax": "avalanche", "base": "base", "near": "near", "ETH": "ethereum",
+	} {
+		got, ok := reg.Canonical(alias)
+		if !ok || got != want {
+			t.Fatalf("Canonical(%q) = %q, %v; want %q", alias, got, ok, want)
+		}
+	}
+	if _, ok := reg.Canonical("unknown-chain"); ok {
+		t.Fatal("unknown alias resolved")
+	}
+}

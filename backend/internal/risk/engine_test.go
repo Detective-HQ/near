@@ -3,6 +3,8 @@ package risk
 import (
 	"testing"
 	"time"
+
+	"universal-defi-intelligence/internal/swap/domain"
 )
 
 func TestRiskEngine_SlippageCheck(t *testing.T) {
@@ -71,5 +73,21 @@ func TestRiskEngine_CatalogueStaleness(t *testing.T) {
 	}
 	if len(status.ActiveAlerts) == 0 {
 		t.Fatalf("Expected alert for stale catalogue")
+	}
+}
+
+func TestObserveProviderCallTripsOnProviderFailuresOnly(t *testing.T) {
+	engine := NewEngine(Config{})
+	for i := 0; i < 20; i++ {
+		engine.ObserveProviderCall(domain.New(domain.CodeInvalidAmount, "client error"))
+	}
+	if got := engine.Status().CircuitBreaker; got != CircuitClosed {
+		t.Fatalf("client errors tripped the breaker: %s", got)
+	}
+	for i := 0; i < 20; i++ {
+		engine.ObserveProviderCall(domain.New(domain.CodeProviderRateLimited, "slow down"))
+	}
+	if got := engine.Status().CircuitBreaker; got != CircuitOpen {
+		t.Fatalf("rate limits did not trip the breaker: %s", got)
 	}
 }

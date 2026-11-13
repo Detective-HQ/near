@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -55,7 +56,28 @@ type Config struct {
 	Execution  ExecutionConfig
 	MarketData MarketDataConfig
 	Catalogue  CatalogueConfig
+	Security   SecurityConfig
 	Log        LogConfig
+}
+
+// SecurityConfig contains authentication and HTTP edge protections.
+type SecurityConfig struct {
+	// AuthRequired forces wallet sign-in for every swap and activity route.
+	AuthRequired bool
+	SessionTTL   time.Duration
+	// CORSAllowedOrigins is an explicit allowlist. Empty means no cross-origin
+	// access (the Next.js proxy is same-origin and needs none).
+	CORSAllowedOrigins []string
+	// TrustedProxies are the networks whose X-Forwarded-For header is honored
+	// for client IP attribution (rate limiting and logs).
+	TrustedProxies []netip.Prefix
+	MaxBodyBytes   int64
+	RateLimitRPS   float64
+	RateLimitBurst int
+	// MetricsToken, when set, is required as a bearer token on /metrics.
+	MetricsToken string
+	// WorkerMetricsAddr, when set, makes the worker serve /metrics there.
+	WorkerMetricsAddr string
 }
 
 // HTTPConfig contains HTTP server limits and timeouts.
@@ -82,6 +104,13 @@ type DatabaseConfig struct {
 	MinConns       int32
 	ConnectTimeout time.Duration
 	PingTimeout    time.Duration
+	// RequireTLS rejects connection strings that allow plaintext
+	// (sslmode=disable/allow/prefer or none). Defaults to true in production.
+	RequireTLS bool
+	// PgBouncer switches pgx to a query mode without cached named prepared
+	// statements, which PgBouncer in transaction mode (Neon, Supabase pooled
+	// endpoints) cannot route. Migrations should use a direct, unpooled URL.
+	PgBouncer bool
 }
 
 // RedisConfig contains Redis connection settings.
@@ -144,6 +173,8 @@ type rawConfig struct {
 	DBMinConns              int32  `env:"DB_MIN_CONNS" envDefault:"0"`
 	DBConnectTimeoutSeconds int    `env:"DB_CONNECT_TIMEOUT_SECONDS" envDefault:"5"`
 	DBPingTimeoutSeconds    int    `env:"DB_PING_TIMEOUT_SECONDS" envDefault:"2"`
+	DBRequireTLS            string `env:"DB_REQUIRE_TLS"`
+	DBPgBouncer             bool   `env:"DB_PGBOUNCER" envDefault:"false"`
 
 	RedisURL            string `env:"REDIS_URL" envDefault:"redis://localhost:6379"`
 	RedisTimeoutSeconds int    `env:"REDIS_TIMEOUT_SECONDS" envDefault:"2"`
@@ -164,6 +195,16 @@ type rawConfig struct {
 	SwapStatusPollSeconds     int    `env:"SWAP_STATUS_POLL_SECONDS" envDefault:"5"`
 	SwapStatusMaxAgeMinutes   int    `env:"SWAP_STATUS_MAX_AGE_MINUTES" envDefault:"60"`
 	SwapStatusPollConcurrency int    `env:"SWAP_STATUS_POLL_CONCURRENCY" envDefault:"10"`
+
+	AuthRequired          bool   `env:"AUTH_REQUIRED" envDefault:"false"`
+	AuthSessionTTLMinutes int    `env:"AUTH_SESSION_TTL_MINUTES" envDefault:"1440"`
+	CORSAllowedOrigins    string `env:"CORS_ALLOWED_ORIGINS"`
+	TrustedProxyCIDRs     string `env:"TRUSTED_PROXY_CIDRS" envDefault:"127.0.0.1/32,::1/128"`
+	HTTPMaxBodyBytes      int64  `env:"HTTP_MAX_BODY_BYTES" envDefault:"65536"`
+	RateLimitRPS          int    `env:"RATE_LIMIT_RPS" envDefault:"20"`
+	RateLimitBurst        int    `env:"RATE_LIMIT_BURST" envDefault:"40"`
+	MetricsToken          string `env:"METRICS_TOKEN"`
+	WorkerMetricsAddr     string `env:"WORKER_METRICS_ADDR"`
 
 	LogLevel  string `env:"LOG_LEVEL" envDefault:"info"`
 	LogFormat string `env:"LOG_FORMAT" envDefault:"json"`
@@ -306,6 +347,21 @@ func build(raw rawConfig) (*Config, error) {
 	if err := validateDatabaseURL(raw.DatabaseURL, appEnv); err != nil {
 		add("DATABASE_URL: %v", err)
 	}
+	requireTLS := appEnv == EnvProduction
+	switch strings.ToLower(strings.TrimSpace(raw.DBRequireTLS)) {
+	case "":
+	case "true", "1", "yes":
+		requireTLS = true
+	case "false", "0", "no":
+		requireTLS = false
+	default:
+		add("DB_REQUIRE_TLS must be true or false (got %q)", raw.DBRequireTLS)
+	}
+	if requireTLS && strings.TrimSpace(raw.DatabaseURL) != "" {
+		if err := requireDatabaseTLS(raw.DatabaseURL); err != nil {
+			add("DATABASE_URL: %v (set sslmode=require or verify-full, or DB_REQUIRE_TLS=false for a private network)", err)
+		}
+	}
 	if raw.DBMaxConns <= 0 {
 		add("DB_MAX_CONNS must be greater than zero")
 	}
@@ -372,6 +428,27 @@ func build(raw rawConfig) (*Config, error) {
 		add("SWAP_STATUS_POLL_CONCURRENCY must be between 1 and 100")
 	}
 
+	if raw.AuthSessionTTLMinutes < 5 || raw.AuthSessionTTLMinutes > 43200 {
+		add("AUTH_SESSION_TTL_MINUTES must be between 5 and 43200")
+	}
+	corsOrigins, err := parseOrigins(raw.CORSAllowedOrigins)
+	if err != nil {
+		add("CORS_ALLOWED_ORIGINS: %v", err)
+	}
+	trustedProxies, err := parsePrefixes(raw.TrustedProxyCIDRs)
+	if err != nil {
+		add("TRUSTED_PROXY_CIDRS: %v", err)
+	}
+	if raw.HTTPMaxBodyBytes < 1024 || raw.HTTPMaxBodyBytes > 10<<20 {
+		add("HTTP_MAX_BODY_BYTES must be between 1024 and 10485760")
+	}
+	if raw.RateLimitRPS < 1 || raw.RateLimitRPS > 10000 {
+		add("RATE_LIMIT_RPS must be between 1 and 10000")
+	}
+	if raw.RateLimitBurst < raw.RateLimitRPS || raw.RateLimitBurst > 20000 {
+		add("RATE_LIMIT_BURST must be between RATE_LIMIT_RPS and 20000")
+	}
+
 	logLevel, err := parseLogLevel(raw.LogLevel)
 	if err != nil {
 		add("LOG_LEVEL: %v", err)
@@ -406,6 +483,8 @@ func build(raw rawConfig) (*Config, error) {
 			MinConns:       raw.DBMinConns,
 			ConnectTimeout: time.Duration(raw.DBConnectTimeoutSeconds) * time.Second,
 			PingTimeout:    time.Duration(raw.DBPingTimeoutSeconds) * time.Second,
+			RequireTLS:     requireTLS,
+			PgBouncer:      raw.DBPgBouncer,
 		},
 		Redis: RedisConfig{
 			URL:     strings.TrimSpace(raw.RedisURL),
@@ -431,11 +510,68 @@ func build(raw rawConfig) (*Config, error) {
 		Catalogue: CatalogueConfig{
 			TTL: time.Duration(raw.AssetCatalogueTTLSeconds) * time.Second,
 		},
+		Security: SecurityConfig{
+			AuthRequired:       raw.AuthRequired,
+			SessionTTL:         time.Duration(raw.AuthSessionTTLMinutes) * time.Minute,
+			CORSAllowedOrigins: corsOrigins,
+			TrustedProxies:     trustedProxies,
+			MaxBodyBytes:       raw.HTTPMaxBodyBytes,
+			RateLimitRPS:       float64(raw.RateLimitRPS),
+			RateLimitBurst:     raw.RateLimitBurst,
+			MetricsToken:       strings.TrimSpace(raw.MetricsToken),
+			WorkerMetricsAddr:  strings.TrimSpace(raw.WorkerMetricsAddr),
+		},
 		Log: LogConfig{
 			Level:  logLevel,
 			Format: logFormat,
 		},
 	}, nil
+}
+
+// parseOrigins parses a comma-separated CORS allowlist. Wildcards are
+// rejected: a credentialed API must never answer Access-Control-Allow-Origin: *.
+func parseOrigins(value string) ([]string, error) {
+	var origins []string
+	for _, part := range strings.Split(value, ",") {
+		origin := strings.TrimRight(strings.TrimSpace(part), "/")
+		if origin == "" {
+			continue
+		}
+		if strings.Contains(origin, "*") {
+			return nil, errors.New("wildcard origins are not allowed")
+		}
+		parsed, err := url.Parse(origin)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.Path != "" {
+			return nil, fmt.Errorf("invalid origin %q (want scheme://host[:port])", origin)
+		}
+		origins = append(origins, strings.ToLower(origin))
+	}
+	return origins, nil
+}
+
+// parsePrefixes parses a comma-separated list of CIDRs or bare IPs.
+func parsePrefixes(value string) ([]netip.Prefix, error) {
+	var prefixes []netip.Prefix
+	for _, part := range strings.Split(value, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if !strings.Contains(part, "/") {
+			addr, err := netip.ParseAddr(part)
+			if err != nil {
+				return nil, fmt.Errorf("invalid address %q", part)
+			}
+			prefixes = append(prefixes, netip.PrefixFrom(addr, addr.BitLen()))
+			continue
+		}
+		prefix, err := netip.ParsePrefix(part)
+		if err != nil {
+			return nil, fmt.Errorf("invalid CIDR %q", part)
+		}
+		prefixes = append(prefixes, prefix.Masked())
+	}
+	return prefixes, nil
 }
 
 func parseQuoteMode(value string) (QuoteMode, error) {
@@ -546,6 +682,32 @@ func validateDatabaseURL(value string, appEnv Environment) error {
 		return nil
 	}
 	return errors.New("must be a postgres:// URL or a host= DSN")
+}
+
+// requireDatabaseTLS accepts only sslmode values that refuse plaintext.
+func requireDatabaseTLS(value string) error {
+	mode := ""
+	if strings.HasPrefix(value, "postgres://") || strings.HasPrefix(value, "postgresql://") {
+		parsed, err := url.Parse(value)
+		if err != nil {
+			return err
+		}
+		mode = parsed.Query().Get("sslmode")
+	} else {
+		for _, field := range strings.Fields(value) {
+			if key, val, ok := strings.Cut(field, "="); ok && key == "sslmode" {
+				mode = strings.Trim(val, "'")
+			}
+		}
+	}
+	switch strings.ToLower(mode) {
+	case "require", "verify-ca", "verify-full":
+		return nil
+	case "":
+		return errors.New("sslmode is not set; plaintext fallback is possible")
+	default:
+		return fmt.Errorf("sslmode=%s allows unencrypted connections", mode)
+	}
 }
 
 // String implements fmt.Stringer and never includes secrets or database

@@ -101,6 +101,12 @@ func (s *fakeStore) RecordPollResult(_ context.Context, result repository.PollRe
 	if swap.State != result.OldState {
 		return domain.Swap{}, domain.Event{}, domain.New(domain.CodeStateConflict, "")
 	}
+	if result.OldState != result.NewState {
+		// Mirror the repository: every persisted hop must be a legal edge.
+		if err := domain.CanTransition(result.OldState, result.NewState); err != nil {
+			return domain.Swap{}, domain.Event{}, err
+		}
+	}
 	swap.State = result.NewState
 	swap.ProviderStatus = result.ProviderStatus
 	if swap.SourceTxHash == "" {
@@ -309,8 +315,42 @@ func TestPollerExpiresUnfundedQuote(t *testing.T) {
 	if got := store.get("swp_1").State; got != domain.StateExpired {
 		t.Fatalf("state = %s, want EXPIRED", got)
 	}
-	if got := provider.calls.Load(); got != 0 {
-		t.Fatalf("provider calls = %d, want 0 for an expired quote", got)
+	if got := provider.calls.Load(); got != 1 {
+		t.Fatalf("provider calls = %d, want 1: the provider must confirm no deposit before expiry", got)
+	}
+}
+
+func TestPollerDoesNotExpireAFundedButUnreportedSwap(t *testing.T) {
+	now := time.Now().UTC()
+	swap := dueSwap(now, domain.StateAwaitingUserDeposit)
+	swap.ExpiresAt = now.Add(-time.Minute)
+	store := newFakeStore(swap)
+	provider := statusProvider(domain.ProviderStatusProcessing)
+	poller := newPoller(provider, store, newFakeClock(now), worker.PollerConfig{})
+
+	if _, err := poller.PollOnce(context.Background()); err != nil {
+		t.Fatalf("PollOnce: %v", err)
+	}
+	if got := store.get("swp_1").State; got != domain.StateProcessing {
+		t.Fatalf("state = %s, want PROCESSING (user paid but never reported the hash)", got)
+	}
+}
+
+func TestPollerWalksSkippedStatesToSettlement(t *testing.T) {
+	now := time.Now().UTC()
+	store := newFakeStore(dueSwap(now, domain.StateAwaitingUserDeposit))
+	provider := statusProvider(domain.ProviderStatusSuccess)
+	poller := newPoller(provider, store, newFakeClock(now), worker.PollerConfig{})
+
+	if _, err := poller.PollOnce(context.Background()); err != nil {
+		t.Fatalf("PollOnce: %v", err)
+	}
+	final := store.get("swp_1")
+	if final.State != domain.StateSucceeded || final.ProviderStatus != domain.ProviderStatusSuccess {
+		t.Fatalf("final = %s/%s, want SUCCEEDED/SUCCESS", final.State, final.ProviderStatus)
+	}
+	if events, _, _ := store.snapshot(); events != 3 {
+		t.Fatalf("events = %d, want 3 audited hops (DEPOSIT_SUBMITTED, PROCESSING, SUCCEEDED)", events)
 	}
 }
 

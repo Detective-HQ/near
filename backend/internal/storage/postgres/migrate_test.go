@@ -74,7 +74,7 @@ func TestMigratorRoundTrip(t *testing.T) {
 	migrator, _, _ := migrationDatabase(t)
 	ctx := context.Background()
 
-	if got, want := migrator.MaxVersion(), int64(6); got != want {
+	if got, want := migrator.MaxVersion(), int64(8); got != want {
 		t.Fatalf("MaxVersion = %d, want %d", got, want)
 	}
 	if version, err := migrator.Version(ctx); err != nil {
@@ -95,7 +95,7 @@ func TestMigratorRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Up: %v", err)
 	}
-	if want := []int64{1, 2, 3, 4, 5, 6}; !equalVersions(applied, want) {
+	if want := []int64{1, 2, 3, 4, 5, 6, 7, 8}; !equalVersions(applied, want) {
 		t.Fatalf("Up applied %v, want %v", applied, want)
 	}
 	if version, err := migrator.Version(ctx); err != nil {
@@ -116,8 +116,8 @@ func TestMigratorRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Status: %v", err)
 	}
-	if len(statuses) != 6 {
-		t.Fatalf("Status returned %d rows, want 6", len(statuses))
+	if len(statuses) != 8 {
+		t.Fatalf("Status returned %d rows, want 8", len(statuses))
 	}
 	for _, status := range statuses {
 		if status.State != "applied" {
@@ -135,15 +135,15 @@ func TestMigratorRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Down: %v", err)
 	}
-	if version != 6 {
-		t.Fatalf("Down rolled back version %d, want 6", version)
+	if version != 8 {
+		t.Fatalf("Down rolled back version %d, want 8", version)
 	}
 
 	rolledBack, err := migrator.DownTo(ctx, 0)
 	if err != nil {
 		t.Fatalf("DownTo(0): %v", err)
 	}
-	if want := []int64{5, 4, 3, 2, 1}; !equalVersions(rolledBack, want) {
+	if want := []int64{7, 6, 5, 4, 3, 2, 1}; !equalVersions(rolledBack, want) {
 		t.Fatalf("DownTo(0) rolled back %v, want %v", rolledBack, want)
 	}
 	if version, err := migrator.Version(ctx); err != nil {
