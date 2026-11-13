@@ -124,4 +124,3 @@ func TestQuoteAndSwapFlow(t *testing.T) {
 		t.Fatalf("expected 200 for activity, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
-

@@ -173,4 +173,3 @@ func NewServer(cfg *config.Config, handler http.Handler) *http.Server {
 		MaxHeaderBytes:    cfg.HTTP.MaxHeaderBytes,
 	}
 }
-

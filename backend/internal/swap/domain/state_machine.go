@@ -308,13 +308,17 @@ func NewSwap(id, quoteID string, now time.Time) Swap {
 	}
 }
 
-// InitialEvent builds the CREATED audit entry. OldState is intentionally empty
+// InitialEvent builds the initial audit entry. OldState is intentionally empty
 // because there was no previous state.
 func InitialEvent(swap Swap) Event {
+	state := swap.State
+	if state == "" {
+		state = StateCreated
+	}
 	return Event{
 		SwapID:         swap.ID,
 		OldState:       "",
-		NewState:       StateCreated,
+		NewState:       state,
 		ProviderStatus: swap.ProviderStatus,
 		CreatedAt:      swap.CreatedAt,
 	}

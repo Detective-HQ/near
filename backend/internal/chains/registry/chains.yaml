@@ -1,0 +1,215 @@
+# Single source of truth for supported chains.
+#
+# Feature-flag semantics:
+#   swap_enabled      - server-side executable swaps may be routed here
+#   deposit_supported - deposit address/memo capture is supported
+#   memo_required     - executable quotes must carry a deposit memo
+#   wallet_only       - non-custodial wallet payloads only; server never signs
+#   planned           - advertised in the registry but not enabled for swaps
+#
+# Keep this file free of secrets. RPC URLs must be public HTTPS endpoints.
+chains:
+  - key: ethereum
+    name: Ethereum
+    family: evm
+    chain_id: "1"
+    rpc_urls:
+      - https://ethereum-rpc.publicnode.com
+      - https://eth.llamarpc.com
+    explorer_tx_url: https://etherscan.io/tx/{hash}
+    explorer_address_url: https://etherscan.io/address/{address}
+    native_currency:
+      symbol: ETH
+      decimals: 18
+    features:
+      swap_enabled: true
+      deposit_supported: true
+      memo_required: false
+      wallet_only: false
+      planned: false
+
+  - key: base
+    name: Base
+    family: evm
+    chain_id: "8453"
+    rpc_urls:
+      - https://mainnet.base.org
+      - https://base-rpc.publicnode.com
+    explorer_tx_url: https://basescan.org/tx/{hash}
+    explorer_address_url: https://basescan.org/address/{address}
+    native_currency:
+      symbol: ETH
+      decimals: 18
+    features:
+      swap_enabled: true
+      deposit_supported: true
+      memo_required: false
+      wallet_only: false
+      planned: false
+
+  - key: arbitrum
+    name: Arbitrum One
+    family: evm
+    chain_id: "42161"
+    rpc_urls:
+      - https://arb1.arbitrum.io/rpc
+      - https://arbitrum-one-rpc.publicnode.com
+    explorer_tx_url: https://arbiscan.io/tx/{hash}
+    explorer_address_url: https://arbiscan.io/address/{address}
+    native_currency:
+      symbol: ETH
+      decimals: 18
+    features:
+      swap_enabled: true
+      deposit_supported: true
+      memo_required: false
+      wallet_only: false
+      planned: false
+
+  - key: polygon
+    name: Polygon
+    family: evm
+    chain_id: "137"
+    rpc_urls:
+      - https://polygon-rpc.com
+      - https://polygon-bor-rpc.publicnode.com
+    explorer_tx_url: https://polygonscan.com/tx/{hash}
+    explorer_address_url: https://polygonscan.com/address/{address}
+    native_currency:
+      symbol: POL
+      decimals: 18
+    features:
+      swap_enabled: true
+      deposit_supported: true
+      memo_required: false
+      wallet_only: false
+      planned: false
+
+  - key: avalanche
+    name: Avalanche C-Chain
+    family: evm
+    chain_id: "43114"
+    rpc_urls:
+      - https://api.avax.network/ext/bc/C/rpc
+      - https://avalanche-c-chain-rpc.publicnode.com
+    explorer_tx_url: https://snowtrace.io/tx/{hash}
+    explorer_address_url: https://snowtrace.io/address/{address}
+    native_currency:
+      symbol: AVAX
+      decimals: 18
+    features:
+      swap_enabled: true
+      deposit_supported: true
+      memo_required: false
+      wallet_only: false
+      planned: false
+
+  - key: bnb
+    name: BNB Smart Chain
+    family: evm
+    chain_id: "56"
+    rpc_urls:
+      - https://bsc-dataseed.bnbchain.org
+      - https://bsc-rpc.publicnode.com
+    explorer_tx_url: https://bscscan.com/tx/{hash}
+    explorer_address_url: https://bscscan.com/address/{address}
+    native_currency:
+      symbol: BNB
+      decimals: 18
+    features:
+      swap_enabled: true
+      deposit_supported: true
+      memo_required: false
+      wallet_only: false
+      planned: false
+
+  - key: celo
+    name: Celo
+    family: evm
+    chain_id: "42220"
+    rpc_urls:
+      - https://forno.celo.org
+      - https://celo-rpc.publicnode.com
+    explorer_tx_url: https://celoscan.io/tx/{hash}
+    explorer_address_url: https://celoscan.io/address/{address}
+    native_currency:
+      symbol: CELO
+      decimals: 18
+    features:
+      swap_enabled: false
+      deposit_supported: true
+      memo_required: false
+      wallet_only: false
+      planned: false
+
+  - key: solana
+    name: Solana
+    family: solana
+    chain_id: ""
+    rpc_urls:
+      - https://api.mainnet-beta.solana.com
+    explorer_tx_url: https://explorer.solana.com/tx/{hash}
+    explorer_address_url: https://explorer.solana.com/address/{address}
+    native_currency:
+      symbol: SOL
+      decimals: 9
+    features:
+      swap_enabled: false
+      deposit_supported: false
+      memo_required: false
+      wallet_only: true
+      planned: true
+
+  - key: stellar
+    name: Stellar
+    family: stellar
+    chain_id: ""
+    rpc_urls:
+      - https://horizon.stellar.org
+    explorer_tx_url: https://stellar.expert/explorer/public/tx/{hash}
+    explorer_address_url: https://stellar.expert/explorer/public/account/{address}
+    native_currency:
+      symbol: XLM
+      decimals: 7
+    features:
+      swap_enabled: false
+      deposit_supported: false
+      memo_required: true
+      wallet_only: true
+      planned: true
+
+  - key: aptos
+    name: Aptos
+    family: move
+    chain_id: ""
+    rpc_urls:
+      - https://fullnode.mainnet.aptoslabs.com/v1
+    explorer_tx_url: https://explorer.aptoslabs.com/txn/{hash}
+    explorer_address_url: https://explorer.aptoslabs.com/account/{address}
+    native_currency:
+      symbol: APT
+      decimals: 8
+    features:
+      swap_enabled: false
+      deposit_supported: false
+      memo_required: false
+      wallet_only: true
+      planned: true
+
+  - key: near
+    name: NEAR Protocol
+    family: near
+    chain_id: ""
+    rpc_urls:
+      - https://rpc.mainnet.near.org
+    explorer_tx_url: https://nearblocks.io/txns/{hash}
+    explorer_address_url: https://nearblocks.io/address/{address}
+    native_currency:
+      symbol: NEAR
+      decimals: 24
+    features:
+      swap_enabled: false
+      deposit_supported: false
+      memo_required: false
+      wallet_only: true
+      planned: true

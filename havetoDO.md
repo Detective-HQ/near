@@ -237,15 +237,17 @@ The roadmap omits:
 
 ### Phase 5 — Chain registry, validators, wallets (8–12 days — largest phase)
 
-- [ ] **5.1** Registry as data — `internal/chains/registry/chains.yaml` + loader. Single source of truth: key, family, chain ID, RPC URLs, explorer template, native currency, feature flags.
-- [ ] **5.2** EVM — `internal/chains/evm/`. EIP-55 checksum validation (define mixed-case policy), chain ID, tx hash, ERC-20 `transfer` selector + 64-byte data.
-- [ ] **5.3** Solana — `internal/chains/solana/`. Base58 32-byte decode; reject `0OIl`; SPL token-account resolution via RPC; ATA derivation — decide `gagliardetto/solana-go` vs hand-rolled before starting.
-- [ ] **5.4** Stellar — `internal/chains/stellar/`. StrKey version byte + CRC16-XModem; **memo byte-length limits** (text ≤28 bytes UTF-8, id uint64, hash 32 bytes); require memo when quote provides one.
-- [ ] **5.5** Aptos — `internal/chains/aptos/`. 32-byte hex with optional `0x`; normalize short addresses; Move type parser.
-- [ ] **5.6** NEAR — `internal/chains/near/`. Implicit 64-hex; named account regex with length 2–64; `.near`/`.testnet`; no uppercase/leading/trailing separators.
-- [ ] **5.7** Wallet builders (non-custodial) — `internal/wallets/`. Return unsigned payloads only: EVM `{to,value,data,chainId}`, Stellar XDR+memo, Solana message+memo, Aptos payload, NEAR function call. No private keys.
-- [ ] **5.8** RPC verifier — `internal/chains/rpc/`. `ReceiptVerifier` interface: EVM receipt status + confirmations + `to`/calldata match; Solana signature status; Stellar Horizon; Aptos tx; NEAR tx. Timeout + failover.
-- [ ] **5.9** Tests — per-package. Valid/invalid vectors per chain; fuzz; EIP-55 vectors; StrKey vectors; memo boundary tests; no network in unit tests.
+- [x] **5.1** Registry as data — `internal/chains/registry/chains.yaml` + loader. Single source of truth: key, family, chain ID, RPC URLs, explorer template, native currency, feature flags.
+- [x] **5.2** EVM — `internal/chains/evm/`. EIP-55 checksum validation (define mixed-case policy), chain ID, tx hash, ERC-20 `transfer` selector + 64-byte data.
+- [x] **5.3** Solana — `internal/chains/solana/`. Base58 32-byte decode; reject `0OIl`; SPL token-account resolution via RPC; ATA derivation — decide `gagliardetto/solana-go` vs hand-rolled before starting.
+- [x] **5.4** Stellar — `internal/chains/stellar/`. StrKey version byte + CRC16-XModem; **memo byte-length limits** (text ≤28 bytes UTF-8, id uint64, hash 32 bytes); require memo when quote provides one.
+- [x] **5.5** Aptos — `internal/chains/aptos/`. 32-byte hex with optional `0x`; normalize short addresses; Move type parser.
+- [x] **5.6** NEAR — `internal/chains/near/`. Implicit 64-hex; named account regex with length 2–64; `.near`/`.testnet`; no uppercase/leading/trailing separators.
+- [x] **5.7** Wallet builders (non-custodial) — `internal/wallets/`. Return unsigned payloads only: EVM `{to,value,data,chainId}`, Stellar XDR+memo, Solana message+memo, Aptos payload, NEAR function call. No private keys.
+- [x] **5.8** RPC verifier — `internal/chains/rpc/`. `ReceiptVerifier` interface: EVM receipt status + confirmations + `to`/calldata match; Solana signature status; Stellar Horizon; Aptos tx; NEAR tx. Timeout + failover.
+- [x] **5.9** Tests — per-package. Valid/invalid vectors per chain; fuzz; EIP-55 vectors; StrKey vectors; memo boundary tests; no network in unit tests.
+
+> **Phase 5 status (2026-11-13):** implemented in `backend/internal/chains/` and `backend/internal/wallets/`. Embedded data-driven chain registry (`chains.yaml`) with 12 configured networks across 5 ecosystem families (EVM, Solana, Stellar, Aptos, NEAR). Non-custodial wallet builders construct unsigned transaction payloads for all families with strict memo/calldata checks. Robust RPC verifiers implement multi-endpoint failover and receipt status checks. All unit and property tests pass across every chain family package.
 
 **Scope warning:** 5.3 and 5.4 are the hard parts. Do not hand-roll Stellar CRC or Solana ATA derivation without test vectors. If time is tight, ship EVM + NEAR first and mark Solana/Stellar/Aptos as `planned` behind the registry flag — that is honest and already matches the product's capability boundary.
 
@@ -253,24 +255,28 @@ The roadmap omits:
 
 ### Phase 6 — Swap orchestration (6–8 days)
 
-- [ ] **6.1** Clarify quote vs swap lifecycle — design note. `POST /quotes` returns a quote row only; `POST /swaps` creates a swap starting at `CREATED`/`QUOTED`. Do not create swap rows during dry quoting unless the API contract says so.
-- [ ] **6.2** Dry-quote pipeline — `internal/swap/service/quote.go`. Asset lookup from cache/DB; same-asset check; amount parse; address validation; provider call; persist quote; typed errors.
-- [ ] **6.3** Executable quote — `internal/swap/service/executable.go`. Requires `ENABLE_LIVE_EXECUTION=true`; route capability check from registry; validates memo requirement; stores deposit address/memo; `QUOTED → AWAITING_USER_DEPOSIT`.
-- [ ] **6.4** Deposit capture — `internal/swap/service/deposit.go`. Validate tx hash per chain; reject re-use; record transaction before notifying; define submit-failure semantics (do not lose the record).
-- [ ] **6.5** Cancellation/expiry — `.../cancel.go`, `.../expire.go`. Cancel only before deposit; expiry idempotent; atomic event writes.
-- [ ] **6.6** Idempotency — `.../idempotency.go`. Canonical payload hash; replay returns same record; changed payload → 409.
-- [ ] **6.7** Tests — `..._test.go`. Full happy path + refund/fail/expire/cancel; property test that no sequence skips or reverses states; failure injection on provider/DB.
+- [x] **6.1** Clarify quote vs swap lifecycle — design note. `POST /quotes` returns a quote row only; `POST /swaps` creates a swap starting at `CREATED`/`QUOTED`. Do not create swap rows during dry quoting unless the API contract says so.
+- [x] **6.2** Dry-quote pipeline — `internal/swap/service/quote.go`. Asset lookup from cache/DB; same-asset check; amount parse; address validation; provider call; persist quote; typed errors.
+- [x] **6.3** Executable quote — `internal/swap/service/executable.go`. Requires `ENABLE_LIVE_EXECUTION=true`; route capability check from registry; validates memo requirement; stores deposit address/memo; `QUOTED → AWAITING_USER_DEPOSIT`.
+- [x] **6.4** Deposit capture — `internal/swap/service/deposit.go`. Validate tx hash per chain; reject re-use; record transaction before notifying; define submit-failure semantics (do not lose the record).
+- [x] **6.5** Cancellation/expiry — `.../cancel.go`, `.../expire.go`. Cancel only before deposit; expiry idempotent; atomic event writes.
+- [x] **6.6** Idempotency — `.../idempotency.go`. Canonical payload hash; replay returns same record; changed payload → 409.
+- [x] **6.7** Tests — `..._test.go`. Full happy path + refund/fail/expire/cancel; property test that no sequence skips or reverses states; failure injection on provider/DB.
+
+> **Phase 6 status (2026-11-13):** implemented in `backend/internal/swap/service/`. Dry-quote pipeline enforces exact math and chain-specific address validation while storing non-executable quotes. Executable quote pipeline enforces `ENABLE_LIVE_EXECUTION`, registry route capability flags, and memo validation before obtaining deposit instructions and atomically creating swaps in state `AWAITING_USER_DEPOSIT`. Deposit capture performs per-family tx-hash validation, idempotent duplicate handling, conflict detection, and asynchronous provider notification with durable poller fallback. Cancellation and expiry prevent cancellation of funded swaps and transition expired unfunded quotes cleanly. Complete test suite in `service_test.go` passes.
 
 ---
 
 ### Phase 7 — Analytics and research (3–5 days)
 
-- [ ] **7.1** Connector interface — `internal/analytics/connectors/`. `Fetch(ctx, chain) (Snapshot, error)` with source URL, retrieval time, methodology version.
-- [ ] **7.2** DeFiLlama connector — `.../defillama/`. Chain TVL history, DEX volume, stablecoins (different base URL), fees, revenue; timeouts/retries; stale threshold (e.g. 36h).
-- [ ] **7.3** Provenance persistence — `internal/analytics/service/`. Batch insert with dedupe; `data_snapshots` row with SHA-256 of canonical JSON; raw payload to object store (S3/MinIO) with local dev fallback.
-- [ ] **7.4** Research models — `internal/research/models/`. Decimal math; percent inputs divided by 100; 365-day annualization; documented growth convention.
-- [ ] **7.5** Scenario API — `internal/research/scenarios/`. Bear/Base/Bull matching golden values above; sensitivity modifiers.
-- [ ] **7.6** Tests — `*_test.go`. Fixture HTTP server; stale/partial/unavailable; checksum stability; golden scenario numbers.
+- [x] **7.1** Connector interface — `internal/analytics/connectors/`. `Fetch(ctx, chain) (Snapshot, error)` with source URL, retrieval time, methodology version.
+- [x] **7.2** DeFiLlama connector — `.../defillama/`. Chain TVL history, DEX volume, stablecoins (different base URL), fees, revenue; timeouts/retries; stale threshold (e.g. 36h).
+- [x] **7.3** Provenance persistence — `internal/analytics/service/`. Batch insert with dedupe; `data_snapshots` row with SHA-256 of canonical JSON; raw payload to object store (S3/MinIO) with local dev fallback.
+- [x] **7.4** Research models — `internal/research/models/`. Decimal math; percent inputs divided by 100; 365-day annualization; documented growth convention.
+- [x] **7.5** Scenario API — `internal/research/scenarios/`. Bear/Base/Bull matching golden values above; sensitivity modifiers.
+- [x] **7.6** Tests — `*_test.go`. Fixture HTTP server; stale/partial/unavailable; checksum stability; golden scenario numbers.
+
+> **Phase 7 status (2026-11-13):** implemented in `backend/internal/analytics/` and `backend/internal/research/`. DeFiLlama connector gathers TVL history, 24h DEX volume, stablecoins, protocol fees, and protocol revenue with 4MB response limit and stale thresholds. Provenance service stores immutable raw JSON snapshots with SHA-256 checksums alongside batch PostgreSQL upserts into `metric_observations`. Research models enforce the canonical fee-capture formula matching golden targets ($536,112 Bear, $3,626,219.52 Base, $15,137,280 Bull) with sensitivity matrix generation. All unit and mock-server tests pass.
 
 **Open decision:** the roadmap says snapshots go to `payload_location`, but never chooses object storage. Decide S3-compatible storage (MinIO in Compose) vs local filesystem for dev. Also define retention.
 
@@ -440,10 +446,10 @@ Non-errors (do not use the error envelope):
 | 2026-11-13 | Schema corrections | Done | D5–D8 and D13 applied in `migrations/00001`–`00005`; `amount_in_decimal` widened to 80 chars for full uint256 strings |
 | 2026-11-13 | Migrations | Done | Embedded goose migrations (`migrations.FS`), `migrate` CLI with up/down/down-to/status/version/check, reversible down sections |
 | 2026-11-13 | Repository layer | Done | Quote/swap/transaction repos; atomic NUMERIC(78,0) amounts; idempotent swap create + state/event tx; keyset listing; integration tests pass |
-| | 1Click client | TODO | |
-| | Worker + Redis | TODO | |
-| | Chains + wallets | TODO | |
-| | Swap service | TODO | |
-| | HTTP API + auth + risk | TODO | |
-| | Analytics + research | TODO | |
-| | Docker + E2E + docs | TODO | |
+| 2026-11-13 | 1Click client | Done | `internal/swap/providers/nearoneclick`; JWT server-side, 2MB limit, ed25519 signature validation, alternative fallback |
+| 2026-11-13 | Worker + Redis | Done | Redis client/locks, worker daemon, swap poller, retry policy, stuck-swap handler, catalogue refresher |
+| 2026-11-13 | Chains + wallets | Done | 5 chain families (EVM, Solana, Stellar, Aptos, NEAR), registry, non-custodial wallet builders, RPC verifiers |
+| 2026-11-13 | Swap service | Done | `internal/swap/service`; dry & executable pipelines, deposit capture, cancel/expire, canonical idempotency hash, tests pass |
+| 2026-11-13 | Analytics + research | Done | `internal/analytics/` & `internal/research/`; DeFiLlama connector, provenance snapshots, golden scenario models, tests pass |
+| | HTTP API + auth + risk | TODO | Phase 8 |
+| | Docker + E2E + docs | TODO | Phase 9 |

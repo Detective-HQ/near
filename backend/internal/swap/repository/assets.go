@@ -149,6 +149,27 @@ func (s *Store) ListAssets(ctx context.Context, chain string) ([]domain.Asset, e
 	return assets, nil
 }
 
+// GetAssetByID returns an enabled asset by its internal id or provider asset id.
+func (s *Store) GetAssetByID(ctx context.Context, id string) (domain.Asset, error) {
+	if err := s.ready(); err != nil {
+		return domain.Asset{}, err
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return domain.Asset{}, domain.New(domain.CodeValidationFailed, "Asset id is required.")
+	}
+	row := s.pool.QueryRow(ctx, `
+		SELECT `+assetColumns+`
+		FROM assets
+		WHERE is_enabled AND (id = $1 OR provider_asset_id = $1)
+		LIMIT 1`, id)
+	asset, err := scanAsset(row)
+	if err != nil {
+		return domain.Asset{}, notFound(err, domain.CodeUnknownAsset, "Asset not found.")
+	}
+	return asset, nil
+}
+
 func scanAsset(row rowScanner) (domain.Asset, error) {
 	var asset domain.Asset
 	err := row.Scan(

@@ -6,8 +6,9 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"strings"
+
+	"universal-defi-intelligence/internal/encoding/base58"
 )
 
 // The signature scheme mirrors the official 1Click TypeScript SDK:
@@ -20,8 +21,6 @@ import (
 // primitive values used here.
 
 const ed25519Prefix = "ed25519:"
-
-const base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 var signedRequestFields = []string{
 	"swapType",
@@ -286,47 +285,9 @@ func rawBool(raw map[string]json.RawMessage, key string) (bool, bool, error) {
 }
 
 func base58Encode(input []byte) string {
-	value := new(big.Int).SetBytes(input)
-	radix := big.NewInt(58)
-	mod := new(big.Int)
-	var encoded []byte
-	for value.Sign() > 0 {
-		value.QuoRem(value, radix, mod)
-		encoded = append(encoded, base58Alphabet[mod.Int64()])
-	}
-	for _, b := range input {
-		if b != 0 {
-			break
-		}
-		encoded = append(encoded, base58Alphabet[0])
-	}
-	for left, right := 0, len(encoded)-1; left < right; left, right = left+1, right-1 {
-		encoded[left], encoded[right] = encoded[right], encoded[left]
-	}
-	if len(encoded) == 0 {
-		return string(base58Alphabet[0])
-	}
-	return string(encoded)
+	return base58.Encode(input)
 }
 
 func decodeBase58(input string) ([]byte, error) {
-	if input == "" {
-		return nil, fmt.Errorf("base58 value is empty")
-	}
-	value := new(big.Int)
-	radix := big.NewInt(58)
-	for _, char := range input {
-		index := strings.IndexRune(base58Alphabet, char)
-		if index < 0 {
-			return nil, fmt.Errorf("invalid base58 character %q", char)
-		}
-		value.Mul(value, radix)
-		value.Add(value, big.NewInt(int64(index)))
-	}
-	decoded := value.Bytes()
-	leadingZeros := 0
-	for leadingZeros < len(input) && input[leadingZeros] == '1' {
-		leadingZeros++
-	}
-	return append(make([]byte, leadingZeros), decoded...), nil
+	return base58.Decode(input)
 }
