@@ -363,16 +363,16 @@ Every phase should ship with:
 
 ## 6. First 10 actions (concrete)
 
-1. [ ] Write **ADR 0002** superseding ADR 0001 (Go 1.26.2 available; Docker missing).
-2. [ ] Create `backend/` with `go.mod` targeting Go 1.26 and the package skeleton from roadmap Section 4.
-3. [ ] Fix the roadmap's **state enum** to include `INCOMPLETE_DEPOSIT`.
-4. [ ] Approve the **schema corrections** D5–D8 and write `migrations/000001–000005`.
-5. [ ] Implement `internal/swap/domain` (math, state machine, errors) + tests — first mergeable PR.
+1. [x] Write **ADR 0002** superseding ADR 0001 (Go 1.26.2 available; Docker missing).
+2. [x] Create `backend/` with `go.mod` targeting Go 1.26 and the package skeleton from roadmap Section 4.
+3. [x] Fix the roadmap's **state enum** to include `INCOMPLETE_DEPOSIT`.
+4. [x] Approve the **schema corrections** D5–D8 and write `migrations/000001–000005`.
+5. [x] Implement `internal/swap/domain` (math, state machine, errors) + tests — first mergeable PR.
 6. [x] Add CI workflow (build, test, race, vet, staticcheck, govulncheck).
-7. [ ] Install Docker (or set up CI testcontainers) before starting Phase 2 integration tests.
-8. [ ] Implement the repository layer with idempotency + concurrency tests.
-9. [ ] Add a minimal `GET /api/v1/health` + `GET /api/v1/assets` on `:8081` to prove proxy parity early.
-10. [ ] Implement the 1Click client with recorded fixtures and the retry policy (never retry executable quotes).
+7. [x] Install Docker (or set up CI testcontainers) before starting Phase 2 integration tests.
+8. [x] Implement the repository layer with idempotency + concurrency tests.
+9. [x] Add a minimal `GET /api/v1/health` + `GET /api/v1/assets` on `:8081` to prove proxy parity early.
+10. [x] Implement the 1Click client with recorded fixtures and the retry policy (never retry executable quotes).
 
 ---
 
