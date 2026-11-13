@@ -98,3 +98,4 @@ if ($risk.status -ne "HEALTHY") {
 Write-Host "============================================="
 Write-Host "All E2E Smoke Tests PASSED successfully!"
 Write-Host "============================================="
+

@@ -49,3 +49,4 @@ We replace the single-process prototype with a hardened, statically compiled Go 
 - Minimal attack surface: Distroless container contains no shell, package manager, or unnecessary binaries.
 - Strict security: Sensitive data (JWTs, private keys, authorization tokens) are sanitized in all log streams.
 - Operational clarity: Health (`/healthz`, `/readyz`), risk (`/api/v1/risk/status`), and migration tooling (`cmd/migrate`) provide comprehensive observability.
+
