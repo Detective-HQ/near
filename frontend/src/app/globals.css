@@ -6,6 +6,7 @@
   --night: #050604;
   --font-display: "Antonio", "Arial Narrow", sans-serif;
   --font-body: "Manrope", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
   /* Flower accents sampled from the valley */
   --bloom-pink: #f25aa5;
   --bloom-orange: #ff7a2e;

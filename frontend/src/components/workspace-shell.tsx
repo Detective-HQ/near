@@ -1580,7 +1580,7 @@ export function WorkspaceShell({ initialSection = "overview" }: { initialSection
       <aside className={`sidebar${menuOpen ? " is-open" : ""}`} aria-label="Workspace navigation">
         <Link className="brand" href="/">
           <BrandMark />
-          <span className="brand-name">Sightline</span>
+          <span className="brand-name">Zonyx</span>
         </Link>
         <div className="workspace-switch">
           <span className="workspace-glyph">U</span>
@@ -1622,7 +1622,7 @@ export function WorkspaceShell({ initialSection = "overview" }: { initialSection
           <span /><span /><span />
         </button>
         <span className="mobile-title">{page.title}</span>
-        <Link className="mobile-mark" href="/" aria-label="Sightline home"><BrandMark /></Link>
+        <Link className="mobile-mark" href="/" aria-label="Zonyx home"><BrandMark /></Link>
       </div>
 
       <div className="main-shell">
@@ -1649,7 +1649,7 @@ export function WorkspaceShell({ initialSection = "overview" }: { initialSection
           {section === "risk" ? <RiskView health={data.health} snapshot={data.markets} chains={data.chains} /> : null}
           {data.loading && !data.health ? <p className="loading-state" role="status">Connecting to the local API…</p> : null}
           <footer className="app-footer">
-            <span>Sightline · local research workspace</span>
+            <span>Zonyx · local research workspace</span>
             <span>Research interpretation is separate from transaction execution.</span>
           </footer>
         </main>

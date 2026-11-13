@@ -196,6 +196,7 @@ export class ValleyEngine {
   private startTime = 0;
   private lastTime = 0;
   private destroyed = false;
+  private paused = false;
 
   // Flight along the clearing. camZ stays within one tile; the world repeats, so wrapping is invisible.
   private camZ = 0;
@@ -744,8 +745,9 @@ export class ValleyEngine {
     });
 
     on("pointermove", (e) => {
-      const x = (e.clientX / window.innerWidth) * 2 - 1;
-      const y = -(e.clientY / window.innerHeight) * 2 + 1;
+      const r = this.container.getBoundingClientRect();
+      const x = ((e.clientX - r.left) / (r.width || 1)) * 2 - 1;
+      const y = -((e.clientY - r.top) / (r.height || 1)) * 2 + 1;
       this.targetMouse.set(x, y);
       this.cursor.set(x, y);
     });
@@ -762,6 +764,18 @@ export class ValleyEngine {
     this.updatePostSize();
   };
 
+  /** Stop rendering while the valley is scrolled out of view. */
+  public setPaused(paused: boolean) {
+    if (paused === this.paused || this.destroyed) return;
+    this.paused = paused;
+    if (paused) {
+      cancelAnimationFrame(this.animFrameId);
+    } else {
+      this.lastTime = performance.now() * 0.001;
+      this.animate();
+    }
+  }
+
   public startHoverTransition() {
     this.isHovered = true;
   }
@@ -771,7 +785,7 @@ export class ValleyEngine {
   }
 
   private animate = () => {
-    if (this.destroyed || !this.renderer) return;
+    if (this.destroyed || this.paused || !this.renderer) return;
     this.animFrameId = requestAnimationFrame(this.animate);
 
     const now = performance.now() * 0.001;

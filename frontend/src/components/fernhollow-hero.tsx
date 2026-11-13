@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ValleyAudioStore, ValleyEngine } from "../lib/valley-engine";
+import { LINKS } from "./landing/config";
 import "./fernhollow-hero.css";
 
 export function FernhollowHero() {
@@ -25,10 +26,15 @@ export function FernhollowHero() {
     );
     valleyRef.current = valley;
 
+    // Pause the 3D scene while the hero is scrolled out of view.
+    const io = new IntersectionObserver(([entry]) => valley.setPaused(!entry.isIntersecting));
+    io.observe(containerRef.current);
+
     // Warm up the API while the valley loads.
     fetch("/api/v1/health").catch(() => {});
 
     return () => {
+      io.disconnect();
       valley.destroy();
       audio.destroy();
       valleyRef.current = null;
@@ -54,22 +60,23 @@ export function FernhollowHero() {
   };
 
   return (
-    <main className="fh">
+    <section className="fh" aria-label="Introduction">
       <div className="fh-valley" ref={containerRef} aria-hidden="true" />
 
       <div className={`fh-ui${introShown ? " on" : ""}`}>
         <header className="fh-header">
-          <Link className="fh-logo" href="/" aria-label="Sightline home">
+          <Link className="fh-logo" href="/" aria-label="Zonyx home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/images/sightline-mark.svg" alt="" width={34} height={34} />
-            <span>Sightline</span>
+            <span>Zonyx</span>
           </Link>
           <nav className="fh-nav" aria-label="Main">
-            <Link href="/workspace">Work</Link>
-            <Link href="/workspace/markets">About</Link>
-            <Link href="/workspace/intelligence">Journal</Link>
-            <Link className="fh-pill" href="/workspace/swap">
-              Let’s talk
+            <a href="#product">Product</a>
+            <Link href={LINKS.trading}>Trading</Link>
+            <Link href={LINKS.research}>Research</Link>
+            <a href={LINKS.docs} target="_blank" rel="noreferrer">Docs</a>
+            <Link className="fh-pill" href={LINKS.app}>
+              Launch app
             </Link>
           </nav>
         </header>
@@ -112,6 +119,6 @@ export function FernhollowHero() {
       <div className={`fh-loader${isLoaded ? " gone" : ""}`} aria-hidden="true">
         <span />
       </div>
-    </main>
+    </section>
   );
 }

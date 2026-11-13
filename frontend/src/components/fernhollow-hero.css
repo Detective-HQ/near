@@ -1,15 +1,15 @@
 /* Landing hero. Every rule is scoped to .fh so nothing leaks into the workspace after client navigation. */
 .fh {
   --u: min(calc(100vw / 1600), calc(100vh / 900));
-  position: fixed;
-  inset: 0;
+  position: relative;
+  height: 100vh;
+  height: 100svh;
+  min-height: 560px;
   overflow: hidden;
   background: #000;
   color: var(--cream);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
-  overscroll-behavior: none;
-  touch-action: none;
 }
 .fh a { color: inherit; text-decoration: none; }
 .fh button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
