@@ -18,7 +18,6 @@ import (
 	"universal-defi-intelligence/internal/config"
 	"universal-defi-intelligence/internal/httpapi/middleware"
 	"universal-defi-intelligence/internal/risk"
-	"universal-defi-intelligence/internal/swap/domain"
 	"universal-defi-intelligence/internal/swap/service"
 )
 
@@ -138,19 +137,6 @@ func writeError(w http.ResponseWriter, r *http.Request, status int, code, messag
 		},
 		RequestID: reqID,
 	})
-}
-
-func (h *Handler) writeDomainError(w http.ResponseWriter, r *http.Request, err error) {
-	var dErr *domain.Error
-	if errors.As(err, &dErr) {
-		status := dErr.HTTPStatus
-		if status == 0 {
-			status = dErr.Code.HTTPStatus()
-		}
-		writeError(w, r, status, string(dErr.Code), dErr.Message)
-		return
-	}
-	writeError(w, r, http.StatusInternalServerError, "INTERNAL", err.Error())
 }
 
 type HandlerOptions struct {

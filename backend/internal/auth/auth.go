@@ -270,7 +270,7 @@ func verifyEVMSignature(expectedAddress, message, sigHex string) error {
 	}
 	if !strings.Contains(message, expectedAddress) && !strings.Contains(strings.ToLower(message), strings.ToLower(expectedAddress)) {
 		// In SIWE, the message must contain the wallet address
-		return errors.New("SIWE message does not reference the expected wallet address")
+		return errors.New("siwe message does not reference the expected wallet address")
 	}
 	return nil
 }
@@ -278,7 +278,7 @@ func verifyEVMSignature(expectedAddress, message, sigHex string) error {
 func verifySolanaSignature(walletAddress, message, sigHex string) error {
 	pubKeyBytes, err := base58.Decode(walletAddress)
 	if err != nil || len(pubKeyBytes) != 32 {
-		return errors.New("invalid Solana base58 wallet address")
+		return errors.New("invalid solana base58 wallet address")
 	}
 
 	var sigBytes []byte
@@ -288,23 +288,23 @@ func verifySolanaSignature(walletAddress, message, sigHex string) error {
 		sigBytes, err = base58.Decode(sigHex)
 	}
 	if err != nil || len(sigBytes) != 64 {
-		return errors.New("invalid Solana signature format")
+		return errors.New("invalid solana signature format")
 	}
 
 	if !ed25519.Verify(pubKeyBytes, []byte(message), sigBytes) {
-		return errors.New("Solana ed25519 signature mismatch")
+		return errors.New("solana ed25519 signature mismatch")
 	}
 	return nil
 }
 
 func verifyNEARSignature(accountID, pubKeyStr, message, sigHex string) error {
 	if pubKeyStr == "" {
-		return errors.New("NEAR public key is required for signature verification")
+		return errors.New("near public key is required for signature verification")
 	}
 	pubKeyStr = strings.TrimPrefix(pubKeyStr, "ed25519:")
 	pubBytes, err := base58.Decode(pubKeyStr)
 	if err != nil || len(pubBytes) != 32 {
-		return errors.New("invalid NEAR ed25519 public key")
+		return errors.New("invalid near ed25519 public key")
 	}
 
 	sigHex = strings.TrimPrefix(sigHex, "0x")
@@ -314,11 +314,11 @@ func verifyNEARSignature(accountID, pubKeyStr, message, sigHex string) error {
 		sigBytes, err = base58.Decode(sigHex)
 	}
 	if err != nil || len(sigBytes) != 64 {
-		return errors.New("invalid NEAR signature format")
+		return errors.New("invalid near signature format")
 	}
 
 	if !ed25519.Verify(pubBytes, []byte(message), sigBytes) {
-		return errors.New("NEAR ed25519 signature mismatch")
+		return errors.New("near ed25519 signature mismatch")
 	}
 	return nil
 }

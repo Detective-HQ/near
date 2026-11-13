@@ -37,7 +37,11 @@ echo -n "6. Creating quote via POST /api/v1/quotes... "
 QUOTE_RESP=$(curl -sf -X POST "$BASE_URL/api/v1/quotes" \
   -H "Content-Type: application/json" \
   -d '{"originAssetId":"demo:near:near","destinationAssetId":"demo:base:usdc","amountIn":"10"}')
-QUOTE_ID=$(echo "$QUOTE_RESP" | grep -o '"id":"[^"]*' | cut -d'"' -f4)
+if command -v python3 > /dev/null 2>&1; then
+  QUOTE_ID=$(echo "$QUOTE_RESP" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
+else
+  QUOTE_ID=$(echo "$QUOTE_RESP" | grep -o '"id":"[^"]*' | head -n1 | cut -d'"' -f4)
+fi
 if [ -z "$QUOTE_ID" ]; then
   echo "FAILED: could not extract quoteId"
   exit 1
@@ -51,7 +55,11 @@ SWAP_RESP=$(curl -sf -X POST "$BASE_URL/api/v1/swaps" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: $IDEMP_KEY" \
   -d "{\"quoteId\":\"$QUOTE_ID\"}")
-SWAP_ID=$(echo "$SWAP_RESP" | grep -o '"id":"[^"]*' | cut -d'"' -f4)
+if command -v python3 > /dev/null 2>&1; then
+  SWAP_ID=$(echo "$SWAP_RESP" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
+else
+  SWAP_ID=$(echo "$SWAP_RESP" | grep -o '"id":"[^"]*' | head -n1 | cut -d'"' -f4)
+fi
 if [ -z "$SWAP_ID" ]; then
   echo "FAILED: could not extract swapId"
   exit 1
