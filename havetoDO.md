@@ -237,15 +237,17 @@ The roadmap omits:
 
 ### Phase 5 — Chain registry, validators, wallets (8–12 days — largest phase)
 
-- [ ] **5.1** Registry as data — `internal/chains/registry/chains.yaml` + loader. Single source of truth: key, family, chain ID, RPC URLs, explorer template, native currency, feature flags.
-- [ ] **5.2** EVM — `internal/chains/evm/`. EIP-55 checksum validation (define mixed-case policy), chain ID, tx hash, ERC-20 `transfer` selector + 64-byte data.
-- [ ] **5.3** Solana — `internal/chains/solana/`. Base58 32-byte decode; reject `0OIl`; SPL token-account resolution via RPC; ATA derivation — decide `gagliardetto/solana-go` vs hand-rolled before starting.
-- [ ] **5.4** Stellar — `internal/chains/stellar/`. StrKey version byte + CRC16-XModem; **memo byte-length limits** (text ≤28 bytes UTF-8, id uint64, hash 32 bytes); require memo when quote provides one.
-- [ ] **5.5** Aptos — `internal/chains/aptos/`. 32-byte hex with optional `0x`; normalize short addresses; Move type parser.
-- [ ] **5.6** NEAR — `internal/chains/near/`. Implicit 64-hex; named account regex with length 2–64; `.near`/`.testnet`; no uppercase/leading/trailing separators.
-- [ ] **5.7** Wallet builders (non-custodial) — `internal/wallets/`. Return unsigned payloads only: EVM `{to,value,data,chainId}`, Stellar XDR+memo, Solana message+memo, Aptos payload, NEAR function call. No private keys.
-- [ ] **5.8** RPC verifier — `internal/chains/rpc/`. `ReceiptVerifier` interface: EVM receipt status + confirmations + `to`/calldata match; Solana signature status; Stellar Horizon; Aptos tx; NEAR tx. Timeout + failover.
-- [ ] **5.9** Tests — per-package. Valid/invalid vectors per chain; fuzz; EIP-55 vectors; StrKey vectors; memo boundary tests; no network in unit tests.
+- [x] **5.1** Registry as data — `internal/chains/registry/chains.yaml` + loader. Single source of truth: key, family, chain ID, RPC URLs, explorer template, native currency, feature flags.
+- [x] **5.2** EVM — `internal/chains/evm/`. EIP-55 checksum validation (define mixed-case policy), chain ID, tx hash, ERC-20 `transfer` selector + 64-byte data.
+- [x] **5.3** Solana — `internal/chains/solana/`. Base58 32-byte decode; reject `0OIl`; SPL token-account resolution via RPC; ATA derivation — decide `gagliardetto/solana-go` vs hand-rolled before starting.
+- [x] **5.4** Stellar — `internal/chains/stellar/`. StrKey version byte + CRC16-XModem; **memo byte-length limits** (text ≤28 bytes UTF-8, id uint64, hash 32 bytes); require memo when quote provides one.
+- [x] **5.5** Aptos — `internal/chains/aptos/`. 32-byte hex with optional `0x`; normalize short addresses; Move type parser.
+- [x] **5.6** NEAR — `internal/chains/near/`. Implicit 64-hex; named account regex with length 2–64; `.near`/`.testnet`; no uppercase/leading/trailing separators.
+- [x] **5.7** Wallet builders (non-custodial) — `internal/wallets/`. Return unsigned payloads only: EVM `{to,value,data,chainId}`, Stellar XDR+memo, Solana message+memo, Aptos payload, NEAR function call. No private keys.
+- [x] **5.8** RPC verifier — `internal/chains/rpc/`. `ReceiptVerifier` interface: EVM receipt status + confirmations + `to`/calldata match; Solana signature status; Stellar Horizon; Aptos tx; NEAR tx. Timeout + failover.
+- [x] **5.9** Tests — per-package. Valid/invalid vectors per chain; fuzz; EIP-55 vectors; StrKey vectors; memo boundary tests; no network in unit tests.
+
+> **Phase 5 status (2026-11-13):** implemented in `backend/internal/chains/` and `backend/internal/wallets/`. Embedded data-driven chain registry (`chains.yaml`) with 12 configured networks across 5 ecosystem families (EVM, Solana, Stellar, Aptos, NEAR). Non-custodial wallet builders construct unsigned transaction payloads for all families with strict memo/calldata checks. Robust RPC verifiers implement multi-endpoint failover and receipt status checks. All unit and property tests pass across every chain family package.
 
 **Scope warning:** 5.3 and 5.4 are the hard parts. Do not hand-roll Stellar CRC or Solana ATA derivation without test vectors. If time is tight, ship EVM + NEAR first and mark Solana/Stellar/Aptos as `planned` behind the registry flag — that is honest and already matches the product's capability boundary.
 
@@ -440,10 +442,10 @@ Non-errors (do not use the error envelope):
 | 2026-11-13 | Schema corrections | Done | D5–D8 and D13 applied in `migrations/00001`–`00005`; `amount_in_decimal` widened to 80 chars for full uint256 strings |
 | 2026-11-13 | Migrations | Done | Embedded goose migrations (`migrations.FS`), `migrate` CLI with up/down/down-to/status/version/check, reversible down sections |
 | 2026-11-13 | Repository layer | Done | Quote/swap/transaction repos; atomic NUMERIC(78,0) amounts; idempotent swap create + state/event tx; keyset listing; integration tests pass |
-| | 1Click client | TODO | |
-| | Worker + Redis | TODO | |
-| | Chains + wallets | TODO | |
-| | Swap service | TODO | |
+| 2026-11-13 | 1Click client | Done | `internal/swap/providers/nearoneclick`; JWT server-side, 2MB limit, ed25519 signature validation, alternative fallback |
+| 2026-11-13 | Worker + Redis | Done | Redis client/locks, worker daemon, swap poller, retry policy, stuck-swap handler, catalogue refresher |
+| 2026-11-13 | Chains + wallets | Done | 5 chain families (EVM, Solana, Stellar, Aptos, NEAR), registry, non-custodial wallet builders, RPC verifiers |
+| | Swap service | TODO | Phase 6 |
 | | HTTP API + auth + risk | TODO | |
 | | Analytics + research | TODO | |
 | | Docker + E2E + docs | TODO | |
