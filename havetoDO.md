@@ -284,15 +284,15 @@ The roadmap omits:
 
 ### Phase 8 — HTTP API, middleware, auth, risk (6–9 days)
 
-- [ ] **8.1** Server hardening — `internal/httpapi/server.go`. `ReadHeaderTimeout`, `ReadTimeout`, `WriteTimeout`, `IdleTimeout`, `MaxHeaderBytes`; graceful shutdown.
-- [ ] **8.2** Middleware chain — `internal/httpapi/middleware/`. Order: RequestID → Logger → Recoverer → CORS → RateLimit → Auth → handler. Redact JWT, cookies, keys, bodies, wallet addresses.
-- [ ] **8.3** Security headers/CORS. `Cache-Control: no-store`, `nosniff`, `X-Frame-Options`, `Referrer-Policy`; CORS allowlist, never `*` with credentials.
-- [ ] **8.4** Handlers — `internal/httpapi/handlers/`. Match existing `/api/v1/*` routes from `docs/openapi.yaml:8-215`; camelCase JSON tags exactly matching `src/lib/contracts.ts`.
-- [ ] **8.5** Health/readiness. Keep `/api/v1/health` compatible; add `/healthz` (liveness) and `/readyz` (DB, Redis, provider catalogue age).
-- [ ] **8.6** Auth — `internal/auth/`. Session token (opaque, hashed), wallet signature verification (SIWE/NEP-413/ed25519), nonce, expiry; ownership filter on `/swaps/{id}` and `/activity`; flag default off but implementation complete.
-- [ ] **8.7** Risk engine — `internal/risk/`. Slippage flags, expiry countdown, stale catalogue, provider 429/5xx rates, last successful poll; expose via `/api/v1/risk/status`.
-- [ ] **8.8** Contract parity — `docs/openapi.yaml`, codegen. Generate Go DTOs with `oapi-codegen` or add a JSON-schema contract test; no hand-maintained duplicate structs.
-- [ ] **8.9** Proxy test. Next.js on 3000 → Go on 8081 with no route changes; snapshot responses for fixtures.
+- [x] **8.1** Server hardening — `internal/httpapi/server.go`. `ReadHeaderTimeout`, `ReadTimeout`, `WriteTimeout`, `IdleTimeout`, `MaxHeaderBytes`; graceful shutdown.
+- [x] **8.2** Middleware chain — `internal/httpapi/middleware/`. Order: RequestID → Logger → Recoverer → CORS → RateLimit → Auth → handler. Redact JWT, cookies, keys, bodies, wallet addresses.
+- [x] **8.3** Security headers/CORS. `Cache-Control: no-store`, `nosniff`, `X-Frame-Options`, `Referrer-Policy`; CORS allowlist, never `*` with credentials.
+- [x] **8.4** Handlers — `internal/httpapi/handlers/`. Match existing `/api/v1/*` routes from `docs/openapi.yaml:8-215`; camelCase JSON tags exactly matching `src/lib/contracts.ts`.
+- [x] **8.5** Health/readiness. Keep `/api/v1/health` compatible; add `/healthz` (liveness) and `/readyz` (DB, Redis, provider catalogue age).
+- [x] **8.6** Auth — `internal/auth/`. Session token (opaque, hashed), wallet signature verification (SIWE/NEP-413/ed25519), nonce, expiry; ownership filter on `/swaps/{id}` and `/activity`; flag default off but implementation complete.
+- [x] **8.7** Risk engine — `internal/risk/`. Slippage flags, expiry countdown, stale catalogue, provider 429/5xx rates, last successful poll; expose via `/api/v1/risk/status`.
+- [x] **8.8** Contract parity — `docs/openapi.yaml`, codegen. Generate Go DTOs with `oapi-codegen` or add a JSON-schema contract test; no hand-maintained duplicate structs.
+- [x] **8.9** Proxy test. Next.js on 3000 → Go on 8081 with no route changes; snapshot responses for fixtures.
 
 **Important:** do not delete `server.mjs` until 8.9 passes. Run the Node and Go APIs side by side (strangler pattern).
 
@@ -451,5 +451,5 @@ Non-errors (do not use the error envelope):
 | 2026-11-13 | Chains + wallets | Done | 5 chain families (EVM, Solana, Stellar, Aptos, NEAR), registry, non-custodial wallet builders, RPC verifiers |
 | 2026-11-13 | Swap service | Done | `internal/swap/service`; dry & executable pipelines, deposit capture, cancel/expire, canonical idempotency hash, tests pass |
 | 2026-11-13 | Analytics + research | Done | `internal/analytics/` & `internal/research/`; DeFiLlama connector, provenance snapshots, golden scenario models, tests pass |
-| | HTTP API + auth + risk | TODO | Phase 8 |
+| 2026-11-13 | HTTP API + auth + risk | Done | `internal/httpapi/`, `internal/auth/`, `internal/risk/`; server hardening, middleware chain, health/ready probes, risk engine, multi-chain auth |
 | | Docker + E2E + docs | TODO | Phase 9 |

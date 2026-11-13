@@ -11,8 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"universal-defi-intelligence/internal/auth"
 	"universal-defi-intelligence/internal/config"
 	"universal-defi-intelligence/internal/httpapi"
+	"universal-defi-intelligence/internal/risk"
 )
 
 func main() {
@@ -51,7 +53,24 @@ func run() error {
 	)
 
 	store := httpapi.NewStateStore()
-	handler := httpapi.NewHandler(store)
+	riskEngine := risk.NewEngine(risk.Config{
+		MaxSlippageBps:     500,
+		WarningSlippageBps: 200,
+		CatalogueMaxAge:    2 * time.Hour,
+	})
+	authManager := auth.NewManager(auth.Config{
+		AuthRequired: false, // Default off per roadmap; flag-activated
+		NonceTTL:     10 * time.Minute,
+		SessionTTL:   24 * time.Hour,
+	})
+
+	handler := httpapi.NewHandlerWithOptions(httpapi.HandlerOptions{
+		Store:       store,
+		RiskEngine:  riskEngine,
+		AuthManager: authManager,
+		Config:      cfg,
+	})
+
 	router := httpapi.NewRouter(handler, logger)
 	server := httpapi.NewServer(cfg, router)
 
