@@ -269,12 +269,14 @@ The roadmap omits:
 
 ### Phase 7 — Analytics and research (3–5 days)
 
-- [ ] **7.1** Connector interface — `internal/analytics/connectors/`. `Fetch(ctx, chain) (Snapshot, error)` with source URL, retrieval time, methodology version.
-- [ ] **7.2** DeFiLlama connector — `.../defillama/`. Chain TVL history, DEX volume, stablecoins (different base URL), fees, revenue; timeouts/retries; stale threshold (e.g. 36h).
-- [ ] **7.3** Provenance persistence — `internal/analytics/service/`. Batch insert with dedupe; `data_snapshots` row with SHA-256 of canonical JSON; raw payload to object store (S3/MinIO) with local dev fallback.
-- [ ] **7.4** Research models — `internal/research/models/`. Decimal math; percent inputs divided by 100; 365-day annualization; documented growth convention.
-- [ ] **7.5** Scenario API — `internal/research/scenarios/`. Bear/Base/Bull matching golden values above; sensitivity modifiers.
-- [ ] **7.6** Tests — `*_test.go`. Fixture HTTP server; stale/partial/unavailable; checksum stability; golden scenario numbers.
+- [x] **7.1** Connector interface — `internal/analytics/connectors/`. `Fetch(ctx, chain) (Snapshot, error)` with source URL, retrieval time, methodology version.
+- [x] **7.2** DeFiLlama connector — `.../defillama/`. Chain TVL history, DEX volume, stablecoins (different base URL), fees, revenue; timeouts/retries; stale threshold (e.g. 36h).
+- [x] **7.3** Provenance persistence — `internal/analytics/service/`. Batch insert with dedupe; `data_snapshots` row with SHA-256 of canonical JSON; raw payload to object store (S3/MinIO) with local dev fallback.
+- [x] **7.4** Research models — `internal/research/models/`. Decimal math; percent inputs divided by 100; 365-day annualization; documented growth convention.
+- [x] **7.5** Scenario API — `internal/research/scenarios/`. Bear/Base/Bull matching golden values above; sensitivity modifiers.
+- [x] **7.6** Tests — `*_test.go`. Fixture HTTP server; stale/partial/unavailable; checksum stability; golden scenario numbers.
+
+> **Phase 7 status (2026-11-13):** implemented in `backend/internal/analytics/` and `backend/internal/research/`. DeFiLlama connector gathers TVL history, 24h DEX volume, stablecoins, protocol fees, and protocol revenue with 4MB response limit and stale thresholds. Provenance service stores immutable raw JSON snapshots with SHA-256 checksums alongside batch PostgreSQL upserts into `metric_observations`. Research models enforce the canonical fee-capture formula matching golden targets ($536,112 Bear, $3,626,219.52 Base, $15,137,280 Bull) with sensitivity matrix generation. All unit and mock-server tests pass.
 
 **Open decision:** the roadmap says snapshots go to `payload_location`, but never chooses object storage. Decide S3-compatible storage (MinIO in Compose) vs local filesystem for dev. Also define retention.
 
@@ -448,6 +450,6 @@ Non-errors (do not use the error envelope):
 | 2026-11-13 | Worker + Redis | Done | Redis client/locks, worker daemon, swap poller, retry policy, stuck-swap handler, catalogue refresher |
 | 2026-11-13 | Chains + wallets | Done | 5 chain families (EVM, Solana, Stellar, Aptos, NEAR), registry, non-custodial wallet builders, RPC verifiers |
 | 2026-11-13 | Swap service | Done | `internal/swap/service`; dry & executable pipelines, deposit capture, cancel/expire, canonical idempotency hash, tests pass |
+| 2026-11-13 | Analytics + research | Done | `internal/analytics/` & `internal/research/`; DeFiLlama connector, provenance snapshots, golden scenario models, tests pass |
 | | HTTP API + auth + risk | TODO | Phase 8 |
-| | Analytics + research | TODO | Phase 7 |
 | | Docker + E2E + docs | TODO | Phase 9 |

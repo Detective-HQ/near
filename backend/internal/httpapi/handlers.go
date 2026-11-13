@@ -33,24 +33,24 @@ type QuoteRequest struct {
 }
 
 type QuoteResponse struct {
-	ID                      string         `json:"id"`
-	Mode                    string         `json:"mode"`
-	Provider                string         `json:"provider"`
-	OriginAssetID           string         `json:"originAssetId"`
-	DestinationAssetID      string         `json:"destinationAssetId"`
-	OriginAsset             AssetResponse  `json:"originAsset"`
-	DestinationAsset        AssetResponse  `json:"destinationAsset"`
-	AmountInAtomic          string         `json:"amountInAtomic"`
-	AmountIn                string         `json:"amountIn"`
-	AmountOutEstimateAtomic string         `json:"amountOutEstimateAtomic"`
-	AmountOutEstimate       string         `json:"amountOutEstimate"`
-	MinimumAmountOutAtomic  string         `json:"minimumAmountOutAtomic"`
-	MinimumAmountOut        string         `json:"minimumAmountOut"`
-	FeeBps                  int            `json:"feeBps"`
-	SlippageBps             int            `json:"slippageBps"`
-	ExpiresAt               string         `json:"expiresAt"`
-	Route                   []string       `json:"route"`
-	Warning                 string         `json:"warning"`
+	ID                      string        `json:"id"`
+	Mode                    string        `json:"mode"`
+	Provider                string        `json:"provider"`
+	OriginAssetID           string        `json:"originAssetId"`
+	DestinationAssetID      string        `json:"destinationAssetId"`
+	OriginAsset             AssetResponse `json:"originAsset"`
+	DestinationAsset        AssetResponse `json:"destinationAsset"`
+	AmountInAtomic          string        `json:"amountInAtomic"`
+	AmountIn                string        `json:"amountIn"`
+	AmountOutEstimateAtomic string        `json:"amountOutEstimateAtomic"`
+	AmountOutEstimate       string        `json:"amountOutEstimate"`
+	MinimumAmountOutAtomic  string        `json:"minimumAmountOutAtomic"`
+	MinimumAmountOut        string        `json:"minimumAmountOut"`
+	FeeBps                  int           `json:"feeBps"`
+	SlippageBps             int           `json:"slippageBps"`
+	ExpiresAt               string        `json:"expiresAt"`
+	Route                   []string      `json:"route"`
+	Warning                 string        `json:"warning"`
 }
 
 type SwapCreateRequest struct {
@@ -71,17 +71,17 @@ type SwapEventRecord struct {
 }
 
 type SwapRecordResponse struct {
-	ID             string            `json:"id"`
-	QuoteID        string            `json:"quoteId"`
-	State          string            `json:"state"`
-	ProviderStatus *string           `json:"providerStatus"`
-	Mode           string            `json:"mode"`
-	RealSettlement bool              `json:"realSettlement"`
+	ID             string             `json:"id"`
+	QuoteID        string             `json:"quoteId"`
+	State          string             `json:"state"`
+	ProviderStatus *string            `json:"providerStatus"`
+	Mode           string             `json:"mode"`
+	RealSettlement bool               `json:"realSettlement"`
 	Transactions   map[string]*string `json:"transactions"`
-	CreatedAt      string            `json:"createdAt"`
-	UpdatedAt      string            `json:"updatedAt"`
-	Events         []SwapEventRecord `json:"events"`
-	Quote          QuoteResponse     `json:"quote"`
+	CreatedAt      string             `json:"createdAt"`
+	UpdatedAt      string             `json:"updatedAt"`
+	Events         []SwapEventRecord  `json:"events"`
+	Quote          QuoteResponse      `json:"quote"`
 }
 
 type StateStore struct {
@@ -143,9 +143,9 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp := map[string]any{
-		"status":          "healthy",
-		"quoteMode":       "demo",
-		"marketDataMode":  "fixture",
+		"status":         "healthy",
+		"quoteMode":      "demo",
+		"marketDataMode": "fixture",
 		"capabilityFlags": map[string]bool{
 			"executionEnabled": false,
 			"demoEnabled":      true,

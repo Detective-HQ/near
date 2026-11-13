@@ -250,4 +250,3 @@ func (s *Service) createDemoSwap(
 		ExecutableQuote: baseQuote,
 	}, nil
 }
-

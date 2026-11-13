@@ -239,4 +239,3 @@ func (s *Service) createDemoQuote(
 
 	return s.store.SaveQuote(ctx, quote)
 }
-

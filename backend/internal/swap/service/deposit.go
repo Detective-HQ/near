@@ -139,4 +139,3 @@ func (s *Service) RecordDeposit(ctx context.Context, params RecordDepositParams)
 		Duplicate: false,
 	}, nil
 }
-

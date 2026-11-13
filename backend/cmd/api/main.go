@@ -92,4 +92,3 @@ func newLogger(cfg config.LogConfig) *slog.Logger {
 	}
 	return slog.New(handler)
 }
-

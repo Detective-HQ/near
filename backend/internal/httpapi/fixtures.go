@@ -78,12 +78,12 @@ type MarketOverviewResponse struct {
 }
 
 type ScenarioItem struct {
-	Key                string  `json:"key"`
-	Label              string  `json:"label"`
-	DailyVolumeUSD     float64 `json:"dailyVolumeUsd"`
-	FeeRatePct         float64 `json:"feeRatePct"`
-	CapturePct         float64 `json:"capturePct"`
-	ActivityGrowthPct  float64 `json:"activityGrowthPct"`
+	Key               string  `json:"key"`
+	Label             string  `json:"label"`
+	DailyVolumeUSD    float64 `json:"dailyVolumeUsd"`
+	FeeRatePct        float64 `json:"feeRatePct"`
+	CapturePct        float64 `json:"capturePct"`
+	ActivityGrowthPct float64 `json:"activityGrowthPct"`
 }
 
 type ResearchScenariosResponse struct {
@@ -422,4 +422,3 @@ func ConvertAssetToDomain(a AssetResponse) domain.Asset {
 		Enabled:         true,
 	}
 }
-

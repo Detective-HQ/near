@@ -112,4 +112,3 @@ func (s *Service) ExpireSwap(ctx context.Context, swapID string) (domain.Swap, e
 
 	return updated, nil
 }
-

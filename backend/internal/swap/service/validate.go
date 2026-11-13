@@ -145,4 +145,3 @@ func ValidateStellarMemo(memoStr string) error {
 	}
 	return nil
 }
-

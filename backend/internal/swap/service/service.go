@@ -111,4 +111,3 @@ func New(cfg Config) (*Service, error) {
 		now:                 now,
 	}, nil
 }
-

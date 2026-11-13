@@ -59,4 +59,3 @@ func CanonicalPayloadHash(payload any) (string, error) {
 	sum := sha256.Sum256(canonical)
 	return hex.EncodeToString(sum[:]), nil
 }
-
