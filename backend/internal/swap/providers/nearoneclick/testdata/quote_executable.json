@@ -1,0 +1,36 @@
+{
+  "correlationId": "executable-correlation-1",
+  "timestamp": "2026-11-10T12:00:00Z",
+  "signature": "recorded-executable-signature",
+  "quoteRequest": {
+    "dry": false,
+    "swapType": "EXACT_INPUT",
+    "slippageTolerance": 100,
+    "originAsset": "eip155:1/erc20:0x1111111111111111111111111111111111111111",
+    "depositType": "ORIGIN_CHAIN",
+    "destinationAsset": "eip155:8453/erc20:0x2222222222222222222222222222222222222222",
+    "amount": "1000000",
+    "refundTo": "0x4444444444444444444444444444444444444444",
+    "refundType": "ORIGIN_CHAIN",
+    "recipient": "0x3333333333333333333333333333333333333333",
+    "recipientType": "DESTINATION_CHAIN",
+    "deadline": "2026-11-10T12:03:00Z",
+    "depositMode": "SIMPLE"
+  },
+  "quote": {
+    "amountIn": "1000000",
+    "amountInFormatted": "1",
+    "amountInUsd": "1",
+    "minAmountIn": "1000000",
+    "amountOut": "9900000",
+    "amountOutFormatted": "9.9",
+    "amountOutUsd": "9.9",
+    "minAmountOut": "9800000",
+    "depositAddress": "0x1234567890abcdef1234567890abcdef12345678",
+    "deadline": "2026-11-10T12:03:00Z",
+    "timeWhenInactive": "2026-11-10T12:01:00Z",
+    "timeEstimate": 30,
+    "refundFee": "1000",
+    "withdrawFee": "2000"
+  }
+}

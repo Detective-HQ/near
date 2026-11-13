@@ -1,0 +1,29 @@
+{
+  "correlationId": "dry-correlation-1",
+  "timestamp": "2026-11-10T12:00:00Z",
+  "signature": "recorded-dry-signature",
+  "quoteRequest": {
+    "dry": true,
+    "swapType": "EXACT_INPUT",
+    "slippageTolerance": 100,
+    "originAsset": "nep141:wrap.near",
+    "depositType": "ORIGIN_CHAIN",
+    "destinationAsset": "nep141:usdc.near",
+    "amount": "1000000000000000000000000",
+    "refundTo": "refund.near",
+    "refundType": "ORIGIN_CHAIN",
+    "recipient": "recipient.near",
+    "recipientType": "DESTINATION_CHAIN"
+  },
+  "quote": {
+    "amountIn": "1000000000000000000000000",
+    "amountInFormatted": "1",
+    "amountInUsd": "5.1",
+    "minAmountIn": "1000000000000000000000000",
+    "amountOut": "9900000",
+    "amountOutFormatted": "9.9",
+    "amountOutUsd": "9.9",
+    "minAmountOut": "9800000",
+    "minAmountOutFormatted": "9.8"
+  }
+}

@@ -32,11 +32,16 @@ The npm scripts load `.env` when present. Optional settings:
 | `ONECLICK_TIMEOUT_MS` | `10000` | Per-request provider timeout. |
 | `ASSET_CATALOGUE_TTL_SECONDS` | `300` | In-memory live catalogue cache TTL. |
 | `ONECLICK_QUOTE_DEADLINE_SECONDS` | `180` | Requested executable quote lifetime; server clamps it to 60–600 seconds. |
+| `ONECLICK_QUOTE_PUBLIC_KEY` | empty | Base58 Ed25519 key used to verify quote signatures (the `ed25519:` prefix is accepted). When empty, the backend still verifies the echoed request fields but reports `signatureVerified=false`. |
 | `SWAP_STATUS_POLL_SECONDS` | `5` | In-process status polling interval; server clamps it to 1–60 seconds. |
 | `ENABLE_LIVE_EXECUTION` | `false` | Explicit server gate for executable quotes and live EVM deposit tracking. |
 | `LOG_LEVEL` | `info` | Reserved for future log filtering; currently emits info and errors. |
 
 To request the live provider catalogue and dry quotes, set `SWAP_QUOTE_MODE=live` and configure `ONECLICK_JWT` in `.env`. The catalogue may load without the JWT; quote requests will not. These settings alone do not enable deposits.
+
+The backend verifies quote signatures against `ONECLICK_QUOTE_PUBLIC_KEY`. If the key is not configured, it validates the echoed request fields but never claims the signature was verified (`signatureVerified=false`). Set the key in production so a tampered quote fails closed with `PROVIDER_SIGNATURE_INVALID`.
+
+The worker daemon (`backend/cmd/worker`) uses the same 1Click adapter. Without `ONECLICK_JWT` it can still refresh the catalogue, but swap status polling pauses with `PROVIDER_NOT_CONFIGURED` instead of failing swaps. The fallback provider entry is a stub that returns `NO_ROUTE` until a second provider is integrated.
 
 The EVM deposit path requires all three conditions: `SWAP_QUOTE_MODE=live`, a configured `ONECLICK_JWT`, and `ENABLE_LIVE_EXECUTION=true`. Keep the execution gate false by default. When enabled, the app can ask an injected EVM wallet to broadcast a real source-chain transaction for a provider-issued executable quote. Confirm the exact route, asset contract, amount, recipient, refund address, expiry, and wallet transaction. The automated lifecycle tests use a mock provider; no live route or real-fund transaction has been verified in this repository.
 

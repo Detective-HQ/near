@@ -394,10 +394,3 @@ func normalizePayloadHash(hash string) (string, error) {
 	}
 	return hash, nil
 }
-
-func normalizeObservedAt(value time.Time) time.Time {
-	if value.IsZero() {
-		return time.Now().UTC()
-	}
-	return value.UTC()
-}

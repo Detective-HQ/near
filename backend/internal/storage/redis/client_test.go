@@ -196,3 +196,100 @@ func TestPing(t *testing.T) {
 		t.Fatalf("ping: %v", err)
 	}
 }
+
+func TestSetGetAndDeleteJSON(t *testing.T) {
+	client, _ := newTestClient(t, "local")
+	ctx := context.Background()
+	key := client.Key("cache", "payload")
+
+	type payload struct {
+		Name  string `json:"name"`
+		Count int    `json:"count"`
+	}
+
+	if err := client.SetJSON(ctx, key, payload{Name: "near", Count: 3}, time.Minute); err != nil {
+		t.Fatalf("set json: %v", err)
+	}
+
+	var got payload
+	hit, err := client.GetJSON(ctx, key, &got)
+	if err != nil {
+		t.Fatalf("get json: %v", err)
+	}
+	if !hit {
+		t.Fatal("get json reported a miss")
+	}
+	if got.Name != "near" || got.Count != 3 {
+		t.Fatalf("got %+v, want {near 3}", got)
+	}
+
+	if err := client.Delete(ctx, key); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if hit, err := client.GetJSON(ctx, key, &got); err != nil || hit {
+		t.Fatalf("get after delete = (hit=%v, err=%v), want a miss", hit, err)
+	}
+}
+
+func TestGetJSONCorruptValueIsAMiss(t *testing.T) {
+	client, server := newTestClient(t, "local")
+	ctx := context.Background()
+	key := client.Key("cache", "corrupt")
+	server.Set(key, "{not-json")
+
+	var dest map[string]any
+	hit, err := client.GetJSON(ctx, key, &dest)
+	if err != nil {
+		t.Fatalf("get corrupt json: %v", err)
+	}
+	if hit {
+		t.Fatal("corrupt value reported as a cache hit")
+	}
+}
+
+func TestSetJSONRespectsTTL(t *testing.T) {
+	client, server := newTestClient(t, "local")
+	ctx := context.Background()
+	key := client.Key("cache", "short-lived")
+
+	if err := client.SetJSON(ctx, key, 1, time.Second); err != nil {
+		t.Fatalf("set json: %v", err)
+	}
+	server.FastForward(2 * time.Second)
+
+	var got int
+	if hit, err := client.GetJSON(ctx, key, &got); err != nil || hit {
+		t.Fatalf("get after expiry = (hit=%v, err=%v), want a miss", hit, err)
+	}
+}
+
+func TestNilClientOperationsFail(t *testing.T) {
+	ctx := context.Background()
+	var client *rediscache.Client
+
+	if err := client.Ping(ctx); err == nil {
+		t.Fatal("nil client ping succeeded")
+	}
+	var dest any
+	if _, err := client.GetJSON(ctx, "k", &dest); err == nil {
+		t.Fatal("nil client get succeeded")
+	}
+	if err := client.SetJSON(ctx, "k", 1, time.Minute); err == nil {
+		t.Fatal("nil client set succeeded")
+	}
+	if err := client.Delete(ctx, "k"); err == nil {
+		t.Fatal("nil client delete succeeded")
+	}
+	if _, _, err := client.SetNX(ctx, "k", time.Minute); err == nil {
+		t.Fatal("nil client SetNX succeeded")
+	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("nil client close = %v, want nil", err)
+	}
+	if got := client.Prefix(); got != "" {
+		t.Fatalf("nil client prefix = %q, want empty", got)
+	}
+	if got := client.Key("a", "b"); got != "" {
+		t.Fatalf("nil client key = %q, want empty", got)
+	}
+}

@@ -1,0 +1,16 @@
+{
+  "correlationId": "submit-correlation-1",
+  "status": "KNOWN_DEPOSIT_TX",
+  "updatedAt": "2026-11-10T12:01:00Z",
+  "swapDetails": {
+    "intentHashes": [],
+    "nearTxHashes": [],
+    "originChainTxHashes": [
+      {
+        "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "explorerUrl": "https://etherscan.io/tx/0xaaaa"
+      }
+    ],
+    "destinationChainTxHashes": []
+  }
+}
