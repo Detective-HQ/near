@@ -98,3 +98,4 @@ func GenerateSensitivityGrid(base ScenarioInputs, volumeMultipliers []float64, f
 	}
 	return grid, nil
 }
+

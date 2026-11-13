@@ -181,3 +181,4 @@ func (s *Store) GetDataSnapshot(ctx context.Context, id string) (domain.DataSnap
 	}
 	return snap, nil
 }
+

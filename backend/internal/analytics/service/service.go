@@ -117,3 +117,4 @@ func (s *Service) Ingest(ctx context.Context, chain string) (domain.Snapshot, er
 
 	return snapshot, nil
 }
+

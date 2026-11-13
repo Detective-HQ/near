@@ -55,3 +55,4 @@ func TestEvaluateCustom(t *testing.T) {
 		t.Fatalf("custom fees = %.2f, want %.2f", sc.ProjectedAnnualFees, want)
 	}
 }
+

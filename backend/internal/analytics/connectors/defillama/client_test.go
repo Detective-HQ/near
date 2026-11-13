@@ -138,3 +138,4 @@ func TestDeFiLlamaPartialFailure(t *testing.T) {
 		t.Fatalf("expected status %s, got %s", domain.StatusPartial, snap.Status)
 	}
 }
+
