@@ -126,3 +126,4 @@ func TestAuthManager_OwnershipCheck(t *testing.T) {
 		t.Fatalf("Should reject when neither session ID nor wallet matches")
 	}
 }
+
