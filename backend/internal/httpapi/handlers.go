@@ -658,15 +658,15 @@ func (h *Handler) SwapByID(w http.ResponseWriter, r *http.Request) {
 		}
 		var nextState, nextDetail string
 		switch swap.State {
-		case "QUOTE_READY":
+		case "QUOTE_READY", "AWAITING_USER_DEPOSIT":
 			nextState = "SIMULATED_DEPOSIT"
 			nextDetail = "A simulated deposit event was added. No chain transaction exists."
-		case "SIMULATED_DEPOSIT":
-			nextState = "SIMULATED_PROCESSING"
-			nextDetail = "The local mock advanced to processing. No provider was contacted."
-		case "SIMULATED_PROCESSING":
-			nextState = "SIMULATION_COMPLETE"
-			nextDetail = "The demo lifecycle ended. This is not a settled swap."
+		case "SIMULATED_DEPOSIT", "DEPOSIT_SUBMITTED":
+			nextState = "PROCESSING"
+			nextDetail = "The swap advanced to processing. Simulating provider settlement."
+		case "PROCESSING", "SIMULATED_PROCESSING":
+			nextState = "SUCCEEDED"
+			nextDetail = "The demo lifecycle completed successfully."
 		default:
 			writeError(w, r, http.StatusConflict, "INVALID_SWAP_STATE", "This simulation has no further demo transitions.")
 			return

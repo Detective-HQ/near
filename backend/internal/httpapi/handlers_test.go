@@ -271,7 +271,15 @@ func TestQuoteAndSwapFlow(t *testing.T) {
 		t.Fatalf("expected 202 for deposit, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// 4. Activity
+	// 4. Simulate step
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/swaps/"+swap.ID+"/simulate", nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for simulate, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// 5. Activity
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/activity", nil)
 	rec = httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
