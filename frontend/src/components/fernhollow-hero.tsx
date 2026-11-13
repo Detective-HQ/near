@@ -59,8 +59,10 @@ export function FernhollowHero() {
 
       <div className={`fh-ui${introShown ? " on" : ""}`}>
         <header className="fh-header">
-          <Link className="fh-logo" href="/" aria-label="Fernhollow">
-            Fernhollow
+          <Link className="fh-logo" href="/" aria-label="Sightline home">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/images/sightline-mark.svg" alt="" width={34} height={34} />
+            <span>Sightline</span>
           </Link>
           <nav className="fh-nav" aria-label="Main">
             <Link href="/workspace">Work</Link>

@@ -106,22 +106,8 @@ button { color: inherit; }
   color: var(--text);
   text-decoration: none;
 }
-.brand-mark {
-  display: flex;
-  width: 28px;
-  height: 28px;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 3px;
-  padding: 5px;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-  transform: rotate(-30deg);
-}
-.brand-mark i { display: block; width: 3px; border-radius: 4px; background: currentColor; }
-.brand-mark i:nth-child(1) { height: 8px; }
-.brand-mark i:nth-child(2) { height: 14px; }
-.brand-mark i:nth-child(3) { height: 11px; }
+.brand-mark { display: block; width: 30px; height: 30px; flex: 0 0 auto; border-radius: 24%; box-shadow: 0 0 0 1px var(--border); }
+.mobile-mark .brand-mark { width: 30px; height: 30px; }
 .brand-name { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.25; }
 .workspace-switch {
   display: flex;
@@ -134,7 +120,7 @@ button { color: inherit; }
   border-radius: 16px;
   background: var(--raised);
 }
-.workspace-glyph, .mobile-mark {
+.workspace-glyph {
   display: grid;
   width: 32px;
   height: 32px;
@@ -549,7 +535,7 @@ input[type="range"] { width: 100%; accent-color: var(--cream); }
   .menu-button { display: grid; width: 32px; height: 32px; align-content: center; gap: 5px; padding: 6px; border: 0; background: transparent; cursor: pointer; }
   .menu-button span { display: block; width: 18px; height: 1.5px; background: var(--cream); }
   .mobile-title { flex: 1; overflow: hidden; font: 400 22px / 1 var(--font-display); text-overflow: ellipsis; white-space: nowrap; }
-  .mobile-mark { display: grid; width: 30px; height: 30px; flex: 0 0 auto; place-items: center; margin-left: auto; border: 1px solid var(--control); border-radius: 50%; font-size: 11px; font-weight: 500; }
+  .mobile-mark { display: block; flex: 0 0 auto; margin-left: auto; line-height: 0; }
   .sidebar { width: min(310px, calc(100vw - 42px)); background: rgba(8, 9, 6, 0.94); transform: translateX(-105%); transition: transform 220ms ease; box-shadow: 20px 0 60px rgba(0, 0, 0, 0.5); }
   .sidebar.is-open { transform: translateX(0); }
   .mobile-scrim:not([hidden]) { position: fixed; z-index: 9; inset: 0; display: block; border: 0; background: rgba(0, 0, 0, 0.55); }

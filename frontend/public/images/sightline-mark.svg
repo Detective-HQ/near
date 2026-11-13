@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" role="img" aria-label="Sightline mark">
+  <rect width="64" height="64" rx="15" fill="#0B0F14"/>
+  <rect x="22" y="12" width="32" height="10" rx="5" fill="#F4F6F8"/>
+  <rect x="10" y="27" width="44" height="10" rx="5" fill="#F4F6F8"/>
+  <rect x="10" y="42" width="30" height="10" rx="5" fill="#F4F6F8"/>
+  <circle cx="49" cy="47" r="5" fill="#3DDC97"/>
+</svg>

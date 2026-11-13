@@ -250,11 +250,8 @@ function StatusPill({ children, tone = "" }: { children: string; tone?: string }
 
 function BrandMark() {
   return (
-    <span className="brand-mark" aria-hidden="true">
-      <i />
-      <i />
-      <i />
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img className="brand-mark" src="/images/sightline-mark.svg" alt="" width={28} height={28} />
   );
 }
 
@@ -1583,7 +1580,7 @@ export function WorkspaceShell({ initialSection = "overview" }: { initialSection
       <aside className={`sidebar${menuOpen ? " is-open" : ""}`} aria-label="Workspace navigation">
         <Link className="brand" href="/">
           <BrandMark />
-          <span className="brand-name">Universal DeFi<br />Intelligence</span>
+          <span className="brand-name">Sightline</span>
         </Link>
         <div className="workspace-switch">
           <span className="workspace-glyph">U</span>
@@ -1625,7 +1622,7 @@ export function WorkspaceShell({ initialSection = "overview" }: { initialSection
           <span /><span /><span />
         </button>
         <span className="mobile-title">{page.title}</span>
-        <span className="mobile-mark" aria-label="Universal DeFi Intelligence">U</span>
+        <Link className="mobile-mark" href="/" aria-label="Sightline home"><BrandMark /></Link>
       </div>
 
       <div className="main-shell">
@@ -1652,7 +1649,7 @@ export function WorkspaceShell({ initialSection = "overview" }: { initialSection
           {section === "risk" ? <RiskView health={data.health} snapshot={data.markets} chains={data.chains} /> : null}
           {data.loading && !data.health ? <p className="loading-state" role="status">Connecting to the local API…</p> : null}
           <footer className="app-footer">
-            <span>Universal DeFi Intelligence · local research workspace</span>
+            <span>Sightline · local research workspace</span>
             <span>Research interpretation is separate from transaction execution.</span>
           </footer>
         </main>

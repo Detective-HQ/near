@@ -37,7 +37,8 @@
   justify-content: space-between;
   padding: calc(24 * var(--u)) calc(44 * var(--u)) 0;
 }
-.fh-logo { font-size: calc(26 * var(--u)); font-weight: 500; letter-spacing: -0.02em; }
+.fh-logo { display: inline-flex; align-items: center; gap: calc(12 * var(--u)); font-size: calc(26 * var(--u)); font-weight: 500; letter-spacing: -0.02em; }
+.fh-logo img { display: block; width: calc(34 * var(--u)); height: calc(34 * var(--u)); min-width: 28px; min-height: 28px; border-radius: 24%; }
 .fh-nav {
   display: flex;
   align-items: center;

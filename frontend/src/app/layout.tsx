@@ -3,11 +3,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Fernhollow",
+  title: "Sightline",
   description: "A regenerative design studio. Wander through a night valley of flowers that grows as you move.",
-  icons: {
-    icon: "/favicon.ico",
-  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
