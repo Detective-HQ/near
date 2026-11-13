@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -55,7 +56,24 @@ type Config struct {
 	Execution  ExecutionConfig
 	MarketData MarketDataConfig
 	Catalogue  CatalogueConfig
+	Security   SecurityConfig
 	Log        LogConfig
+}
+
+// SecurityConfig contains authentication and HTTP edge protections.
+type SecurityConfig struct {
+	// AuthRequired forces wallet sign-in for every swap and activity route.
+	AuthRequired bool
+	SessionTTL   time.Duration
+	// CORSAllowedOrigins is an explicit allowlist. Empty means no cross-origin
+	// access (the Next.js proxy is same-origin and needs none).
+	CORSAllowedOrigins []string
+	// TrustedProxies are the networks whose X-Forwarded-For header is honored
+	// for client IP attribution (rate limiting and logs).
+	TrustedProxies []netip.Prefix
+	MaxBodyBytes   int64
+	RateLimitRPS   float64
+	RateLimitBurst int
 }
 
 // HTTPConfig contains HTTP server limits and timeouts.
@@ -164,6 +182,14 @@ type rawConfig struct {
 	SwapStatusPollSeconds     int    `env:"SWAP_STATUS_POLL_SECONDS" envDefault:"5"`
 	SwapStatusMaxAgeMinutes   int    `env:"SWAP_STATUS_MAX_AGE_MINUTES" envDefault:"60"`
 	SwapStatusPollConcurrency int    `env:"SWAP_STATUS_POLL_CONCURRENCY" envDefault:"10"`
+
+	AuthRequired          bool   `env:"AUTH_REQUIRED" envDefault:"false"`
+	AuthSessionTTLMinutes int    `env:"AUTH_SESSION_TTL_MINUTES" envDefault:"1440"`
+	CORSAllowedOrigins    string `env:"CORS_ALLOWED_ORIGINS"`
+	TrustedProxyCIDRs     string `env:"TRUSTED_PROXY_CIDRS" envDefault:"127.0.0.1/32,::1/128"`
+	HTTPMaxBodyBytes      int64  `env:"HTTP_MAX_BODY_BYTES" envDefault:"65536"`
+	RateLimitRPS          int    `env:"RATE_LIMIT_RPS" envDefault:"20"`
+	RateLimitBurst        int    `env:"RATE_LIMIT_BURST" envDefault:"40"`
 
 	LogLevel  string `env:"LOG_LEVEL" envDefault:"info"`
 	LogFormat string `env:"LOG_FORMAT" envDefault:"json"`
@@ -372,6 +398,27 @@ func build(raw rawConfig) (*Config, error) {
 		add("SWAP_STATUS_POLL_CONCURRENCY must be between 1 and 100")
 	}
 
+	if raw.AuthSessionTTLMinutes < 5 || raw.AuthSessionTTLMinutes > 43200 {
+		add("AUTH_SESSION_TTL_MINUTES must be between 5 and 43200")
+	}
+	corsOrigins, err := parseOrigins(raw.CORSAllowedOrigins)
+	if err != nil {
+		add("CORS_ALLOWED_ORIGINS: %v", err)
+	}
+	trustedProxies, err := parsePrefixes(raw.TrustedProxyCIDRs)
+	if err != nil {
+		add("TRUSTED_PROXY_CIDRS: %v", err)
+	}
+	if raw.HTTPMaxBodyBytes < 1024 || raw.HTTPMaxBodyBytes > 10<<20 {
+		add("HTTP_MAX_BODY_BYTES must be between 1024 and 10485760")
+	}
+	if raw.RateLimitRPS < 1 || raw.RateLimitRPS > 10000 {
+		add("RATE_LIMIT_RPS must be between 1 and 10000")
+	}
+	if raw.RateLimitBurst < raw.RateLimitRPS || raw.RateLimitBurst > 20000 {
+		add("RATE_LIMIT_BURST must be between RATE_LIMIT_RPS and 20000")
+	}
+
 	logLevel, err := parseLogLevel(raw.LogLevel)
 	if err != nil {
 		add("LOG_LEVEL: %v", err)
@@ -431,11 +478,66 @@ func build(raw rawConfig) (*Config, error) {
 		Catalogue: CatalogueConfig{
 			TTL: time.Duration(raw.AssetCatalogueTTLSeconds) * time.Second,
 		},
+		Security: SecurityConfig{
+			AuthRequired:       raw.AuthRequired,
+			SessionTTL:         time.Duration(raw.AuthSessionTTLMinutes) * time.Minute,
+			CORSAllowedOrigins: corsOrigins,
+			TrustedProxies:     trustedProxies,
+			MaxBodyBytes:       raw.HTTPMaxBodyBytes,
+			RateLimitRPS:       float64(raw.RateLimitRPS),
+			RateLimitBurst:     raw.RateLimitBurst,
+		},
 		Log: LogConfig{
 			Level:  logLevel,
 			Format: logFormat,
 		},
 	}, nil
+}
+
+// parseOrigins parses a comma-separated CORS allowlist. Wildcards are
+// rejected: a credentialed API must never answer Access-Control-Allow-Origin: *.
+func parseOrigins(value string) ([]string, error) {
+	var origins []string
+	for _, part := range strings.Split(value, ",") {
+		origin := strings.TrimRight(strings.TrimSpace(part), "/")
+		if origin == "" {
+			continue
+		}
+		if strings.Contains(origin, "*") {
+			return nil, errors.New("wildcard origins are not allowed")
+		}
+		parsed, err := url.Parse(origin)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.Path != "" {
+			return nil, fmt.Errorf("invalid origin %q (want scheme://host[:port])", origin)
+		}
+		origins = append(origins, strings.ToLower(origin))
+	}
+	return origins, nil
+}
+
+// parsePrefixes parses a comma-separated list of CIDRs or bare IPs.
+func parsePrefixes(value string) ([]netip.Prefix, error) {
+	var prefixes []netip.Prefix
+	for _, part := range strings.Split(value, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if !strings.Contains(part, "/") {
+			addr, err := netip.ParseAddr(part)
+			if err != nil {
+				return nil, fmt.Errorf("invalid address %q", part)
+			}
+			prefixes = append(prefixes, netip.PrefixFrom(addr, addr.BitLen()))
+			continue
+		}
+		prefix, err := netip.ParsePrefix(part)
+		if err != nil {
+			return nil, fmt.Errorf("invalid CIDR %q", part)
+		}
+		prefixes = append(prefixes, prefix.Masked())
+	}
+	return prefixes, nil
 }
 
 func parseQuoteMode(value string) (QuoteMode, error) {

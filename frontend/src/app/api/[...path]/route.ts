@@ -71,7 +71,7 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
 
   const incomingUrl = new URL(request.url);
   const upstreamUrl = new URL(pathname, process.env.UDI_API_ORIGIN ?? "http://127.0.0.1:8081");
-  for (const key of ["chain", "refresh"]) {
+  for (const key of ["chain", "refresh", "cursor", "limit"]) {
     const value = incomingUrl.searchParams.get(key);
     if (value !== null) upstreamUrl.searchParams.set(key, value);
   }
@@ -92,6 +92,17 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
   const cookieHeader = request.headers.get("cookie");
   if (cookieHeader) {
     headers.set("cookie", cookieHeader);
+  }
+  // Next.js appends the socket address to X-Forwarded-For. The Go API trusts
+  // this header only from the configured proxy network and takes the
+  // right-most untrusted hop, so a client cannot spoof its rate-limit identity.
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    headers.set("x-forwarded-for", forwardedFor);
+  }
+  const requestId = request.headers.get("x-request-id");
+  if (requestId && /^[A-Za-z0-9_-]{1,64}$/.test(requestId)) {
+    headers.set("x-request-id", requestId);
   }
 
   let body: string | undefined;
@@ -122,8 +133,14 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
       "cache-control": "no-store",
       "content-type": upstream.headers.get("content-type") ?? "application/json; charset=utf-8"
     });
-    const requestId = upstream.headers.get("x-request-id");
-    if (requestId) responseHeaders.set("x-request-id", requestId);
+    const upstreamRequestId = upstream.headers.get("x-request-id");
+    if (upstreamRequestId) responseHeaders.set("x-request-id", upstreamRequestId);
+    // Wallet sign-in sets an HttpOnly session cookie; pass it through.
+    for (const cookie of upstream.headers.getSetCookie()) {
+      responseHeaders.append("set-cookie", cookie);
+    }
+    const retryAfter = upstream.headers.get("retry-after");
+    if (retryAfter) responseHeaders.set("retry-after", retryAfter);
     return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
   } catch {
     return Response.json({

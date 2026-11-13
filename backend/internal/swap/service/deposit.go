@@ -25,24 +25,25 @@ type RecordDepositResult struct {
 
 // RecordDeposit processes a wallet-reported source transaction.
 //
-// Behavior:
-//   - Validates the transaction hash per the origin chain's family.
-//   - If the same hash is replayed for the same swap, returns HTTP 200 / Duplicate=true.
-//   - If a different hash is submitted, returns CONFLICT.
-//   - If the swap is unfunded and expired, rejects with QUOTE_EXPIRED.
-//   - If the swap is in a terminal state, rejects with INVALID_SWAP_STATE.
-//   - Atomically records the transaction and transitions the swap from
-//     AWAITING_USER_DEPOSIT -> DEPOSIT_SUBMITTED with provider status KNOWN_DEPOSIT_TX.
-//   - Submits the deposit notification to the provider via SubmitDepositTx. A
-//     provider error during notification does NOT roll back local persistence;
-//     the background poller remains the authority for eventual settlement.
+//   - The caller must own the swap (when it has an owner).
+//   - The hash is validated for the origin chain's family, and an EVM chainId,
+//     when supplied, must match the origin chain.
+//   - Recording the transaction and advancing AWAITING_USER_DEPOSIT ->
+//     DEPOSIT_SUBMITTED happen in one store transaction. Replaying the same
+//     hash returns Duplicate=true; a different hash is a CONFLICT; a hash
+//     already attached to another swap is a CONFLICT.
+//   - A deposit is accepted even if the quote deadline has passed while the
+//     swap is still awaiting it: the funds are already on chain, and the
+//     provider decides between settlement and refund. Rejecting the hash would
+//     only lose track of real money.
+//   - The provider is then notified asynchronously; a failed notification does
+//     not roll anything back because the poller is the source of truth.
 func (s *Service) RecordDeposit(ctx context.Context, params RecordDepositParams) (RecordDepositResult, error) {
 	swapID := strings.TrimSpace(params.SwapID)
 	if swapID == "" {
 		return RecordDepositResult{}, domain.New(domain.CodeValidationFailed, "Swap ID is required.")
 	}
-	rawTxHash := strings.TrimSpace(params.TxHash)
-	if rawTxHash == "" {
+	if strings.TrimSpace(params.TxHash) == "" {
 		return RecordDepositResult{}, domain.New(domain.CodeInvalidTxHash, "Transaction hash is required.")
 	}
 
@@ -50,94 +51,60 @@ func (s *Service) RecordDeposit(ctx context.Context, params RecordDepositParams)
 	if err != nil {
 		return RecordDepositResult{}, err
 	}
-
-	normalizedHash, err := ValidateTxHash(s.registry, swap.OriginChain, rawTxHash)
-	if err != nil {
+	if err := checkOwner(swap, params.SessionID); err != nil {
 		return RecordDepositResult{}, err
 	}
 
-	// Idempotent duplicate check: same swap + same tx hash
-	if swap.SourceTxHash != "" && strings.EqualFold(swap.SourceTxHash, normalizedHash) {
-		return RecordDepositResult{
-			Swap:      swap,
-			Deposit:   domain.Deposit{SwapID: swap.ID, ChainKey: swap.OriginChain, TxHash: normalizedHash, Role: domain.TransactionRoleDeposit},
-			Duplicate: true,
-		}, nil
-	}
-
-	// Conflict check: different tx hash already recorded
-	if swap.SourceTxHash != "" && !strings.EqualFold(swap.SourceTxHash, normalizedHash) {
-		return RecordDepositResult{}, domain.New(domain.CodeConflict,
-			"A different deposit transaction hash is already attached to this swap.")
-	}
-
-	// Terminal state check
-	if swap.State.Terminal() {
-		return RecordDepositResult{}, domain.Newf(domain.CodeInvalidSwapState,
-			"Cannot record a deposit transaction for swap %s in terminal state %s.", swap.ID, swap.State)
-	}
-
-	// Expiry check
-	now := s.now()
-	if !swap.ExpiresAt.IsZero() && swap.ExpiresAt.Before(now) {
-		return RecordDepositResult{}, domain.New(domain.CodeQuoteExpired,
-			"The quote instruction has expired; deposit cannot be accepted.")
-	}
-
-	// Must be awaiting user deposit
-	if swap.State != domain.StateAwaitingUserDeposit {
-		return RecordDepositResult{}, domain.Newf(domain.CodeInvalidSwapState,
-			"Swap %s is in state %s; expected AWAITING_USER_DEPOSIT.", swap.ID, swap.State)
-	}
-
-	// 1. Record transaction in repository
-	deposit, _, err := s.store.RecordTransaction(ctx, swap.ID, swap.OriginChain, normalizedHash, domain.TransactionRoleDeposit)
+	normalizedHash, err := ValidateTxHash(s.registry, swap.OriginChain, params.TxHash)
 	if err != nil {
 		return RecordDepositResult{}, err
 	}
-
-	// 2. Advance state: AWAITING_USER_DEPOSIT -> DEPOSIT_SUBMITTED
-	payload := map[string]any{
-		"txHash":   normalizedHash,
-		"chainKey": swap.OriginChain,
+	if chainID := strings.TrimSpace(params.ChainID); chainID != "" {
+		if chain, ok := s.registry.Get(swap.OriginChain); ok && chain.ChainID != "" && chain.ChainID != chainID {
+			return RecordDepositResult{}, domain.Newf(domain.CodeWrongNetwork,
+				"The deposit was reported on chain %s but this swap expects chain %s.", chainID, chain.ChainID)
+		}
 	}
-	updatedSwap, _, err := s.store.UpdateSwapState(
-		ctx,
-		swap.ID,
-		domain.StateAwaitingUserDeposit,
-		domain.StateDepositSubmitted,
+
+	if swap.SourceTxHash == "" && swap.State.Terminal() {
+		return RecordDepositResult{}, domain.Newf(domain.CodeInvalidSwapState,
+			"Cannot record a deposit for swap %s in terminal state %s.", swap.ID, swap.State)
+	}
+
+	updated, deposit, duplicate, err := s.store.RecordDeposit(ctx, swap.ID, swap.OriginChain, normalizedHash,
 		domain.ProviderStatusKnownDepositTx,
-		payload,
-	)
+		map[string]any{"txHash": normalizedHash, "chainKey": swap.OriginChain, "source": "wallet_report"})
 	if err != nil {
 		return RecordDepositResult{}, err
 	}
+	if duplicate || updated.Simulated {
+		return RecordDepositResult{Swap: updated, Deposit: deposit, Duplicate: duplicate}, nil
+	}
 
-	// 3. Notify provider (as an accelerator). If this fails, we DO NOT rollback
-	// because the on-chain transaction was already broadcast.
 	s.bgWg.Add(1)
 	go func() {
 		defer s.bgWg.Done()
 		bgCtx, cancel := context.WithTimeout(context.Background(), s.quoteDeadline)
 		defer cancel()
-
 		_, submitErr := s.provider.SubmitDepositTx(bgCtx, providers.DepositRequest{
 			TxHash:         normalizedHash,
-			DepositAddress: swap.DepositAddress,
-			DepositMemo:    swap.DepositMemo,
+			DepositAddress: updated.DepositAddress,
+			DepositMemo:    updated.DepositMemo,
 		})
+		s.observe(submitErr)
 		if submitErr != nil {
-			s.logger.Warn("provider deposit submission notification failed; background poller will recover",
-				"swap_id", swap.ID,
-				"tx_hash", normalizedHash,
-				"error", submitErr,
-			)
+			s.logger.Warn("provider deposit notification failed; the poller will recover",
+				"swap_id", updated.ID, "error", submitErr)
 		}
 	}()
 
-	return RecordDepositResult{
-		Swap:      updatedSwap,
-		Deposit:   deposit,
-		Duplicate: false,
-	}, nil
+	return RecordDepositResult{Swap: updated, Deposit: deposit}, nil
+}
+
+// checkOwner enforces that a swap with an owner is only touched by that owner.
+func checkOwner(swap domain.Swap, sessionID string) error {
+	if swap.SessionID != "" && !strings.EqualFold(swap.SessionID, strings.TrimSpace(sessionID)) {
+		return domain.New(domain.CodeForbidden, "You do not have access to this swap.")
+	}
+	return nil
 }

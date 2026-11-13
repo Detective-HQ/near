@@ -55,7 +55,9 @@ func (c PollerConfig) withDefaults() PollerConfig {
 		c.StatusMaxAge = time.Hour
 	}
 	if c.Lease <= 0 {
-		c.Lease = 30 * time.Second
+		// The lease must outlive one poll including its retries, otherwise a
+		// second worker could claim the swap mid-poll.
+		c.Lease = 2 * time.Minute
 	}
 	if c.MinInterval <= 0 {
 		c.MinInterval = 5 * time.Second
@@ -163,20 +165,11 @@ func (p *Poller) PollOnce(ctx context.Context) (int, error) {
 // later instead of being lost.
 func (p *Poller) pollSwap(ctx context.Context, swap domain.Swap) {
 	now := p.clock.Now()
-
 	if ctx.Err() != nil {
 		return
 	}
 
-	// 1. Expiry: an unfunded quote past its deadline is terminal.
-	if swap.State == domain.StateAwaitingUserDeposit &&
-		strings.TrimSpace(swap.SourceTxHash) == "" &&
-		!swap.ExpiresAt.IsZero() && !now.Before(swap.ExpiresAt) {
-		p.applyExpiry(ctx, swap, now)
-		return
-	}
-
-	// 2. Stuck ceiling: stop polling and alert rather than guessing an outcome.
+	// Stuck ceiling: stop polling and alert rather than guessing an outcome.
 	if !swap.CreatedAt.IsZero() && now.Sub(swap.CreatedAt) > p.cfg.StatusMaxAge {
 		if _, err := p.store.MarkSwapStuck(ctx, swap.ID, now, domain.CodeProviderDelayed); err != nil {
 			p.logger.Error("mark swap stuck", "swap_id", swap.ID, "error", err)
@@ -190,7 +183,15 @@ func (p *Poller) pollSwap(ctx context.Context, swap domain.Swap) {
 		return
 	}
 
-	// 3. Provider status lookup (idempotent GET, safe to retry).
+	// An unfunded swap past its deadline is a candidate for EXPIRED, but the
+	// provider is asked first: a user may have paid the deposit address
+	// without reporting the transaction, and expiring that swap would orphan
+	// real funds.
+	expiryCandidate := swap.State == domain.StateAwaitingUserDeposit &&
+		strings.TrimSpace(swap.SourceTxHash) == "" &&
+		!swap.ExpiresAt.IsZero() && !now.Before(swap.ExpiresAt)
+
+	// Provider status lookup (idempotent GET, safe to retry).
 	request := StatusRequest{
 		SwapID:         swap.ID,
 		OriginChain:    swap.OriginChain,
@@ -207,6 +208,11 @@ func (p *Poller) pollSwap(ctx context.Context, swap domain.Swap) {
 		code := domain.CodeOf(err)
 		p.health.RecordError(p.provider.Name(), code, now)
 		if code == domain.CodeProviderNotConfigured {
+			if expiryCandidate {
+				// No provider can ever observe a deposit for this swap.
+				p.applyExpiry(ctx, swap, now)
+				return
+			}
 			p.pause(ctx, swap, code, now)
 			return
 		}
@@ -221,7 +227,6 @@ func (p *Poller) pollSwap(ctx context.Context, swap domain.Swap) {
 	}
 	p.health.RecordSuccess(p.provider.Name(), now)
 
-	// 4. Map the provider status onto the lifecycle.
 	hasSource := strings.TrimSpace(swap.SourceTxHash) != "" || strings.TrimSpace(result.SourceTxHash) != ""
 	mapped, mapErr := domain.MapProviderStatus(result.Status, hasSource)
 	if mapErr != nil {
@@ -236,59 +241,67 @@ func (p *Poller) pollSwap(ctx context.Context, swap domain.Swap) {
 	}
 
 	if mapped == swap.State {
-		// The status did not move the lifecycle; back off before polling again.
+		if expiryCandidate {
+			// The provider confirms nothing arrived and the deadline passed.
+			p.applyExpiry(ctx, swap, now)
+			return
+		}
 		p.scheduleBackoff(ctx, swap, "", now)
 		return
 	}
 
-	updated, _, recorded, applyErr := domain.ApplyProviderUpdate(swap, domain.ProviderUpdateInput{
-		Status:                  result.Status,
-		HasSourceTransaction:    hasSource,
-		Payload:                 providerPayload(result),
-		VerifiedProviderOutcome: true,
-		Now:                     now,
-	})
-	if applyErr != nil {
-		p.health.RecordError(p.provider.Name(), domain.CodeOf(applyErr), now)
-		p.scheduleBackoff(ctx, swap, domain.CodeOf(applyErr), now)
-		return
-	}
-	if !recorded {
+	// The provider may have moved through states the backend never saw (a
+	// fast swap can settle between two polls). Walk the legal path and write
+	// one audit event per hop so the lifecycle never skips a state.
+	hops, ok := domain.ProviderPath(swap.State, result.Status, hasSource)
+	if !ok {
 		// A stale or regressive provider response; keep polling.
 		p.scheduleBackoff(ctx, swap, "", now)
 		return
 	}
 
-	nextPollAt := now.Add(p.nextDelay(0))
-	if updated.State.Terminal() {
-		nextPollAt = now
-	}
-	if _, _, recordErr := p.store.RecordPollResult(ctx, repository.PollResult{
-		SwapID:         swap.ID,
-		OldState:       swap.State,
-		NewState:       updated.State,
-		ProviderStatus: updated.ProviderStatus,
-		SourceTxHash:   result.SourceTxHash,
-		Payload:        providerPayload(result),
-		NextPollAt:     nextPollAt,
-		PollAttempts:   0,
-		ObservedAt:     now,
-	}); recordErr != nil {
-		p.logger.Error("persist provider status",
-			"swap_id", swap.ID,
-			"from", string(swap.State),
-			"to", string(updated.State),
-			"error", recordErr,
-		)
-		return
+	current := swap.State
+	for index, hop := range hops {
+		final := index == len(hops)-1
+		payload := providerPayload(result)
+		if !final {
+			payload["inferred"] = true
+			payload["observedProviderStatus"] = string(result.Status.Normalize())
+		}
+		nextPollAt := now.Add(p.nextDelay(0))
+		if hop.To.Terminal() {
+			nextPollAt = now
+		}
+		updated, _, recordErr := p.store.RecordPollResult(ctx, repository.PollResult{
+			SwapID:         swap.ID,
+			OldState:       current,
+			NewState:       hop.To,
+			ProviderStatus: hop.ProviderStatus,
+			SourceTxHash:   result.SourceTxHash,
+			Payload:        payload,
+			NextPollAt:     nextPollAt,
+			PollAttempts:   0,
+			ObservedAt:     now,
+		})
+		if recordErr != nil {
+			p.logger.Error("persist provider status",
+				"swap_id", swap.ID,
+				"from", string(current),
+				"to", string(hop.To),
+				"error", recordErr,
+			)
+			return
+		}
+		current = updated.State
 	}
 
 	p.logger.Info("swap state advanced",
 		"swap_id", swap.ID,
 		"provider", p.provider.Name(),
 		"from", string(swap.State),
-		"to", string(updated.State),
-		"provider_status", string(updated.ProviderStatus),
+		"to", string(current),
+		"hops", len(hops),
+		"provider_status", string(result.Status.Normalize()),
 	)
 }
 

@@ -116,8 +116,8 @@ func TestMigratorRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Status: %v", err)
 	}
-	if len(statuses) != 6 {
-		t.Fatalf("Status returned %d rows, want 6", len(statuses))
+	if len(statuses) != 7 {
+		t.Fatalf("Status returned %d rows, want 7", len(statuses))
 	}
 	for _, status := range statuses {
 		if status.State != "applied" {

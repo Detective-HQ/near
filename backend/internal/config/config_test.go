@@ -448,3 +448,29 @@ func requireConfigError(t *testing.T, err error, want string) {
 		t.Fatalf("error %q does not contain %q", err.Error(), want)
 	}
 }
+
+func TestSecurityConfig(t *testing.T) {
+	cfg, err := LoadFrom([]string{
+		"AUTH_REQUIRED=true",
+		"CORS_ALLOWED_ORIGINS=https://app.example.com, http://localhost:3000/",
+		"TRUSTED_PROXY_CIDRS=10.0.0.0/8,172.18.0.5",
+	})
+	if err != nil {
+		t.Fatalf("LoadFrom: %v", err)
+	}
+	sec := cfg.Security
+	if !sec.AuthRequired || len(sec.CORSAllowedOrigins) != 2 || sec.CORSAllowedOrigins[1] != "http://localhost:3000" {
+		t.Fatalf("security = %+v", sec)
+	}
+	if len(sec.TrustedProxies) != 2 || sec.TrustedProxies[1].Bits() != 32 {
+		t.Fatalf("trusted proxies = %v", sec.TrustedProxies)
+	}
+	if sec.MaxBodyBytes != 65536 || sec.RateLimitRPS != 20 || sec.RateLimitBurst != 40 {
+		t.Fatalf("defaults = %+v", sec)
+	}
+
+	_, err = LoadFrom([]string{"CORS_ALLOWED_ORIGINS=*"})
+	requireConfigError(t, err, "wildcard")
+	_, err = LoadFrom([]string{"TRUSTED_PROXY_CIDRS=not-a-cidr"})
+	requireConfigError(t, err, "TRUSTED_PROXY_CIDRS")
+}

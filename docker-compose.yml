@@ -1,33 +1,51 @@
+# Local production-like stack. Credentials default to development values;
+# override them with environment variables (or a .env next to this file).
+# Database, Redis and the API are bound to 127.0.0.1 only: the browser talks to
+# the web container, which proxies to the API over the internal network.
+
+x-backend-env: &backend-env
+  APP_ENV: production
+  DATABASE_URL: postgres://${POSTGRES_USER:-udi}:${POSTGRES_PASSWORD:-udi}@postgres:5432/${POSTGRES_DB:-udi}?sslmode=disable
+  REDIS_URL: redis://redis:6379
+  SWAP_QUOTE_MODE: ${SWAP_QUOTE_MODE:-demo}
+  ENABLE_LIVE_EXECUTION: ${ENABLE_LIVE_EXECUTION:-false}
+  ONECLICK_JWT: ${ONECLICK_JWT:-}
+  ONECLICK_QUOTE_PUBLIC_KEY: ${ONECLICK_QUOTE_PUBLIC_KEY:-}
+  MARKET_DATA_MODE: ${MARKET_DATA_MODE:-fixture}
+  LOG_LEVEL: info
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: udi
-      POSTGRES_PASSWORD: udi
-      POSTGRES_DB: udi
+      POSTGRES_USER: ${POSTGRES_USER:-udi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-udi}
+      POSTGRES_DB: ${POSTGRES_DB:-udi}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U udi -d udi"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+    networks: [udi]
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+    networks: [udi]
 
   migrate:
     build:
@@ -36,10 +54,11 @@ services:
     entrypoint: ["/bin/migrate"]
     command: ["up"]
     environment:
-      DATABASE_URL: postgres://udi:udi@postgres:5432/udi?sslmode=disable
+      <<: *backend-env
     depends_on:
       postgres:
         condition: service_healthy
+    networks: [udi]
 
   api:
     build:
@@ -48,16 +67,14 @@ services:
     entrypoint: ["/bin/api"]
     restart: unless-stopped
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     environment:
-      APP_ENV: production
+      <<: *backend-env
       HTTP_ADDR: :8081
-      DATABASE_URL: postgres://udi:udi@postgres:5432/udi?sslmode=disable
-      REDIS_URL: redis://redis:6379
-      SWAP_QUOTE_MODE: demo
-      ENABLE_LIVE_EXECUTION: "false"
-      MARKET_DATA_MODE: live
-      LOG_LEVEL: info
+      # Only the internal Compose network may set X-Forwarded-For.
+      TRUSTED_PROXY_CIDRS: 172.28.0.0/16
+      AUTH_REQUIRED: ${AUTH_REQUIRED:-false}
+      ANALYTICS_SNAPSHOT_DIR: /tmp/udi-snapshots
     healthcheck:
       test: ["CMD", "/bin/api", "healthcheck"]
       interval: 10s
@@ -67,10 +84,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    networks: [udi]
 
   worker:
     build:
@@ -79,12 +95,7 @@ services:
     entrypoint: ["/bin/worker"]
     restart: unless-stopped
     environment:
-      APP_ENV: production
-      DATABASE_URL: postgres://udi:udi@postgres:5432/udi?sslmode=disable
-      REDIS_URL: redis://redis:6379
-      SWAP_QUOTE_MODE: demo
-      ENABLE_LIVE_EXECUTION: "false"
-      LOG_LEVEL: info
+      <<: *backend-env
     healthcheck:
       test: ["CMD", "/bin/worker", "healthcheck"]
       interval: 15s
@@ -98,6 +109,7 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    networks: [udi]
 
   web:
     build:
@@ -114,6 +126,13 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    networks: [udi]
+
+networks:
+  udi:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   postgres_data:

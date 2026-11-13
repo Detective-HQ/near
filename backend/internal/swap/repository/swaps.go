@@ -66,13 +66,13 @@ func (s *Store) CreateSwap(ctx context.Context, swap domain.Swap, idempotencyKey
 				state, provider_status, real_settlement, origin_chain, destination_chain,
 				deposit_address, deposit_memo, recipient_address, refund_address,
 				source_tx_hash, expires_at, next_poll_at, poll_attempts, last_polled_at,
-				created_at, updated_at
+				created_at, updated_at, simulated
 			) VALUES (
 				$1, $2, $3, $4, $5,
 				$6, NULLIF($7, ''), $8, $9, $10,
 				$11, $12, $13, $14,
 				NULLIF($15, ''), $16, $17, $18, $19,
-				$20, $21
+				$20, $21, $22
 			)
 			ON CONFLICT (idempotency_key) DO NOTHING
 			RETURNING `+swapColumns, swapInsertArgs(swap)...)
@@ -196,7 +196,7 @@ func (s *Store) UpdateSwapState(
 			UPDATE swaps
 			SET state = $3,
 				provider_status = NULLIF($4, ''),
-				real_settlement = $5,
+				real_settlement = ($5 AND NOT simulated),
 				updated_at = $6
 			WHERE id = $1 AND state = $2
 			RETURNING `+swapColumns,
@@ -260,14 +260,18 @@ func (s *Store) ListSwaps(ctx context.Context, limit int, cursor string) ([]doma
 
 // ListSwapsBySession returns one keyset page scoped to a session for ownership
 // checks in the activity endpoint.
+//
+// An empty sessionID lists only anonymous swaps (session_id IS NULL), so an
+// unauthenticated caller can never page through another wallet's swaps.
 func (s *Store) ListSwapsBySession(ctx context.Context, sessionID string, limit int, cursor string) ([]domain.Swap, string, error) {
-	if strings.TrimSpace(sessionID) == "" {
-		return nil, "", domain.New(domain.CodeValidationFailed, "Session id is required.")
-	}
-	return s.listSwaps(ctx, sessionID, limit, cursor)
+	return s.listSwapsWhere(ctx, `WHERE session_id IS NOT DISTINCT FROM NULLIF($2, '')`, strings.TrimSpace(sessionID), limit, cursor)
 }
 
 func (s *Store) listSwaps(ctx context.Context, sessionID string, limit int, cursor string) ([]domain.Swap, string, error) {
+	return s.listSwapsWhere(ctx, `WHERE ($2 = '' OR session_id = $2)`, sessionID, limit, cursor)
+}
+
+func (s *Store) listSwapsWhere(ctx context.Context, where, sessionID string, limit int, cursor string) ([]domain.Swap, string, error) {
 	if err := s.ready(); err != nil {
 		return nil, "", err
 	}
@@ -277,7 +281,6 @@ func (s *Store) listSwaps(ctx context.Context, sessionID string, limit int, curs
 	}
 
 	args := []any{pageSize + 1, sessionID}
-	where := `WHERE ($2 = '' OR session_id = $2)`
 	if strings.TrimSpace(cursor) != "" {
 		position, decodeErr := DecodeCursor(cursor)
 		if decodeErr != nil {
@@ -409,6 +412,7 @@ func swapInsertArgs(swap domain.Swap) []any {
 		nullableTime(swap.LastPolledAt),
 		swap.CreatedAt,
 		swap.UpdatedAt,
+		swap.Simulated,
 	}
 }
 

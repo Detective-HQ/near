@@ -37,13 +37,15 @@ func (s *Store) SaveQuote(ctx context.Context, quote domain.Quote) (domain.Quote
 			origin_asset_id, destination_asset_id, amount_in_atomic,
 			amount_in_decimal, amount_out_estimate_atomic, min_amount_out_atomic,
 			fee_bps, slippage_bps, fee_data, deposit_address, deposit_memo,
-			expires_at, raw_response_json, created_at, updated_at
+			expires_at, raw_response_json, created_at, updated_at,
+			recipient_address, refund_address
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8,
 			$9, $10, $11,
 			$12, $13, $14, $15, $16,
-			$17, $18, $19, $20
+			$17, $18, $19, $20,
+			$21, $22
 		)
 		RETURNING `+quoteColumns,
 		quote.ID,
@@ -66,6 +68,8 @@ func (s *Store) SaveQuote(ctx context.Context, quote domain.Quote) (domain.Quote
 		nullableRawJSON(quote.RawResponse),
 		quote.CreatedAt,
 		quote.UpdatedAt,
+		nullableString(quote.Recipient),
+		nullableString(quote.RefundTo),
 	)
 
 	saved, err := scanQuote(row)

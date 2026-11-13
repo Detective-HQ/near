@@ -2,88 +2,71 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 
 	"universal-defi-intelligence/internal/auth"
 )
 
+// SessionContextKey stores the authenticated session.
 const SessionContextKey contextKey = "authSession"
 
-// GetSession extracts the authenticated Session from request context, if present.
+// SessionCookieName is the HttpOnly cookie carrying the bearer token.
+const SessionCookieName = "udi_session"
+
+// GetSession returns the authenticated session, if any.
 func GetSession(r *http.Request) *auth.Session {
-	if val := r.Context().Value(SessionContextKey); val != nil {
-		if sess, ok := val.(*auth.Session); ok {
-			return sess
-		}
+	if sess, ok := r.Context().Value(SessionContextKey).(*auth.Session); ok {
+		return sess
 	}
 	return nil
 }
 
-// Authenticate extracts session tokens from Authorization header or cookie and attaches session to context.
+// Principal returns the owner identity of the caller ("" when anonymous).
+func Principal(r *http.Request) string {
+	return GetSession(r).Principal()
+}
+
+// Authenticate attaches the session for a valid bearer token or session
+// cookie. Invalid or expired tokens are treated as anonymous.
 func Authenticate(mgr *auth.Manager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if mgr == nil {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			token := extractToken(r)
-			if token != "" {
-				if sess, err := mgr.GetSession(token); err == nil && sess != nil {
-					ctx := context.WithValue(r.Context(), SessionContextKey, sess)
-					r = r.WithContext(ctx)
+			if mgr != nil {
+				if token := ExtractToken(r); token != "" {
+					if sess, err := mgr.GetSession(r.Context(), token); err == nil && sess != nil {
+						r = r.WithContext(context.WithValue(r.Context(), SessionContextKey, sess))
+					}
 				}
 			}
-
 			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-// RequireAuth enforces that a valid session exists if auth is strictly enabled.
+// RequireAuth rejects anonymous callers when authentication is enforced.
 func RequireAuth(mgr *auth.Manager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if mgr != nil && mgr.AuthRequired() {
-				sess := GetSession(r)
-				if sess == nil {
-					reqID := GetRequestID(r)
-					w.Header().Set("Content-Type", "application/json; charset=utf-8")
-					w.Header().Set("Cache-Control", "no-store")
-					w.Header().Set("X-Request-Id", reqID)
-					w.WriteHeader(http.StatusUnauthorized)
-
-					var resp struct {
-						Error struct {
-							Code    string `json:"code"`
-							Message string `json:"message"`
-						} `json:"error"`
-						RequestID string `json:"requestId"`
-					}
-					resp.RequestID = reqID
-					resp.Error.Code = "UNAUTHORIZED"
-					resp.Error.Message = "Authentication required. Please authenticate via /api/v1/auth/verify."
-					_ = json.NewEncoder(w).Encode(resp)
-					return
-				}
+			if mgr != nil && mgr.AuthRequired() && GetSession(r) == nil {
+				WriteError(w, r, http.StatusUnauthorized, "UNAUTHORIZED",
+					"Authentication required. Sign in with your wallet via /api/v1/auth/verify.")
+				return
 			}
-
 			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-func extractToken(r *http.Request) string {
-	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
-			return strings.TrimSpace(parts[1])
+// ExtractToken reads a bearer token from Authorization or the session cookie.
+func ExtractToken(r *http.Request) string {
+	if header := r.Header.Get("Authorization"); header != "" {
+		scheme, token, ok := strings.Cut(header, " ")
+		if ok && strings.EqualFold(scheme, "Bearer") {
+			return strings.TrimSpace(token)
 		}
 	}
-	if cookie, err := r.Cookie("session"); err == nil && cookie != nil {
+	if cookie, err := r.Cookie(SessionCookieName); err == nil {
 		return strings.TrimSpace(cookie.Value)
 	}
 	return ""

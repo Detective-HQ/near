@@ -25,6 +25,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"universal-defi-intelligence/internal/config"
+	"universal-defi-intelligence/internal/httpclient"
 	"universal-defi-intelligence/internal/storage/postgres"
 	rediscache "universal-defi-intelligence/internal/storage/redis"
 	"universal-defi-intelligence/internal/swap/providers"
@@ -104,6 +105,7 @@ func run() error {
 		MaxResponseBytes: cfg.OneClick.MaxResponseBytes,
 		QuotePublicKey:   cfg.OneClick.QuotePublicKey,
 		Logger:           logger,
+		HTTPClient:       httpclient.New(cfg.OneClick.Timeout),
 	})
 	if err != nil {
 		return fmt.Errorf("configure 1click provider: %w", err)
