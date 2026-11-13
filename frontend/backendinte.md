@@ -426,3 +426,4 @@ Historical swaps and audit events. Supports keyset cursor pagination (`?limit=20
    Always submit human-readable decimal strings in `amountIn` (e.g. `"100.50"`). The Go backend handles exact conversion to 256-bit atomic units without floating-point rounding errors.
 3. **Idempotency Keys:**  
    Always generate a fresh UUID v4 for the `Idempotency-Key` header on `POST /api/v1/swaps`. If a network glitch occurs, retrying the call with the same key will safely return the existing swap record without double-swapping.
+
