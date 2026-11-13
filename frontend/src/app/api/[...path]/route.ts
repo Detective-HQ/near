@@ -20,7 +20,9 @@ const STATIC_GET_ROUTES = new Set([
 function isAllowedRoute(method: string, pathname: string): boolean {
   if (method === "GET") {
     return STATIC_GET_ROUTES.has(pathname)
-      || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+$/.test(pathname);
+      || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+$/.test(pathname)
+      || /^\/api\/v1\/trading\/(overview|signals|top-movers|history|backtests)$/.test(pathname)
+      || /^\/api\/v1\/trading\/(assets|orderblocks|liquidity|scenarios)\/[a-zA-Z0-9_.:%-]+$/.test(pathname);
   }
   if (method === "POST") {
     return pathname === "/api/v1/quotes"
@@ -71,12 +73,30 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
 
   const incomingUrl = new URL(request.url);
   const upstreamUrl = new URL(pathname, process.env.UDI_API_ORIGIN ?? "http://127.0.0.1:8081");
-  for (const key of ["chain", "refresh", "cursor", "limit"]) {
+  for (const key of [
+    "chain",
+    "refresh",
+    "cursor",
+    "limit",
+    "timeframe",
+    "asset",
+    "venue",
+    "quote",
+    "liquidityTier",
+    "direction",
+    "outcome",
+    "from",
+    "to",
+    "page",
+    "pageSize"
+  ]) {
     const value = incomingUrl.searchParams.get(key);
     if (value !== null) upstreamUrl.searchParams.set(key, value);
   }
 
-  const headers = new Headers({ accept: "application/json" });
+  // The API sits on the same host/network, so compressing this hop only burns
+  // CPU twice (gzip in Go, gunzip here); Next.js compresses the browser leg.
+  const headers = new Headers({ accept: "application/json", "accept-encoding": "identity" });
   const contentType = request.headers.get("content-type");
   if (contentType?.toLowerCase().startsWith("application/json")) {
     headers.set("content-type", "application/json");

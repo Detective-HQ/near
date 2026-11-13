@@ -82,25 +82,31 @@ export function FernhollowHero() {
         </header>
 
         <section className="fh-hero">
-          <h1>Grown, not built.</h1>
-          <p className="fh-cap">
-            Rooted in nature.
+          <p className="fh-eyebrow">Cross-chain DeFi · Trading intelligence</p>
+          <h1>
+            <span className="fh-nb">One interface.</span> <span className="fh-nb">Every chain.</span>
             <br />
-            Built for what’s next.
+            <span className="fh-nb">Evidence you can check.</span>
+          </h1>
+          <p className="fh-cap">
+            Zonyx lets you swap across chains from your own wallet, then shows the market structure, liquidity and data
+            behind every signal.
           </p>
-          <Link
-            className="fh-go"
-            href="/workspace"
-            aria-label="Enter the workspace"
-            onPointerEnter={hoverStart}
-            onPointerLeave={hoverEnd}
-            onFocus={hoverStart}
-            onBlur={hoverEnd}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 12h16M14 6l6 6-6 6" />
-            </svg>
-          </Link>
+          <div className="fh-actions">
+            <Link
+              className="fh-btn fh-btn-primary"
+              href={LINKS.app}
+              onPointerEnter={hoverStart}
+              onPointerLeave={hoverEnd}
+              onFocus={hoverStart}
+              onBlur={hoverEnd}
+            >
+              Launch app
+            </Link>
+            <a className="fh-btn fh-btn-secondary" href={LINKS.methodology} target="_blank" rel="noreferrer">
+              Read the methodology
+            </a>
+          </div>
         </section>
 
         <div className="fh-corner">

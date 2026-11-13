@@ -11,7 +11,7 @@
     "build": "next build",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
+    "test": "node --test \"test/*.test.ts\"",
     "check": "npm run typecheck && npm test"
   },
   "devDependencies": {

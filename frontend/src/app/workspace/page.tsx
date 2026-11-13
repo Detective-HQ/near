@@ -1,5 +1,5 @@
-import { WorkspaceShell } from "../../components/workspace-shell";
+import { ExplorePage } from "../../components/workspace/pages/explore";
 
-export default function WorkspacePage() {
-  return <WorkspaceShell initialSection="overview" />;
+export default function WorkspaceIndex() {
+  return <ExplorePage />;
 }
