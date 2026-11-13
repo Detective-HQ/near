@@ -8,18 +8,54 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"universal-defi-intelligence/internal/auth"
 	"universal-defi-intelligence/internal/config"
 	"universal-defi-intelligence/internal/httpapi"
+	"universal-defi-intelligence/internal/risk"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		if err := runHealthcheck(); err != nil {
+			fmt.Fprintf(os.Stderr, "healthcheck failed: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "api: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func runHealthcheck() error {
+	client := &http.Client{Timeout: 3 * time.Second}
+	addr := os.Getenv("HTTP_ADDR")
+	if addr == "" {
+		addr = ":8081"
+	}
+	if !strings.HasPrefix(addr, ":") && !strings.HasPrefix(addr, "http://") {
+		if idx := strings.LastIndex(addr, ":"); idx != -1 {
+			addr = addr[idx:]
+		}
+	}
+	if strings.HasPrefix(addr, ":") {
+		addr = "http://127.0.0.1" + addr
+	}
+	resp, err := client.Get(addr + "/healthz")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func run() error {
@@ -51,7 +87,24 @@ func run() error {
 	)
 
 	store := httpapi.NewStateStore()
-	handler := httpapi.NewHandler(store)
+	riskEngine := risk.NewEngine(risk.Config{
+		MaxSlippageBps:     500,
+		WarningSlippageBps: 200,
+		CatalogueMaxAge:    2 * time.Hour,
+	})
+	authManager := auth.NewManager(auth.Config{
+		AuthRequired: false, // Default off per roadmap; flag-activated
+		NonceTTL:     10 * time.Minute,
+		SessionTTL:   24 * time.Hour,
+	})
+
+	handler := httpapi.NewHandlerWithOptions(httpapi.HandlerOptions{
+		Store:       store,
+		RiskEngine:  riskEngine,
+		AuthManager: authManager,
+		Config:      cfg,
+	})
+
 	router := httpapi.NewRouter(handler, logger)
 	server := httpapi.NewServer(cfg, router)
 

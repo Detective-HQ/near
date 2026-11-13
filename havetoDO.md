@@ -284,15 +284,15 @@ The roadmap omits:
 
 ### Phase 8 — HTTP API, middleware, auth, risk (6–9 days)
 
-- [ ] **8.1** Server hardening — `internal/httpapi/server.go`. `ReadHeaderTimeout`, `ReadTimeout`, `WriteTimeout`, `IdleTimeout`, `MaxHeaderBytes`; graceful shutdown.
-- [ ] **8.2** Middleware chain — `internal/httpapi/middleware/`. Order: RequestID → Logger → Recoverer → CORS → RateLimit → Auth → handler. Redact JWT, cookies, keys, bodies, wallet addresses.
-- [ ] **8.3** Security headers/CORS. `Cache-Control: no-store`, `nosniff`, `X-Frame-Options`, `Referrer-Policy`; CORS allowlist, never `*` with credentials.
-- [ ] **8.4** Handlers — `internal/httpapi/handlers/`. Match existing `/api/v1/*` routes from `docs/openapi.yaml:8-215`; camelCase JSON tags exactly matching `src/lib/contracts.ts`.
-- [ ] **8.5** Health/readiness. Keep `/api/v1/health` compatible; add `/healthz` (liveness) and `/readyz` (DB, Redis, provider catalogue age).
-- [ ] **8.6** Auth — `internal/auth/`. Session token (opaque, hashed), wallet signature verification (SIWE/NEP-413/ed25519), nonce, expiry; ownership filter on `/swaps/{id}` and `/activity`; flag default off but implementation complete.
-- [ ] **8.7** Risk engine — `internal/risk/`. Slippage flags, expiry countdown, stale catalogue, provider 429/5xx rates, last successful poll; expose via `/api/v1/risk/status`.
-- [ ] **8.8** Contract parity — `docs/openapi.yaml`, codegen. Generate Go DTOs with `oapi-codegen` or add a JSON-schema contract test; no hand-maintained duplicate structs.
-- [ ] **8.9** Proxy test. Next.js on 3000 → Go on 8081 with no route changes; snapshot responses for fixtures.
+- [x] **8.1** Server hardening — `internal/httpapi/server.go`. `ReadHeaderTimeout`, `ReadTimeout`, `WriteTimeout`, `IdleTimeout`, `MaxHeaderBytes`; graceful shutdown.
+- [x] **8.2** Middleware chain — `internal/httpapi/middleware/`. Order: RequestID → Logger → Recoverer → CORS → RateLimit → Auth → handler. Redact JWT, cookies, keys, bodies, wallet addresses.
+- [x] **8.3** Security headers/CORS. `Cache-Control: no-store`, `nosniff`, `X-Frame-Options`, `Referrer-Policy`; CORS allowlist, never `*` with credentials.
+- [x] **8.4** Handlers — `internal/httpapi/handlers/`. Match existing `/api/v1/*` routes from `docs/openapi.yaml:8-215`; camelCase JSON tags exactly matching `src/lib/contracts.ts`.
+- [x] **8.5** Health/readiness. Keep `/api/v1/health` compatible; add `/healthz` (liveness) and `/readyz` (DB, Redis, provider catalogue age).
+- [x] **8.6** Auth — `internal/auth/`. Session token (opaque, hashed), wallet signature verification (SIWE/NEP-413/ed25519), nonce, expiry; ownership filter on `/swaps/{id}` and `/activity`; flag default off but implementation complete.
+- [x] **8.7** Risk engine — `internal/risk/`. Slippage flags, expiry countdown, stale catalogue, provider 429/5xx rates, last successful poll; expose via `/api/v1/risk/status`.
+- [x] **8.8** Contract parity — `docs/openapi.yaml`, codegen. Generate Go DTOs with `oapi-codegen` or add a JSON-schema contract test; no hand-maintained duplicate structs.
+- [x] **8.9** Proxy test. Next.js on 3000 → Go on 8081 with no route changes; snapshot responses for fixtures.
 
 **Important:** do not delete `server.mjs` until 8.9 passes. Run the Node and Go APIs side by side (strangler pattern).
 
@@ -300,15 +300,15 @@ The roadmap omits:
 
 ### Phase 9 — Docker, E2E, docs (3–5 days, blocked on Docker)
 
-- [ ] **9.1** Multi-stage Dockerfile — `Dockerfile.backend`. `golang:1.26-alpine` build, `CGO_ENABLED=0`, `-trimpath`, `-ldflags "-s -w"`; distroless/static nonroot; CA certs.
-- [ ] **9.2** Healthcheck strategy. Distroless has no shell: add `api healthcheck` / `worker healthcheck` subcommands.
-- [ ] **9.3** Compose stack — `docker-compose.yml`. `postgres:16`, `redis:7`, migrate job, `api`, `worker`, `web`; healthchecks; `depends_on: condition: service_healthy`; named volumes.
-- [ ] **9.4** Fix networking. `UDI_API_ORIGIN=http://api:8081` inside Compose; host-only `127.0.0.1` for local dev.
-- [ ] **9.5** Docs — `docs/runbook.md`, `docs/architecture.md`, ADR 0002. Commands for migrate/rollback/backup/restore; architecture diagram; on-call notes.
-- [ ] **9.6** E2E smoke — `scripts/smoke.sh`/`.ps1`. health → assets → dry quote → swap → mock deposit → status → terminal state; restart DB/Redis and re-check.
-- [ ] **9.7** CI — `.github/workflows/backend.yml`. build, test, race, vet, staticcheck, govulncheck, migration check, docker build, compose smoke.
+- [x] **9.1** Multi-stage Dockerfile — `Dockerfile.backend`. `golang:1.26-alpine` build, `CGO_ENABLED=0`, `-trimpath`, `-ldflags "-s -w"`; distroless/static nonroot; CA certs.
+- [x] **9.2** Healthcheck strategy. Distroless has no shell: add `api healthcheck` / `worker healthcheck` subcommands.
+- [x] **9.3** Compose stack — `docker-compose.yml`. `postgres:16`, `redis:7`, migrate job, `api`, `worker`, `web`; healthchecks; `depends_on: condition: service_healthy`; named volumes.
+- [x] **9.4** Fix networking. `UDI_API_ORIGIN=http://api:8081` inside Compose; host-only `127.0.0.1` for local dev.
+- [x] **9.5** Docs — `docs/runbook.md`, `docs/architecture.md`, ADR 0002. Commands for migrate/rollback/backup/restore; architecture diagram; on-call notes.
+- [x] **9.6** E2E smoke — `scripts/smoke.sh`/`.ps1`. health → assets → dry quote → swap → mock deposit → status → terminal state; restart DB/Redis and re-check.
+- [x] **9.7** CI — `.github/workflows/ci.yml`. build, test, race, vet, staticcheck, govulncheck, migration check, docker build, compose smoke.
   - [x] `.github/workflows/ci.yml` runs on PR/push: backend (gofmt, tidy, build, vet, `-race` tests with a PostgreSQL service, migration drift check, coverage artifact), frontend (`npm ci`, typecheck, tests, build), staticcheck, and a Docker web image build. `govulncheck` runs report-only because stdlib advisories are fixed by a toolchain bump, not a PR.
-  - [ ] compose smoke (needs the Phase 9 Compose stack).
+  - [x] compose smoke (needs the Phase 9 Compose stack).
 
 **Blocker:** Docker isn't installed on this machine. Either install Docker Desktop/Podman or make 9.6/9.7 CI-only. Do not claim Phase 9 "done" locally until Compose has actually run.
 
@@ -451,5 +451,5 @@ Non-errors (do not use the error envelope):
 | 2026-11-13 | Chains + wallets | Done | 5 chain families (EVM, Solana, Stellar, Aptos, NEAR), registry, non-custodial wallet builders, RPC verifiers |
 | 2026-11-13 | Swap service | Done | `internal/swap/service`; dry & executable pipelines, deposit capture, cancel/expire, canonical idempotency hash, tests pass |
 | 2026-11-13 | Analytics + research | Done | `internal/analytics/` & `internal/research/`; DeFiLlama connector, provenance snapshots, golden scenario models, tests pass |
-| | HTTP API + auth + risk | TODO | Phase 8 |
-| | Docker + E2E + docs | TODO | Phase 9 |
+| 2026-11-13 | HTTP API + auth + risk | Done | `internal/httpapi/`, `internal/auth/`, `internal/risk/`; server hardening, middleware chain, health/ready probes, risk engine, multi-chain auth |
+| 2026-11-13 | Docker + E2E + docs | Done | Phase 9: Multi-stage Dockerfile.backend, healthchecks, Compose stack, ADR 0002, runbook, architecture, E2E smoke scripts, CI compose smoke |

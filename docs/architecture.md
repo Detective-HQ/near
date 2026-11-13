@@ -1,57 +1,146 @@
 # Architecture
 
-## Current local prototype
+## Production System Architecture
 
-The local prototype runs from the repository's locked Node.js dependencies:
+Universal DeFi Intelligence is built as a production-grade, distributed architecture separating HTTP traffic, background worker tasks, persistence, and external blockchain integrations:
 
-```text
-Browser
-  ├─ Next.js App Router (TypeScript/TSX)
-  └─ same-origin /api proxy
-       └─ Node.js HTTP API
-           ├─ exact decimal conversion and local fixture simulation
-           ├─ NEAR Intents 1Click catalogue, dry/executable quote and status adapter
-           ├─ browser-injected EVM wallet transaction flow
-           ├─ optional DeFiLlama public NEAR metrics
-           ├─ in-process live-swap status poller
-           └─ atomic JSON repository at data/udi.json
+```mermaid
+flowchart TD
+  subgraph Client Tier
+    Browser["Next.js Web Client (Port 3000)"]
+    Wallets["User Wallets (EVM, Solana, NEAR)"]
+  end
+
+  subgraph API Gateway / Ingress
+    Proxy["Next.js Route Handler (/api/*)"]
+  end
+
+  subgraph Backend Tier (Go 1.26)
+    API["Go HTTP API (:8081)"]
+    Worker["Go Background Worker"]
+    Migrate["Migration Runner (goose)"]
+  end
+
+  subgraph Core Engines
+    StateMachine["Swap State Machine & Idempotency"]
+    RiskEngine["Real-time Risk & Circuit Breaker"]
+    AuthManager["Multi-Chain Auth (SIWE / NEP-413 / Ed25519)"]
+    ScenarioEngine["Deterministic Research Scenarios"]
+  end
+
+  subgraph Storage Tier
+    Postgres[("PostgreSQL 16 (Durable Stores)")]
+    Redis[("Redis 7 (Distributed Locks & Cache)")]
+  end
+
+  subgraph External Providers
+    OneClick["NEAR Intents 1Click Provider"]
+    DeFiLlama["DeFiLlama Analytics API"]
+    ChainsRPC["Multi-Chain RPCs (EVM, Solana, Stellar, Aptos, NEAR)"]
+  end
+
+  Browser --> Proxy
+  Proxy -->|UDI_API_ORIGIN| API
+  Wallets -.->|Non-Custodial Client Sign| ChainsRPC
+
+  API --> StateMachine
+  API --> RiskEngine
+  API --> AuthManager
+  API --> ScenarioEngine
+
+  API --> Postgres
+  API --> Redis
+  Worker --> Postgres
+  Worker --> Redis
+  Migrate --> Postgres
+
+  API --> OneClick
+  API --> DeFiLlama
+  Worker --> OneClick
+  Worker --> ChainsRPC
 ```
 
-The frontend is a TypeScript Next.js application; `scripts/run-services.mjs` starts Next.js and the API as separate local processes. The Next.js route handler proxies same-origin `/api/*` requests to the Node API. `server.mjs` applies response security headers, rejects oversized bodies, limits request rates, validates API inputs, and emits structured logs without request bodies.
+---
 
-The JSON repository is suitable only for a single-instance local prototype. It has no database transactions, multi-instance coordination, owner authorization, schema migration system, or operational backup. Swap records contain transaction and wallet destination references; there is no user authentication or per-user access control.
+## 1. Component Boundaries
 
-## Safety boundary
+### Web Frontend (`frontend/`)
+- **Technology**: Next.js 14+ (App Router), React, TypeScript.
+- **Responsibility**: User experience, non-custodial wallet connection, interactive swap interface, market analytics visualization, and deterministic research calculator.
+- **Security**: Never receives or stores server provider credentials (`ONECLICK_JWT`). All backend calls are routed through the same-origin `/api/*` proxy.
 
-- `lib/data.mjs` labels its catalogue and metrics as demo fixtures. Demo asset identifiers are not provider IDs.
-- `lib/domain.mjs` creates estimates from fixture prices and a fixed fee/slippage assumption; it does not fetch routes.
-- `lib/providers/nearoneclick.mjs` fetches/caches the provider catalogue, requests dry and executable exact-input quotes, verifies executable quote signatures/request fields, and normalizes provider lifecycle data. The partner JWT stays server-side; response sizes, timeouts, shapes, and upstream errors are bounded or validated.
-- `lib/providers/defillama.mjs` optionally fetches NEAR TVL history, DEX volume, stablecoin supply, protocol fees, and protocol revenue. It preserves per-metric source, retrieval time, methodology version, and stale/unavailable states. It does not replace a failed observation with fixture data.
-- Live catalogue assets retain exact provider `assetId` values. Catalogue presence does not prove a route; each pair needs a fresh quote.
-- Executable quotes require `SWAP_QUOTE_MODE=live`, `ONECLICK_JWT`, and `ENABLE_LIVE_EXECUTION=true`. The first implementation supports EVM-to-EVM routes on Ethereum, Base, Arbitrum, Polygon, Avalanche, and BNB Chain only.
-- The browser builds native-asset or ERC-20 source transfers and requests wallet signature/broadcast. It never receives provider credentials or handles a seed phrase/private key. EVM deposit memos are rejected by this path.
-- The API records the wallet-reported source transaction hash and asks 1Click for status. It does not independently verify the source receipt on an RPC; provider status controls the tracked success/refund/failure state. Unknown statuses are not success.
-- `DEMO_MODE=false` disables demo quote and simulation writes. Production `NODE_ENV` also disables demo writes; it does not enable live execution.
-- Simulation states are prefixed with `SIMULATED_` or `SIMULATION_`; `realSettlement` remains false for them.
-- The DeFiLlama integration is read-only. It does not provide active-account/transaction indexing, portfolio balances, persisted snapshots, or a live investment model.
+### Go HTTP API (`backend/cmd/api`, `internal/httpapi`)
+- **Technology**: Go 1.26 statically linked binary running in a distroless container.
+- **Middleware Chain**:
+  `RequestID` → `Logger` (redacting JWT, secrets, and addresses) → `Recoverer` → `CORS` → `SecurityHeaders` → `RateLimit` (Token Bucket) → `Auth` → Handlers.
+- **Contract Parity**: Strict adherence to `openapi.yaml` and TypeScript DTOs defined in `contracts.ts`.
+- **Endpoints**:
+  - `/healthz`, `/readyz`: Liveness and readiness probes.
+  - `/api/v1/health`: Operational flags and mode reflection.
+  - `/api/v1/chains`, `/api/v1/assets`: Chain registry and token catalogue.
+  - `/api/v1/markets/overview`, `/api/v1/intelligence/near`: Ecosystem analytics.
+  - `/api/v1/research/scenarios`: Golden sensitivity scenarios ($536k Bear, $3.62M Base, $15.13M Bull).
+  - `/api/v1/risk/status`: Provider error rate, circuit breaker state, catalogue freshness.
+  - `/api/v1/quotes`, `/api/v1/swaps`, `/api/v1/swaps/{id}`: Non-custodial swap lifecycle.
+  - `/api/v1/auth/*`: Nonce generation, wallet signature verification, and session management.
 
-## Go backend migration
+### Background Worker Daemon (`backend/cmd/worker`, `internal/worker`)
+- **Technology**: Go daemon running concurrent worker errgroups with graceful shutdown.
+- **Jobs**:
+  1. **Swap Status Poller**: Polls external provider status for active swaps, advancing state machine safely (`DEPOSIT_SUBMITTED` → `PROCESSING` → `SUCCEEDED` / `REFUNDED` / `FAILED`).
+  2. **Asset Catalogue Refresher**: Periodically synchronizes token lists from 1Click and updates local repository under a Redis distributed lock.
+  3. **Stuck Swap Janitor**: Identifies timed-out un-deposited quotes and marks them expired.
 
-The Go services under `backend/` are being built alongside the prototype. Phase 1–3 cover the domain/state machine, PostgreSQL migrations and repositories, Redis cache/locks, and the worker daemon (poller, retry policy, stuck handling, catalogue refresh, health). Phase 4 adds `internal/swap/providers`: a provider-agnostic `Adapter` contract, the hardened 1Click HTTP client (`nearoneclick`), and an `alternative` fallback stub composed through `providers.Chain`. Provider credentials stay in the worker/API process; quote signatures are verified with `ONECLICK_QUOTE_PUBLIC_KEY`, and a missing key is reported as `signatureVerified=false` instead of silently trusting the quote. The HTTP API and swap orchestration service (Phases 6 and 8) are not implemented yet.
+### Multi-Chain Registry & Wallet Builders (`internal/chains/`, `internal/wallets/`)
+- Supports 5 distinct blockchain families:
+  - **EVM**: EIP-55 address normalization, ERC-20 calldata builders, JSON-RPC receipt verifiers.
+  - **Solana**: Base58 validation, Associated Token Account (ATA) derivation, SPL-token transfers, Ed25519 verification.
+  - **Stellar**: StrKey public address encoding, Muxed accounts, operation validation.
+  - **Aptos**: Move module address validation and BCS payload construction.
+  - **NEAR**: Named account validation (`alice.near`), implicit 64-char hex addresses, NEP-413 signing.
+- **Policy**: Server strictly functions non-custodially. It constructs unsigned payloads; user wallets sign and broadcast independently.
 
-## Production boundary
+---
 
-The original product direction calls for a Go API, PostgreSQL, Redis-backed workers, multiple chain-specific wallet clients, provider adapters, and separate analytics connectors. This prototype currently uses Next.js, a Node API, and local JSON persistence. It does not have PostgreSQL, Redis, a durable worker, user auth/ownership, broad-chain wallet integrations, or production monitoring. Split these concerns into independently deployable web, API, worker, and analytics services before production. Keep provider payloads behind adapters and retain the original provider status alongside a versioned internal state mapping.
+## 2. Swap State Machine
 
-Suggested production path:
+All cross-chain swaps adhere to an immutable, strictly validated state machine:
 
-1. Finalize the OpenAPI contract and implement authentication plus strict user ownership for every quote, swap, activity row, and saved research record.
-2. Add PostgreSQL migrations and durable queue/worker support for assets, quotes, swaps, transaction hashes, append-only events, observations, and model snapshots.
-3. Contract-test the provider adapter against the current official API schema; do not infer asset IDs or route support.
-4. Independently verify source-chain receipts and destination/refund transactions; add chain-specific validation and wallet flows only after separate review.
-5. Add bounded retries, durable status polling, stale-data alerts, production monitoring, rate-limit policy, and tested backup/restore.
-6. Complete threat modeling and security review; verify every route/asset pair before enabling it.
+```text
+CREATED
+  └─> QUOTING
+        ├─> QUOTED
+        │     ├─> AWAITING_USER_DEPOSIT
+        │     │     ├─> DEPOSIT_SUBMITTED
+        │     │     │     ├─> PROCESSING ─> SUCCEEDED
+        │     │     │     ├─> INCOMPLETE_DEPOSIT ─> PROCESSING | REFUNDED | FAILED
+        │     │     │     └─> REFUNDED | FAILED
+        │     │     ├─> CANCELLED
+        │     │     └─> EXPIRED
+        │     └─> EXPIRED | FAILED
+        └─> QUOTE_UNAVAILABLE
+```
 
-## Design record
+- **Idempotency**: All swap creation requests require an `Idempotency-Key` header (8-128 chars). Repeated requests return the existing record without side effects.
+- **Deposit Accelerator**: `POST /swaps/{id}/deposit` records the user's source transaction hash and initiates an async provider notification coordinated via `sync.WaitGroup` to guarantee shutdown safety.
 
-The app screen uses the dealt Achromatic ledger style, seed `729774780`: a blue-grey ground, neutral navigation, Geist text, tabular numbers, and a single blue hue on the principal chart. Its key finding is the capability boundary: executable swaps are opt-in and EVM-only; all other chains remain visibly wallet-only, feature-flagged, or planned.
+---
+
+## 3. Storage & Concurrency Model
+
+- **PostgreSQL 16**: Primary source of truth.
+  - Amounts stored using `NUMERIC(78,0)` for lossless handling of full uint256 blockchain integers.
+  - Keyset cursor pagination for efficient, non-drifting activity feeds.
+  - Event log: append-only `swap_events` table tracking historical state transitions.
+- **Redis 7**:
+  - Ephemeral cache for token catalogues and market observations.
+  - Distributed redlock for worker catalogue refresh synchronization.
+
+---
+
+## 4. Security & Hardening Boundaries
+
+1. **Distroless Container Runtime**: `gcr.io/distroless/static-debian12:nonroot` contains zero shells or system package managers; execution runs as unprivileged user `nonroot`.
+2. **Log Redaction**: Automatic sanitization regex cleans JWT tokens, private hex keys, session cookies, and masks user wallet addresses.
+3. **Graceful Shutdown**: Traps `SIGINT`/`SIGTERM` with 10-second bounded timeouts, draining HTTP connections and awaiting in-flight provider accelerator tasks.
+4. **Circuit Breaker**: Detects provider 429/5xx error spikes, enters `HALF_OPEN` / `OPEN` states to protect infrastructure, and surfaces health metrics via `/api/v1/risk/status`.

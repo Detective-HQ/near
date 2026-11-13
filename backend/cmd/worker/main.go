@@ -37,10 +37,33 @@ import (
 const heartbeatInterval = time.Minute
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		if err := runHealthcheck(); err != nil {
+			fmt.Fprintf(os.Stderr, "worker healthcheck failed: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "worker: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func runHealthcheck() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	pool, err := postgres.Open(ctx, cfg.Database)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	return pool.Ping(ctx)
 }
 
 func run() error {

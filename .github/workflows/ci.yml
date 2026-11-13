@@ -156,23 +156,50 @@ jobs:
           "$(go env GOPATH)/bin/govulncheck" ./...
 
   docker:
-    name: Docker build
+    name: Docker build & Compose smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: [frontend]
+    timeout-minutes: 25
+    needs: [backend, frontend]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build web image
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile
           push: false
           load: true
           tags: udi-web:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.backend
+          push: false
+          load: true
+          tags: udi-backend:ci
+
+      - name: Start Compose stack
+        run: |
+          docker compose up --build -d
+          echo "Waiting for backend services to become healthy..."
+          sleep 10
+          docker compose ps
+
+      - name: Run E2E Smoke Test
+        run: |
+          bash scripts/smoke.sh http://127.0.0.1:8081
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down Compose
+        if: always()
+        run: docker compose down -v

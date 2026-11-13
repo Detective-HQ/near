@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"universal-defi-intelligence/internal/chains/registry"
@@ -60,6 +61,22 @@ type Service struct {
 	statusMaxAge        time.Duration
 	logger              *slog.Logger
 	now                 func() time.Time
+	bgWg                sync.WaitGroup
+}
+
+// Wait waits for in-flight background tasks (such as provider deposit notifications) to finish, or until ctx expires.
+func (s *Service) Wait(ctx context.Context) error {
+	done := make(chan struct{})
+	go func() {
+		s.bgWg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // New creates an initialized swap service.

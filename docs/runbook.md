@@ -1,77 +1,145 @@
-# Local runbook
+# Universal DeFi Intelligence — Operational Runbook
 
-## Start
+## 1. Quick Start
 
-Requirements: Node.js 22 or newer.
+### Local Development (Go Backend + Next.js Frontend)
+
+Requirements: Go 1.26+, Node.js 22+, PostgreSQL 16+, Redis 7+.
 
 ```powershell
-cd "D:\My Code\Near"
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+# 1. Run database migrations
+cd backend
+go run ./cmd/migrate up
+
+# 2. Start Go API server (Port 8081)
+go run ./cmd/api
+
+# 3. Start Background Worker (Separate terminal)
+go run ./cmd/worker
+
+# 4. Start Next.js Frontend (Port 3000)
+cd ../frontend
 npm run dev
 ```
 
-Open the Next.js frontend at `http://127.0.0.1:3000`. `npm run dev` starts the frontend and API together. The frontend proxies `/api/*` requests to the Node API at `http://127.0.0.1:8081`; local API records are written to `data/udi.json`.
+### Production / Docker Compose Stack
 
-The npm scripts load `.env` when present. Optional settings:
+```bash
+docker compose up --build -d
+```
+Services managed:
+- `postgres:16-alpine`: Port 5432 with persistent volume `postgres_data`
+- `redis:7-alpine`: Port 6379 with persistent volume `redis_data`
+- `migrate`: Runs embedded schema migrations to current version and terminates
+- `api`: Statically compiled Go API in distroless non-root container (Port 8081)
+- `worker`: Background swap status poller and catalogue refresher
+- `web`: Next.js web application (Port 3000) connecting to `http://api:8081`
+
+---
+
+## 2. Database Migrations & Recovery
+
+Embedded goose migrations are managed via `backend/cmd/migrate`:
+
+```bash
+# Check current migration version and pending files
+go run ./cmd/migrate status
+
+# Apply all pending migrations
+go run ./cmd/migrate up
+
+# Rollback the last migration
+go run ./cmd/migrate down
+
+# Rollback to a specific version (e.g. version 2)
+go run ./cmd/migrate down-to 2
+
+# Verify schema drift
+go run ./cmd/migrate check
+```
+
+### Backup & Restore
+
+```bash
+# Create a binary dump of PostgreSQL database
+docker compose exec postgres pg_dump -U udi -d udi -F c -f /tmp/udi_backup.dump
+docker compose cp postgres:/tmp/udi_backup.dump ./udi_backup.dump
+
+# Restore from a backup
+docker compose cp ./udi_backup.dump postgres:/tmp/udi_backup.dump
+docker compose exec postgres pg_restore -U udi -d udi -c /tmp/udi_backup.dump
+```
+
+---
+
+## 3. Health & Readiness Monitoring
+
+The Go server exposes dedicated health endpoints for Kubernetes and Docker probes:
+
+- **Liveness Probe**: `GET /healthz`
+  - Returns `200 OK` (`{"status":"ok"}`) when the server process is responsive.
+- **Readiness Probe**: `GET /readyz`
+  - Validates PostgreSQL connectivity, Redis availability, and catalogue freshness.
+- **Operational Status**: `GET /api/v1/health`
+  - Returns current mode (`live` vs `demo`), execution gate status, and data flags.
+- **Risk & Circuit Breaker**: `GET /api/v1/risk/status`
+  - Reports provider 429/5xx error rates, circuit breaker state (`CLOSED`, `HALF_OPEN`, `OPEN`), catalogue age, and active alerts.
+
+### CLI Healthchecks (For Shell-less Distroless Containers)
+
+```bash
+# Test API server health
+docker compose exec api /bin/api healthcheck
+
+# Test Worker health (validates DB pool connectivity)
+docker compose exec worker /bin/worker healthcheck
+```
+
+---
+
+## 4. End-to-End Smoke Testing
+
+Run the automated smoke test suite to verify the entire quote, swap, deposit, and status lifecycle:
+
+```bash
+# Linux / macOS / Git Bash:
+bash scripts/smoke.sh http://127.0.0.1:8081
+
+# Windows PowerShell:
+.\scripts\smoke.ps1 -BaseUrl http://127.0.0.1:8081
+```
+
+---
+
+## 5. Configuration Reference
+
+Environment variables configure the runtime safely:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `API_HOST` | `127.0.0.1` | API bind address. |
-| `API_PORT` | `8081` | Direct API port. |
-| `NEXT_HOST` | `127.0.0.1` | Next.js bind address. |
-| `NEXT_PORT` | `3000` | Frontend port. |
-| `UDI_API_ORIGIN` | `http://127.0.0.1:8081` | API origin used by the Next.js proxy. |
-| `DATA_FILE` | `./data/udi.json` | Local prototype persistence file. |
-| `DEMO_MODE` | `true` | Set to `false` to disable demo write endpoints. |
-| `SWAP_QUOTE_MODE` | `demo` | `demo` uses local fixtures; `live` uses the 1Click catalogue and dry quote API only. |
-| `MARKET_DATA_MODE` | `fixture` | `fixture` uses local sample data; `live` fetches read-only NEAR analytics from public DeFiLlama APIs. |
-| `MARKET_DATA_TTL_SECONDS` | `300` | In-memory live analytics cache lifetime. |
-| `MARKET_DATA_TIMEOUT_MS` | `10000` | Per-request analytics source timeout. |
-| `ONECLICK_BASE_URL` | `https://1click.chaindefuser.com` | Provider API base URL. |
-| `ONECLICK_JWT` | empty | Server-side NEAR Intents partner JWT; required for live quote requests and never returned by the API. |
-| `ONECLICK_TIMEOUT_MS` | `10000` | Per-request provider timeout. |
-| `ASSET_CATALOGUE_TTL_SECONDS` | `300` | In-memory live catalogue cache TTL. |
-| `ONECLICK_QUOTE_DEADLINE_SECONDS` | `180` | Requested executable quote lifetime; server clamps it to 60–600 seconds. |
-| `ONECLICK_QUOTE_PUBLIC_KEY` | empty | Base58 Ed25519 key used to verify quote signatures (the `ed25519:` prefix is accepted). When empty, the backend still verifies the echoed request fields but reports `signatureVerified=false`. |
-| `SWAP_STATUS_POLL_SECONDS` | `5` | In-process status polling interval; server clamps it to 1–60 seconds. |
-| `ENABLE_LIVE_EXECUTION` | `false` | Explicit server gate for executable quotes and live EVM deposit tracking. |
-| `LOG_LEVEL` | `info` | Reserved for future log filtering; currently emits info and errors. |
+| `APP_ENV` | `local` | `local`, `staging`, or `production`. |
+| `HTTP_ADDR` | `:8081` | Address and port for the Go HTTP API. |
+| `DATABASE_URL` | `postgres://udi:udi@localhost:5432/udi` | PostgreSQL connection string. |
+| `REDIS_URL` | `redis://localhost:6379` | Redis connection string for caching and distributed locks. |
+| `SWAP_QUOTE_MODE` | `live` | `demo` (local simulation) or `live` (1Click provider). |
+| `ENABLE_LIVE_EXECUTION` | `false` | Master safety gate for executable quotes and deposit tracking. |
+| `ONECLICK_JWT` | empty | Server-side NEAR Intents partner JWT for live execution. |
+| `AUTH_REQUIRED` | `false` | When true, enforces wallet session ownership on `/swaps/{id}` and `/activity`. |
+| `LOG_LEVEL` | `info` | Logging verbosity (`debug`, `info`, `warn`, `error`). |
 
-To request the live provider catalogue and dry quotes, set `SWAP_QUOTE_MODE=live` and configure `ONECLICK_JWT` in `.env`. The catalogue may load without the JWT; quote requests will not. These settings alone do not enable deposits.
+---
 
-The backend verifies quote signatures against `ONECLICK_QUOTE_PUBLIC_KEY`. If the key is not configured, it validates the echoed request fields but never claims the signature was verified (`signatureVerified=false`). Set the key in production so a tampered quote fails closed with `PROVIDER_SIGNATURE_INVALID`.
+## 6. Incident Mitigation & On-Call Runbook
 
-The worker daemon (`backend/cmd/worker`) uses the same 1Click adapter. Without `ONECLICK_JWT` it can still refresh the catalogue, but swap status polling pauses with `PROVIDER_NOT_CONFIGURED` instead of failing swaps. The fallback provider entry is a stub that returns `NO_ROUTE` until a second provider is integrated.
+### High Provider Error Rate / Circuit Breaker Tripped (`OPEN`)
+1. Check `/api/v1/risk/status` to inspect error rate and active alerts.
+2. If the provider is returning 429s, increase `SWAP_STATUS_POLL_SECONDS` or temporarily toggle `SWAP_QUOTE_MODE=demo`.
+3. The circuit breaker will automatically transition to `HALF_OPEN` and `CLOSED` as provider calls succeed.
 
-The EVM deposit path requires all three conditions: `SWAP_QUOTE_MODE=live`, a configured `ONECLICK_JWT`, and `ENABLE_LIVE_EXECUTION=true`. Keep the execution gate false by default. When enabled, the app can ask an injected EVM wallet to broadcast a real source-chain transaction for a provider-issued executable quote. Confirm the exact route, asset contract, amount, recipient, refund address, expiry, and wallet transaction. The automated lifecycle tests use a mock provider; no live route or real-fund transaction has been verified in this repository.
+### Stale Catalogue Alert
+1. Inspect worker logs: `docker compose logs -f worker`.
+2. Check if the worker is unable to acquire the distributed lock in Redis.
+3. Force a manual catalogue refresh or restart the worker: `docker compose restart worker`.
 
-To run with live market observations, configure `MARKET_DATA_MODE=live`. The service makes read-only requests to DeFiLlama and its stablecoin API. It requires outbound network access; no credentials are needed. Open Markets and use “Refresh data” to bypass the in-memory cache. Each metric reports its source and retrieval time; missing data remains a dash, and stale observations are labelled.
-
-## Verify
-
-```powershell
-npm test
-npm run check
-Invoke-RestMethod http://127.0.0.1:3000/api/v1/health
-Invoke-RestMethod http://127.0.0.1:3000/api/v1/chains
-```
-
-For direct API access, use port `8081`. The health route reports local process status only; it does not check a provider, database, indexer, wallet, or chain.
-
-## Logs and data
-
-Operational logs are one JSON object per line on stdout/stderr. They include request and swap IDs and the source transaction hash, but not request bodies, wallet signatures, API keys, or wallet addresses.
-
-Simulation and live-prototype records are persisted in `data/udi.json`. Back up the file before clearing local history if the records are needed. Do not use this file as a production audit record. The API has no authentication or owner-level access control; all local users share one repository.
-
-## Docker
-
-```powershell
-docker compose up --build
-```
-
-The Compose configuration exposes the Next.js app on port 3000 and stores API records in a named volume. It is a local prototype setup, not a production deployment template.
-
-## Incident boundary
-
-If an unexpected asset, route, destination, provider status, or wallet transaction appears, stop before signing or sending. Do not infer route support from the chain list, token catalogue, or an earlier quote; request and review a fresh quote for each pair. A wallet broadcast only records the source transaction and is not settlement. Disable `ENABLE_LIVE_EXECUTION` if provider behavior is uncertain. Before public or production deployment, add authentication and data ownership, durable storage and worker coordination, independent source-chain receipt verification, route-specific tests, operational alerts, and security review.
+### In-Flight Shutdown Protection
+The API coordinates background accelerator goroutines using `SwapService.Wait(ctx)`. In-flight deposit notifications to the provider are given up to 10 seconds to complete gracefully before the process exits.

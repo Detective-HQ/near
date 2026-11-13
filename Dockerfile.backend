@@ -1,19 +1,33 @@
-FROM golang:1.26-alpine AS build
+# syntax=docker/dockerfile:1
 
-WORKDIR /app
+# Stage 1: Build
+FROM golang:1.26-alpine AS builder
+
+WORKDIR /src
+
+# Pre-fetch dependencies
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+
+# Copy source tree
 COPY backend/ ./
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /app/bin/api ./cmd/api
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /app/bin/worker ./cmd/worker
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o /app/bin/migrate ./cmd/migrate
 
-FROM alpine:3.20 AS runtime
+# Statically compile stripped binaries with trimmed paths
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/api ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/worker ./cmd/worker
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/migrate ./cmd/migrate
+
+# Stage 2: Distroless static non-root runtime
+FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app
-COPY --from=build /app/bin/api /app/bin/worker /app/bin/migrate /app/bin/
+COPY --from=builder /bin/api /bin/worker /bin/migrate /bin/
+
+USER nonroot:nonroot
 
 ENV APP_ENV=production \
     HTTP_ADDR=:8081
 
 EXPOSE 8081
-CMD ["/app/bin/api"]
 
+ENTRYPOINT ["/bin/api"]

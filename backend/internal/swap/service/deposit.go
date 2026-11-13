@@ -115,7 +115,9 @@ func (s *Service) RecordDeposit(ctx context.Context, params RecordDepositParams)
 
 	// 3. Notify provider (as an accelerator). If this fails, we DO NOT rollback
 	// because the on-chain transaction was already broadcast.
+	s.bgWg.Add(1)
 	go func() {
+		defer s.bgWg.Done()
 		bgCtx, cancel := context.WithTimeout(context.Background(), s.quoteDeadline)
 		defer cancel()
 
