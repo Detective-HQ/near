@@ -255,13 +255,15 @@ The roadmap omits:
 
 ### Phase 6 — Swap orchestration (6–8 days)
 
-- [ ] **6.1** Clarify quote vs swap lifecycle — design note. `POST /quotes` returns a quote row only; `POST /swaps` creates a swap starting at `CREATED`/`QUOTED`. Do not create swap rows during dry quoting unless the API contract says so.
-- [ ] **6.2** Dry-quote pipeline — `internal/swap/service/quote.go`. Asset lookup from cache/DB; same-asset check; amount parse; address validation; provider call; persist quote; typed errors.
-- [ ] **6.3** Executable quote — `internal/swap/service/executable.go`. Requires `ENABLE_LIVE_EXECUTION=true`; route capability check from registry; validates memo requirement; stores deposit address/memo; `QUOTED → AWAITING_USER_DEPOSIT`.
-- [ ] **6.4** Deposit capture — `internal/swap/service/deposit.go`. Validate tx hash per chain; reject re-use; record transaction before notifying; define submit-failure semantics (do not lose the record).
-- [ ] **6.5** Cancellation/expiry — `.../cancel.go`, `.../expire.go`. Cancel only before deposit; expiry idempotent; atomic event writes.
-- [ ] **6.6** Idempotency — `.../idempotency.go`. Canonical payload hash; replay returns same record; changed payload → 409.
-- [ ] **6.7** Tests — `..._test.go`. Full happy path + refund/fail/expire/cancel; property test that no sequence skips or reverses states; failure injection on provider/DB.
+- [x] **6.1** Clarify quote vs swap lifecycle — design note. `POST /quotes` returns a quote row only; `POST /swaps` creates a swap starting at `CREATED`/`QUOTED`. Do not create swap rows during dry quoting unless the API contract says so.
+- [x] **6.2** Dry-quote pipeline — `internal/swap/service/quote.go`. Asset lookup from cache/DB; same-asset check; amount parse; address validation; provider call; persist quote; typed errors.
+- [x] **6.3** Executable quote — `internal/swap/service/executable.go`. Requires `ENABLE_LIVE_EXECUTION=true`; route capability check from registry; validates memo requirement; stores deposit address/memo; `QUOTED → AWAITING_USER_DEPOSIT`.
+- [x] **6.4** Deposit capture — `internal/swap/service/deposit.go`. Validate tx hash per chain; reject re-use; record transaction before notifying; define submit-failure semantics (do not lose the record).
+- [x] **6.5** Cancellation/expiry — `.../cancel.go`, `.../expire.go`. Cancel only before deposit; expiry idempotent; atomic event writes.
+- [x] **6.6** Idempotency — `.../idempotency.go`. Canonical payload hash; replay returns same record; changed payload → 409.
+- [x] **6.7** Tests — `..._test.go`. Full happy path + refund/fail/expire/cancel; property test that no sequence skips or reverses states; failure injection on provider/DB.
+
+> **Phase 6 status (2026-11-13):** implemented in `backend/internal/swap/service/`. Dry-quote pipeline enforces exact math and chain-specific address validation while storing non-executable quotes. Executable quote pipeline enforces `ENABLE_LIVE_EXECUTION`, registry route capability flags, and memo validation before obtaining deposit instructions and atomically creating swaps in state `AWAITING_USER_DEPOSIT`. Deposit capture performs per-family tx-hash validation, idempotent duplicate handling, conflict detection, and asynchronous provider notification with durable poller fallback. Cancellation and expiry prevent cancellation of funded swaps and transition expired unfunded quotes cleanly. Complete test suite in `service_test.go` passes.
 
 ---
 
@@ -445,7 +447,7 @@ Non-errors (do not use the error envelope):
 | 2026-11-13 | 1Click client | Done | `internal/swap/providers/nearoneclick`; JWT server-side, 2MB limit, ed25519 signature validation, alternative fallback |
 | 2026-11-13 | Worker + Redis | Done | Redis client/locks, worker daemon, swap poller, retry policy, stuck-swap handler, catalogue refresher |
 | 2026-11-13 | Chains + wallets | Done | 5 chain families (EVM, Solana, Stellar, Aptos, NEAR), registry, non-custodial wallet builders, RPC verifiers |
-| | Swap service | TODO | Phase 6 |
-| | HTTP API + auth + risk | TODO | |
-| | Analytics + research | TODO | |
-| | Docker + E2E + docs | TODO | |
+| 2026-11-13 | Swap service | Done | `internal/swap/service`; dry & executable pipelines, deposit capture, cancel/expire, canonical idempotency hash, tests pass |
+| | HTTP API + auth + risk | TODO | Phase 8 |
+| | Analytics + research | TODO | Phase 7 |
+| | Docker + E2E + docs | TODO | Phase 9 |
