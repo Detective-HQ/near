@@ -92,4 +92,3 @@ func TestAnalyticsIngest(t *testing.T) {
 		t.Fatalf("saved %d observations, want 1", len(mockStore.savedObs))
 	}
 }
-

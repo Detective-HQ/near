@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"universal-defi-intelligence/internal/analytics/domain"
 )
@@ -120,7 +121,7 @@ func (c *Client) Fetch(ctx context.Context, chain string) (domain.Snapshot, erro
 	catalogueChainName, currentTVL, catalogueErr := c.fetchChainCatalogue(ctx, chainKey)
 	canonicalChain := catalogueChainName
 	if canonicalChain == "" {
-		canonicalChain = strings.Title(chainKey)
+		canonicalChain = titleCase(chainKey)
 	}
 
 	// 2. Fetch TVL history
@@ -496,4 +497,13 @@ func (c *Client) get(ctx context.Context, reqURL string) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+func titleCase(s string) string {
+	if s == "" {
+		return ""
+	}
+	r := []rune(s)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
 }

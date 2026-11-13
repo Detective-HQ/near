@@ -13,4 +13,3 @@ type Connector interface {
 	// Fetch gathers the latest metrics and history for the specified chain.
 	Fetch(ctx context.Context, chain string) (domain.Snapshot, error)
 }
-

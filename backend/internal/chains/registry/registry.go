@@ -132,9 +132,8 @@ func Parse(data []byte) (*Registry, error) {
 }
 
 var (
-	keyPattern     = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
-	symbolPattern  = regexp.MustCompile(`^[A-Z0-9]{2,10}$`)
-	explorerTokens = map[string]struct{}{"{hash}": {}, "{address}": {}}
+	keyPattern    = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+	symbolPattern = regexp.MustCompile(`^[A-Z0-9]{2,10}$`)
 )
 
 func validateChain(chain Chain) error {
