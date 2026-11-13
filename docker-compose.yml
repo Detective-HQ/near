@@ -1,37 +1,27 @@
 services:
-  udi:
-    build: .
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8081:8081"
+    environment:
+      APP_ENV: production
+      HTTP_ADDR: 0.0.0.0:8081
+      LOG_LEVEL: info
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      API_HOST: 127.0.0.1
-      API_PORT: 8081
       NEXT_HOST: 0.0.0.0
       NEXT_PORT: 3000
-      UDI_API_ORIGIN: http://127.0.0.1:8081
-      DATA_FILE: /app/data/udi.json
-      DEMO_MODE: "false"
-      SWAP_QUOTE_MODE: ${SWAP_QUOTE_MODE:-demo}
-      ONECLICK_BASE_URL: ${ONECLICK_BASE_URL:-https://1click.chaindefuser.com}
-      ONECLICK_JWT: ${ONECLICK_JWT:-}
-      ONECLICK_TIMEOUT_MS: ${ONECLICK_TIMEOUT_MS:-10000}
-      ASSET_CATALOGUE_TTL_SECONDS: ${ASSET_CATALOGUE_TTL_SECONDS:-300}
-      ONECLICK_QUOTE_DEADLINE_SECONDS: ${ONECLICK_QUOTE_DEADLINE_SECONDS:-180}
-      SWAP_STATUS_POLL_SECONDS: ${SWAP_STATUS_POLL_SECONDS:-5}
-      ENABLE_LIVE_EXECUTION: ${ENABLE_LIVE_EXECUTION:-false}
-      MARKET_DATA_MODE: ${MARKET_DATA_MODE:-fixture}
-      MARKET_DATA_TTL_SECONDS: ${MARKET_DATA_TTL_SECONDS:-300}
-      MARKET_DATA_TIMEOUT_MS: ${MARKET_DATA_TIMEOUT_MS:-10000}
-    volumes:
-      - udi-data:/app/data
-    read_only: true
-    tmpfs:
-      - /tmp
-      - /app/.next/cache
-    security_opt:
-      - no-new-privileges:true
+      UDI_API_ORIGIN: http://backend:8081
+    depends_on:
+      - backend
     restart: unless-stopped
-
-volumes:
-  udi-data:
