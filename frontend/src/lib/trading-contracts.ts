@@ -197,6 +197,10 @@ export interface BacktestsResponse extends Provenance {
   items: Backtest[];
 }
 
+export interface TopMoversResponse extends Provenance {
+  items: Signal[];
+}
+
 export interface PortfolioBalance {
   assetId: string;
   symbol: string;
