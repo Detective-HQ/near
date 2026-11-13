@@ -1,0 +1,21 @@
+{
+  "correlationId": "status-correlation-1",
+  "status": "PROCESSING",
+  "updatedAt": "2026-11-10T12:02:00Z",
+  "swapDetails": {
+    "intentHashes": ["intent-1"],
+    "nearTxHashes": [],
+    "originChainTxHashes": [
+      {
+        "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "explorerUrl": "https://etherscan.io/tx/0xaaaa"
+      }
+    ],
+    "destinationChainTxHashes": [
+      {
+        "hash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "explorerUrl": "https://basescan.org/tx/0xbbbb"
+      }
+    ]
+  }
+}

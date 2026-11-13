@@ -216,18 +216,22 @@ The roadmap omits:
 
 **Watch out:** polling every 5 seconds for every active swap will hit provider rate limits quickly. Use a short minimum interval plus exponential backoff after each unchanged status.
 
+> **Phase 3 status (2026-11-13):** implemented in `backend/`. Redis client/lock, swap poller, retry policy, stuck handling, catalogue refresher, health tracker, and the worker daemon are complete. Tests cover fake clock, mock provider, `Retry-After`, restart-resume, two-worker single-claim, lease/claim repository behavior, and migration round-trips. PR CI (`.github/workflows/ci.yml`) runs the backend race suite against a PostgreSQL service plus frontend typecheck/tests/build.
+
 ---
 
 ### Phase 4 — Provider integration (5–7 days)
 
-- [ ] **4.1** Refine `ProviderAdapter` — `internal/swap/providers/adapter.go`. Add `Name()`, `Capabilities()`, `Health()`; methods accept `context`; typed errors.
-- [ ] **4.2** 1Click HTTP client — `internal/swap/providers/nearoneclick/client.go`. `http.Client` timeouts; JWT server-side only; 2 MB `io.LimitReader`; request IDs.
-- [ ] **4.3** Response validation — `.../normalize.go`. Validate required fields, amounts, timestamps, status strings; preserve raw JSON.
-- [ ] **4.4** Error mapping — `.../errors.go`. 401/403 → `PROVIDER_AUTH_FAILED`; 429 → `PROVIDER_RATE_LIMITED` + `Retry-After`; 5xx/timeout → `PROVIDER_DELAYED`/`RPC_TIMEOUT`; malformed → `UNKNOWN_PROVIDER_STATUS`.
-- [ ] **4.5** Quote signature — `.../signature.go`. Requires a documented key source. Add `ONECLICK_QUOTE_PUBLIC_KEY`; if unavailable, verify echoed request fields and mark `signature_verified=false` — never silently claim verified.
-- [ ] **4.6** Deposit submit — `.../deposit.go`. Idempotent by tx hash; no blind retry unless contract confirms.
-- [ ] **4.7** Alternative provider stub — `internal/swap/providers/alternative/`. Implements interface, returns `NO_ROUTE`/`NOT_CONFIGURED`; registered in fallback chain.
-- [ ] **4.8** Contract tests — `testdata/*.json`. Redacted recorded responses; timeout, 2 MB, 401, 429, 5xx, malformed JSON; normalization goldens.
+- [x] **4.1** Refine `ProviderAdapter` — `internal/swap/providers/adapter.go`. Add `Name()`, `Capabilities()`, `Health()`; methods accept `context`; typed errors.
+- [x] **4.2** 1Click HTTP client — `internal/swap/providers/nearoneclick/client.go`. `http.Client` timeouts; JWT server-side only; 2 MB `io.LimitReader`; request IDs.
+- [x] **4.3** Response validation — `.../normalize.go`. Validate required fields, amounts, timestamps, status strings; preserve raw JSON.
+- [x] **4.4** Error mapping — `.../errors.go`. 401/403 → `PROVIDER_AUTH_FAILED`; 429 → `PROVIDER_RATE_LIMITED` + `Retry-After`; 5xx/timeout → `PROVIDER_DELAYED`/`RPC_TIMEOUT`; malformed → `UNKNOWN_PROVIDER_STATUS`.
+- [x] **4.5** Quote signature — `.../signature.go`. Requires a documented key source. Add `ONECLICK_QUOTE_PUBLIC_KEY`; if unavailable, verify echoed request fields and mark `signature_verified=false` — never silently claim verified.
+- [x] **4.6** Deposit submit — `.../deposit.go`. Idempotent by tx hash; no blind retry unless contract confirms.
+- [x] **4.7** Alternative provider stub — `internal/swap/providers/alternative/`. Implements interface, returns `NO_ROUTE`/`NOT_CONFIGURED`; registered in fallback chain.
+- [x] **4.8** Contract tests — `testdata/*.json`. Redacted recorded responses; timeout, 2 MB, 401, 429, 5xx, malformed JSON; normalization goldens.
+
+**Phase 4 status (2026-11-13):** implemented in `backend/internal/swap/providers/`. The 1Click adapter (`nearoneclick`) keeps the JWT server-side, bounds responses to 2 MB, applies per-request timeouts and request IDs, validates catalogue/quote/status payloads, verifies Ed25519 quote signatures against `ONECLICK_QUOTE_PUBLIC_KEY` (or reports `signatureVerified=false` when the key is absent), and maps 401/403/429/5xx/timeout/malformed responses to typed domain errors. `alternative` is a full stub registered behind `providers.Chain`, which only falls through on `NO_ROUTE`/`PROVIDER_NOT_CONFIGURED`. The worker now runs the real adapter instead of the placeholder. Contract tests use redacted fixtures plus an in-memory Ed25519 key; canonical quote hashes were cross-checked against the official TypeScript SDK.
 
 ---
 
@@ -297,6 +301,8 @@ The roadmap omits:
 - [ ] **9.5** Docs — `docs/runbook.md`, `docs/architecture.md`, ADR 0002. Commands for migrate/rollback/backup/restore; architecture diagram; on-call notes.
 - [ ] **9.6** E2E smoke — `scripts/smoke.sh`/`.ps1`. health → assets → dry quote → swap → mock deposit → status → terminal state; restart DB/Redis and re-check.
 - [ ] **9.7** CI — `.github/workflows/backend.yml`. build, test, race, vet, staticcheck, govulncheck, migration check, docker build, compose smoke.
+  - [x] `.github/workflows/ci.yml` runs on PR/push: backend (gofmt, tidy, build, vet, `-race` tests with a PostgreSQL service, migration drift check, coverage artifact), frontend (`npm ci`, typecheck, tests, build), staticcheck, and a Docker web image build. `govulncheck` runs report-only because stdlib advisories are fixed by a toolchain bump, not a PR.
+  - [ ] compose smoke (needs the Phase 9 Compose stack).
 
 **Blocker:** Docker isn't installed on this machine. Either install Docker Desktop/Podman or make 9.6/9.7 CI-only. Do not claim Phase 9 "done" locally until Compose has actually run.
 
@@ -346,7 +352,7 @@ Every phase should ship with:
 3. [ ] Fix the roadmap's **state enum** to include `INCOMPLETE_DEPOSIT`.
 4. [ ] Approve the **schema corrections** D5–D8 and write `migrations/000001–000005`.
 5. [ ] Implement `internal/swap/domain` (math, state machine, errors) + tests — first mergeable PR.
-6. [ ] Add CI workflow (build, test, race, vet, staticcheck, govulncheck).
+6. [x] Add CI workflow (build, test, race, vet, staticcheck, govulncheck).
 7. [ ] Install Docker (or set up CI testcontainers) before starting Phase 2 integration tests.
 8. [ ] Implement the repository layer with idempotency + concurrency tests.
 9. [ ] Add a minimal `GET /api/v1/health` + `GET /api/v1/assets` on `:8081` to prove proxy parity early.
