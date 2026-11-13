@@ -10,7 +10,7 @@ const frontendDir = resolve(rootDir, "frontend");
 console.log("\x1b[36m%s\x1b[0m", "Starting Universal DeFi Intelligence & Fernhollow stack...");
 
 // Start Go Backend API (:8081)
-const backend = spawn("go", ["run", "-mod=vendor", "./cmd/api"], {
+const backend = spawn("go", ["run", "./cmd/api"], {
   cwd: backendDir,
   stdio: "inherit",
   shell: true,
