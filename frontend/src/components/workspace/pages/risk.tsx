@@ -3,6 +3,8 @@
 import { api } from "../../../lib/api-client";
 import { bpsToPercent, formatPercent } from "../../../lib/decimal";
 import { formatTime } from "../../../lib/format";
+import { qualityFromStatus } from "../../../lib/quality";
+import type { Quality } from "../../../lib/quality";
 import { deriveViewState } from "../../../lib/view-state";
 import { useResource } from "../hooks";
 import { PageHeader, Provenance, QualityBadge, ViewStateBlock } from "../ui";
@@ -48,19 +50,32 @@ export function RiskPage() {
     : "Unavailable";
   const tradingHealth: Health = trading.data && !trading.data.testData ? "Operational" : "Unavailable";
 
+  // Only values the API reports. Latency is not exposed by any public endpoint yet.
   const providers: Array<{ name: string; capability: string; status: Health; latency: string; last: string | null }> = [
-    { name: "NEAR Intents 1Click", capability: "Swap quotes and settlement", status: r ? fromRiskStatus(r.status) : "Unavailable", latency: r ? "180ms" : "Not available", last: r?.lastSuccessfulPoll ?? null },
-    { name: "DeFiLlama", capability: "Market TVL and DEX volumes", status: marketHealth, latency: "240ms", last: markets.data && !markets.data.testData ? markets.data.retrievedAt ?? null : null },
-    { name: "Zonyx trading API", capability: "Signals, order blocks, scenarios", status: tradingHealth, latency: "45ms", last: trading.data && !trading.data.testData ? trading.data.asOf : null },
-    { name: "Public EVM RPCs", capability: "Balance checks and gas estimation", status: "Operational", latency: "120ms", last: new Date().toISOString() },
+    { name: "NEAR Intents 1Click", capability: "Swap quotes and settlement", status: r ? fromRiskStatus(r.status) : "Unavailable", latency: "Not available", last: r?.lastSuccessfulPoll ?? null },
+    { name: "DeFiLlama", capability: "Market TVL and DEX volumes", status: marketHealth, latency: "Not available", last: markets.data && !markets.data.testData ? markets.data.retrievedAt ?? null : null },
+    { name: "Zonyx trading engine", capability: "Signals, order blocks, scenarios", status: tradingHealth, latency: "Not available", last: trading.data && !trading.data.testData ? trading.data.asOf : null },
   ];
 
-  const freshnessRows: Array<{ feed: string; target: string; observed: string; source: string; status: "Live" | "Stale" | "Unavailable" }> = [
-    { feed: "Swap Token Catalogue", target: "< 15 min", observed: r?.catalogueLastRefreshed ? formatTime(r.catalogueLastRefreshed) : "Not available", source: "1Click API", status: r?.catalogueStale ? "Stale" : "Live" },
-    { feed: "Cross-Chain Quotes", target: "< 15 sec", observed: "On demand (per-request)", source: "Market makers", status: "Live" },
-    { feed: "Market TVL & Volume", target: "< 1 hour", observed: markets.data?.retrievedAt ? formatTime(markets.data.retrievedAt) : "Not available", source: "DeFiLlama", status: markets.data?.status === "stale" ? "Stale" : "Live" },
-    { feed: "Trading Order Blocks", target: "< 5 min", observed: trading.data?.asOf ? formatTime(trading.data.asOf) : "Not available", source: "Trading Engine", status: trading.data ? "Live" : "Unavailable" },
-    { feed: "Derivatives Liquidity", target: "< 1 min", observed: trading.data?.asOf ? formatTime(trading.data.asOf) : "Not available", source: "Order-book aggregator", status: trading.data ? "Live" : "Unavailable" },
+  const freshnessRows: Array<{ feed: string; observed: string; source: string; status: Quality }> = [
+    {
+      feed: "Swap token catalogue",
+      observed: r?.catalogueLastRefreshed ? formatTime(r.catalogueLastRefreshed) : "Not available",
+      source: "Zonyx API",
+      status: r ? (r.catalogueStale ? "Stale" : "Live") : "Unavailable",
+    },
+    {
+      feed: "Market TVL and volume",
+      observed: markets.data?.retrievedAt ? formatTime(markets.data.retrievedAt) : "Not available",
+      source: markets.data?.provider ?? "DeFiLlama",
+      status: markets.data && !markets.data.testData ? qualityFromStatus(markets.data.status ?? "available") : "Unavailable",
+    },
+    {
+      feed: "Trading signals",
+      observed: trading.data?.asOf ? formatTime(trading.data.asOf) : "Not available",
+      source: trading.data?.source ?? "Trading engine",
+      status: trading.data && !trading.data.testData ? qualityFromStatus(trading.data.quality) : "Unavailable",
+    },
   ];
 
   return (
@@ -155,15 +170,14 @@ export function RiskPage() {
       <section className="panel panel-pad section" aria-labelledby="data-freshness">
         <div className="panel-title">
           <h2 id="data-freshness">Data Freshness</h2>
-          <span className="subtle-meta">SLA targets and observed update timestamps</span>
+          <span className="subtle-meta">Last update reported by each source</span>
         </div>
         <div className="table-wrap">
           <table className="data-table mobile-stack">
             <thead>
               <tr>
                 <th scope="col">Metric / Feed</th>
-                <th scope="col">Target Freshness</th>
-                <th scope="col">Observed Freshness</th>
+                <th scope="col">Last updated</th>
                 <th scope="col">Source</th>
                 <th scope="col">Status</th>
               </tr>
@@ -172,7 +186,6 @@ export function RiskPage() {
               {freshnessRows.map((row) => (
                 <tr key={row.feed}>
                   <td><strong>{row.feed}</strong></td>
-                  <td>{row.target}</td>
                   <td>{row.observed}</td>
                   <td>{row.source}</td>
                   <td><QualityBadge quality={row.status} /></td>

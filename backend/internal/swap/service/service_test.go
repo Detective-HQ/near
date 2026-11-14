@@ -447,3 +447,27 @@ func TestCanonicalPayloadHashIsStable(t *testing.T) {
 		t.Fatalf("hashes %s %s %s", a, b, c)
 	}
 }
+
+type recordingObserver struct{ refreshes []time.Time }
+
+func (o *recordingObserver) ObserveProviderCall(error) {}
+func (o *recordingObserver) ObserveCatalogueRefresh(at time.Time) {
+	o.refreshes = append(o.refreshes, at)
+}
+
+func TestDemoCatalogueReportsRefreshToObserver(t *testing.T) {
+	obs := &recordingObserver{}
+	svc, err := New(Config{
+		Store: memstore.New(), Provider: &mockProvider{},
+		QuoteMode: config.QuoteModeDemo, Now: func() time.Time { return testNow }, Observer: obs,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.ListAssets(context.Background(), ""); err != nil {
+		t.Fatal(err)
+	}
+	if len(obs.refreshes) != 1 || !obs.refreshes[0].Equal(testNow) {
+		t.Fatalf("demo catalogue refresh was not reported: %v", obs.refreshes)
+	}
+}

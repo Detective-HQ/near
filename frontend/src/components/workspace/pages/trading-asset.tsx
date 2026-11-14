@@ -6,12 +6,14 @@ import { api, ApiRequestError, USE_MOCKS } from "../../../lib/api-client";
 import { formatDecimal, formatPercent, formatUsd } from "../../../lib/decimal";
 import { asOf, formatTime } from "../../../lib/format";
 import { qualityFromStatus } from "../../../lib/quality";
-import type { MetricValue, Outcome, StructureResponse, ZoneStatus } from "../../../lib/trading-contracts";
+import type { MetricValue, Outcome, ZoneStatus } from "../../../lib/trading-contracts";
 import { deriveViewState } from "../../../lib/view-state";
 import { useResource, useUrlParams } from "../hooks";
 import { DefRow, InfoTip, PageHeader, Provenance, QualityBadge, ScoreCell, Tabs, ViewStateBlock } from "../ui";
 import { useWorkspace } from "../workspace-context";
 import { COVERAGE_TIP, SCORE_TIP } from "./trading";
+import { OVERLAYS, PriceChart, ZONE_LABEL } from "../price-chart";
+import type { Overlay } from "../price-chart";
 
 const TABS = ["Overview", "Derivatives", "Order flow", "Scenario", "Risk", "History"] as const;
 type Tab = (typeof TABS)[number];
@@ -21,14 +23,6 @@ export const OUTCOME_LABEL: Record<Outcome, string> = {
   stop_hit: "Stop hit",
   expired: "Expired",
   open: "Open",
-};
-
-const ZONE_LABEL: Record<ZoneStatus, string> = {
-  fresh: "Fresh",
-  tested: "Tested",
-  mitigated: "Mitigated",
-  invalidated: "Invalidated",
-  expired: "Expired",
 };
 
 export function fmtMetric(m: MetricValue | null | undefined): string {
@@ -48,77 +42,6 @@ function MetricRow({ label, metric, note }: { label: string; metric: MetricValue
       <span>{fmtMetric(metric)}</span>
       {metric ? <Provenance source={metric.source} time={metric.asOf} quality={qualityFromStatus(metric.quality, metric.value !== null)} /> : <QualityBadge quality="Unavailable" />}
     </div>
-  );
-}
-
-const OVERLAYS = ["Order Blocks", "Fair Value Gaps", "BOS / CHoCH", "Swings", "Liquidity levels"] as const;
-type Overlay = (typeof OVERLAYS)[number];
-
-function StructureChart({ data, levels, on }: { data: StructureResponse; levels: Array<{ price: string; side: string; label: string }>; on: Set<Overlay> }) {
-  const W = 760;
-  const H = 300;
-  const pad = 8;
-  // Chart geometry only: numbers are used for pixel positions, never for displayed values.
-  const n = (s: string) => Number(s);
-  const lows = data.candles.map((c) => n(c.l));
-  const highs = data.candles.map((c) => n(c.h));
-  const zonePrices = data.zones.flatMap((z) => [n(z.top), n(z.bottom)]);
-  const min = Math.min(...lows, ...zonePrices);
-  const max = Math.max(...highs, ...zonePrices);
-  const y = (p: number) => pad + ((max - p) / (max - min || 1)) * (H - pad * 2);
-  const step = (W - 60) / data.candles.length;
-  const xAt = (t: string) => {
-    const i = data.candles.findIndex((c) => c.t >= t);
-    return (i < 0 ? data.candles.length : i) * step;
-  };
-  const tip = `Detected zone under our published rules (${data.rulesVersion}).`;
-
-  return (
-    <svg className="chart-svg ws-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Price chart, ${data.timeframe}`}>
-      {data.zones
-        .filter((z) => (z.kind === "order_block" ? on.has("Order Blocks") : on.has("Fair Value Gaps")))
-        .map((z) => {
-          const x1 = xAt(z.from);
-          const x2 = z.to ? xAt(z.to) : W - 60;
-          const top = y(n(z.top));
-          const h = Math.max(3, y(n(z.bottom)) - top);
-          const label = `${z.direction === "bullish" ? "Bull" : "Bear"} ${z.kind === "order_block" ? "OB" : "FVG"} · ${ZONE_LABEL[z.status]}`;
-          return (
-            <g key={z.id} className={`ws-zone ws-zone-${z.direction} ws-zone-${z.status}`} tabIndex={0} aria-label={`${label}. ${tip}`}>
-              <title>{tip}</title>
-              <rect x={x1} y={top} width={Math.max(4, x2 - x1)} height={h} />
-              <text x={x1 + 4} y={top - 3}>{label}</text>
-            </g>
-          );
-        })}
-      {data.candles.map((c, i) => {
-        const up = n(c.c) >= n(c.o);
-        const x = i * step + step / 2;
-        return (
-          <g key={c.t} className={up ? "ws-candle-up" : "ws-candle-down"}>
-            <line x1={x} x2={x} y1={y(n(c.h))} y2={y(n(c.l))} />
-            <rect x={x - step * 0.3} y={y(Math.max(n(c.o), n(c.c)))} width={step * 0.6} height={Math.max(1, Math.abs(y(n(c.o)) - y(n(c.c))))} />
-          </g>
-        );
-      })}
-      {on.has("BOS / CHoCH") && data.structure.map((s) => (
-        <g key={`${s.kind}-${s.at}`} className="ws-structure">
-          <line x1={xAt(s.at) - 40} x2={xAt(s.at) + 40} y1={y(n(s.price))} y2={y(n(s.price))} />
-          <text x={xAt(s.at) + 44} y={y(n(s.price)) + 3}>{s.kind}</text>
-        </g>
-      ))}
-      {on.has("Swings") && data.swings.map((s) => (
-        <text key={`${s.kind}-${s.at}`} className="ws-swing" x={xAt(s.at)} y={s.kind === "high" ? y(n(s.price)) - 6 : y(n(s.price)) + 12}>
-          {s.kind === "high" ? "SH" : "SL"}
-        </text>
-      ))}
-      {on.has("Liquidity levels") && levels.map((l) => (
-        <g key={`${l.side}-${l.price}`} className="ws-level">
-          <line x1={0} x2={W - 60} y1={y(n(l.price))} y2={y(n(l.price))} />
-          <text x={W - 56} y={y(n(l.price)) + 3}>{l.label}</text>
-        </g>
-      ))}
-    </svg>
   );
 }
 
@@ -218,7 +141,7 @@ export function TradingAssetPage({ assetId }: { assetId: string }) {
                   </div>
                   {structure.data ? (
                     <>
-                      <StructureChart data={structure.data} levels={liquidity.data?.levels ?? []} on={on} />
+                      <PriceChart data={structure.data} levels={liquidity.data?.levels ?? []} on={on} />
                       <ul className="ws-legend" aria-label="Zone legend">
                         {(["fresh", "tested", "mitigated", "invalidated", "expired"] as ZoneStatus[]).map((s) => (
                           <li key={s}><span className={`ws-swatch ws-zone-${s}`} aria-hidden="true" />{ZONE_LABEL[s]}</li>
