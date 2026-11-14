@@ -8,6 +8,8 @@ import { USE_MOCKS } from "../../lib/api-client";
 import { shortenEvmAddress } from "../../lib/evm-wallet";
 import { explorerAddressUrl } from "../../lib/explorer";
 import { STATE_COPY } from "../../lib/view-state";
+import { WalletContextProvider } from "../../lib/wallets/context";
+import { MultiChainWalletButton } from "./wallet-modal";
 import { Modal } from "./ui";
 import { useWorkspace, WorkspaceProvider } from "./workspace-context";
 
@@ -308,7 +310,7 @@ function Frame({ children }: { children: ReactNode }) {
       <div className="main-shell">
         <div className="ws-topbar">
           <GlobalSearch />
-          <WalletButton />
+          <MultiChainWalletButton />
         </div>
         {!online && (
           <div className="fixture-banner ws-banner" role="status">
@@ -338,7 +340,9 @@ function Frame({ children }: { children: ReactNode }) {
 export function WorkspaceShell({ children }: { children: ReactNode }) {
   return (
     <WorkspaceProvider>
-      <Frame>{children}</Frame>
+      <WalletContextProvider>
+        <Frame>{children}</Frame>
+      </WalletContextProvider>
     </WorkspaceProvider>
   );
 }
