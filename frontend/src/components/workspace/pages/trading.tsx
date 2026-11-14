@@ -15,7 +15,7 @@ import { useWorkspace } from "../workspace-context";
 const TABS = ["Top 20 bullish", "Top 20 bearish"] as const;
 const FILTER_KEYS = ["timeframe", "chain", "asset", "venue", "quote", "liquidityTier"] as const;
 
-export const SCORE_TIP = "A ranking score from 0-100. Not a probability.";
+export const SCORE_TIP = "A ranking score from 0 to 100. Not a probability.";
 export const COVERAGE_TIP = "Share of evidence available for this score.";
 
 function Move({ value }: { value: number | null }) {

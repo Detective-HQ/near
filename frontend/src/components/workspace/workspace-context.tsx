@@ -11,7 +11,7 @@ import { isUserRejection } from "../../lib/swap-runner";
 import { useOnline, useResource } from "./hooks";
 import type { Resource } from "./hooks";
 
-export type ToastMessage = "Copied" | "Wallet connected" | "Wallet disconnected" | "Request rejected in wallet";
+export type ToastMessage = "Copied" | "Wallet connected" | "Wallet disconnected" | "Request rejected in wallet" | string;
 
 export interface WalletOption {
   id: string;

@@ -174,6 +174,17 @@ export function ActivityPage() {
               </tbody>
             </table>
           </div>
+          {page * PAGE_SIZE < filtered.length && (
+            <div className="deposit-actions section" style={{ justifyContent: "center" }}>
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => update({ page: String(page + 1) })}
+              >
+                Load more
+              </button>
+            </div>
+          )}
           <Pager page={page} pageSize={PAGE_SIZE} total={filtered.length} onPage={(p) => update({ page: String(p) })} />
         </section>
       )}
@@ -194,7 +205,7 @@ export function ActivityPage() {
               ))}
             </ol>
             <div className="swap-transactions">
-              {txRow("Source", open.transactions.source, open.transactionLinks?.source, open.quote.originAsset.chain)}
+              {txRow("Deposit", open.transactions.source, open.transactionLinks?.source, open.quote.originAsset.chain)}
               {txRow("Destination", open.transactions.destination, open.transactionLinks?.destination, open.quote.destinationAsset.chain)}
               {txRow("Refund", open.transactions.refund, open.transactionLinks?.refund, open.quote.originAsset.chain)}
               {!open.transactions.source && !open.transactions.destination && !open.transactions.refund && (

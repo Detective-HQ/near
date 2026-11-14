@@ -364,6 +364,7 @@ export function SwapPage() {
               {lowLiquidity && <li className="warning-text">Low liquidity on this route.</li>}
               {aboutToExpire && <li className="warning-text">Quote is about to expire.</li>}
               {stale && <li className="warning-text">Price data is stale. Refresh before swapping.</li>}
+              {quote?.depositMemo && <li className="warning-text">This route needs a memo. It is added for you; do not remove it.</li>}
             </ul>
 
             <div className="swap-actions">
@@ -404,6 +405,14 @@ export function SwapPage() {
       <Modal open={reviewOpen} title="Review swap" onClose={() => !running && setReviewOpen(false)}>
         {quote && phase === null && (
           <div className="quote-result">
+            <p className="notice-block ws-irreversible" role="note">
+              Transfers are irreversible. Check the network and address.
+            </p>
+            {quote.depositMemo && (
+              <p className="warning-text ws-memo-warn" role="alert">
+                This route needs a memo. It is added for you; do not remove it.
+              </p>
+            )}
             <DefRow label="You pay">{`${formatDecimal(quote.amountIn, 8)} ${quote.originAsset.symbol} on ${chainName(quote.originAsset.chain)}`}</DefRow>
             <DefRow label="You receive (estimate)">{`${formatDecimal(quote.amountOutEstimate, 8)} ${quote.destinationAsset.symbol} on ${chainName(quote.destinationAsset.chain)}`}</DefRow>
             {quoteRows}

@@ -96,7 +96,17 @@ export function PortfolioPage() {
 
   return (
     <>
-      <PageHeader title="Portfolio" sub="Your balances, read-only." testData={testData} />
+      <PageHeader
+        title="Portfolio"
+        sub="Your balances, read-only."
+        testData={testData}
+        actions={
+          <button type="button" className="button button-secondary button-small" onClick={wallet.openPicker}>
+            Switch wallet
+          </button>
+        }
+      />
+      <p className="notice-block ws-disclaimer">Read-only. Balances on unsupported networks are not shown.</p>
       <ViewStateBlock view="portfolio" state={state} onAction={testRows.reload} />
 
       {all.length > 0 && (
