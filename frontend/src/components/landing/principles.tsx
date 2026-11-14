@@ -1,3 +1,5 @@
+import { FlowerBloom } from "./foliage";
+
 const PRINCIPLES = [
   { title: "Non-custodial", text: "Signing happens in your wallet." },
   { title: "Read-only analysis", text: "Signals never place a trade." },
@@ -11,7 +13,10 @@ export function Principles() {
       <ul>
         {PRINCIPLES.map((p) => (
           <li key={p.title}>
-            <h3>{p.title}</h3>
+            <div className="lp-principle-title">
+              <FlowerBloom className="lp-principle-flower" />
+              <h3>{p.title}</h3>
+            </div>
             <p>{p.text}</p>
           </li>
         ))}

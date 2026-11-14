@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { CardFernCorner, LeafSprout } from "./foliage";
 
 // Live previews and real token selectors replacing abstract skeletons.
 
@@ -319,6 +320,7 @@ export function BentoGrid() {
   return (
     <section className="lp-section" id="product" aria-labelledby="lp-bento-h">
       <header className="lp-head">
+        <span className="lp-label"><LeafSprout className="lp-label-sprout" />Grown intelligence</span>
         <h2 id="lp-bento-h">Everything you need to move, measure and decide.</h2>
         <p>Swap across chains, then check the evidence behind every number.</p>
       </header>
@@ -326,9 +328,10 @@ export function BentoGrid() {
         {CARDS.map((c) => (
           <li key={c.id} className={`lp-cell lp-cell-${c.size}`} id={c.id === "trading" ? "trading" : undefined}>
             <Link className="lp-card" href={c.href}>
+              <CardFernCorner />
               <div className="lp-card-visual">{c.visual}</div>
               <div className="lp-card-copy">
-                <span className="lp-label">{c.label}</span>
+                <span className="lp-label"><LeafSprout className="lp-label-sprout" />{c.label}</span>
                 <h3>{c.title}</h3>
                 <p>{c.text}</p>
               </div>
