@@ -57,4 +57,3 @@ func (b *EventBus) Publish(swap domain.Swap) {
 		}
 	}
 }
-

@@ -516,4 +516,3 @@ func (s *Store) RepollSwap(ctx context.Context, id string) (domain.Swap, error) 
 	}
 	return sw, nil
 }
-

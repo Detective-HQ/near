@@ -327,4 +327,3 @@ func (a swapsTokenAdapter) ListTokens(ctx context.Context, chain string) ([]port
 	}
 	return out, nil
 }
-
