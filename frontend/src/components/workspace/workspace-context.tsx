@@ -255,6 +255,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [toast]);
 
+  // Auto-connect if an EVM wallet is already authorized in the browser
+  useEffect(() => {
+    if (typeof window === "undefined" || walletState.status === "connected") return;
+    const eth = (window as unknown as { ethereum?: Eip1193Provider }).ethereum;
+    if (!eth || typeof eth.request !== "function") return;
+
+    eth.request({ method: "eth_accounts" })
+      .then((accounts) => {
+        if (Array.isArray(accounts) && accounts.length > 0 && walletState.status !== "connected") {
+          const opt = options.find((o) => o.family === "evm" || !o.family) ?? {
+            id: "injected",
+            name: "Browser wallet",
+            family: "evm",
+            provider: eth,
+          };
+          void connect(opt);
+        }
+      })
+      .catch(() => undefined);
+  }, [options, walletState.status, connect]);
+
   // ---- wallet sign-in (session cookie set by the API) ----
   const [session, setSession] = useState<AuthSession | null>(null);
   const [signingIn, setSigningIn] = useState(false);

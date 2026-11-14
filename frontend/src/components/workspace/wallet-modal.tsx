@@ -45,9 +45,15 @@ export function WalletModal({ open, onClose }: WalletModalProps) {
       if (family === "evm") {
         // Connect via multi-chain wallet
         await connect("evm", label);
-        // Also sync with workspace EVM wallet if options exist
-        if (wsWallet.options.length > 0) {
-          void wsWallet.connect(wsWallet.options[0]);
+        // Also sync with workspace EVM wallet
+        const opt = wsWallet.options.find((o) => o.family === "evm" || !o.family) ?? wsWallet.options[0];
+        if (opt) {
+          void wsWallet.connect(opt);
+        } else if (typeof window !== "undefined") {
+          const eth = (window as unknown as { ethereum?: import("../../lib/evm-wallet").Eip1193Provider }).ethereum;
+          if (eth) {
+            void wsWallet.connect({ id: "injected", name: label, family: "evm", provider: eth });
+          }
         }
       } else {
         await connect(family, label);
