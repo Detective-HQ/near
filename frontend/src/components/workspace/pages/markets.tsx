@@ -27,7 +27,7 @@ export function metricQuality(m: MetricObservation | undefined) {
 }
 
 function find(metrics: MetricObservation[], key: string) {
-  return metrics.find((m) => m.key === key || m.key.endsWith(`_${key}`));
+  return metrics.find((m) => m.key === key || m.key.includes(key));
 }
 
 const CARDS: Array<{ label: string; keys: string[] }> = [
@@ -43,8 +43,22 @@ export function MarketsPage() {
   const [refresh, setRefresh] = useState(false);
   const snap = useResource(`markets:${refresh}`, () => api.markets(refresh));
   const overview = useResource("trading-overview", api.tradingOverview);
+  const nearAsset = useResource("near-asset", () => api.tradingAsset("near:near"));
 
-  const metrics = snap.data?.metrics ?? [];
+  const rawMetrics = snap.data?.metrics ?? [];
+  const priceMetric: MetricObservation | null = nearAsset.data?.lastPrice ? {
+    key: "near_price",
+    label: "NEAR / USD",
+    value: parseFloat(nearAsset.data.lastPrice),
+    unit: "USD",
+    scope: "Near ecosystem",
+    definition: "Current market price for NEAR token.",
+    source: nearAsset.data.source || "DeFiLlama",
+    observedAt: nearAsset.data.asOf,
+    status: "available",
+  } : null;
+
+  const metrics = priceMetric ? [priceMetric, ...rawMetrics] : rawMetrics;
   const cards = CARDS.map((c) => ({ ...c, items: c.keys.map((k) => find(metrics, k)).filter(Boolean) as MetricObservation[] }));
   const state = deriveViewState({
     loading: snap.loading,
