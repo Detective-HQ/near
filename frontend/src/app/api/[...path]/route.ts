@@ -15,7 +15,8 @@ const STATIC_GET_ROUTES = new Set([
   "/api/v1/research/scenarios",
   "/api/v1/activity",
   "/api/v1/risk/status",
-  "/api/v1/portfolio"
+  "/api/v1/portfolio",
+  "/api/v1/auth/session"
 ]);
 
 function isAllowedRoute(method: string, pathname: string): boolean {

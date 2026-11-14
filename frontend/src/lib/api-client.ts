@@ -247,12 +247,15 @@ export const api = {
     );
   },
 
+  // Wallet sign-in. The API sets an HttpOnly session cookie on verify; the
+  // browser sends it automatically, so the token never needs to be stored here.
   authNonce: async () => apiRequest<{ nonce: string; message: string }>("/api/v1/auth/nonce", { method: "POST", body: "{}" }),
-  authVerify: async (input: { walletAddress: string; chainFamily: string; signature: string; nonce: string; message?: string }) =>
-    apiRequest<{ token: string; session: { id: string; walletAddress: string; expiresAt: string } }>("/api/v1/auth/verify", {
+  authVerify: async (input: { chain: string; walletAddress: string; signature: string; nonce: string; message: string; publicKey?: string }) =>
+    apiRequest<{ token: string; session: AuthSession }>("/api/v1/auth/verify", {
       method: "POST",
       body: JSON.stringify(input)
     }),
+  authSession: async () => apiRequest<{ session: AuthSession; authRequired: boolean }>("/api/v1/auth/session"),
   authLogout: async () => apiRequest<{ status: string }>("/api/v1/auth/logout", { method: "POST", body: "{}" }),
 
   portfolio: async (address?: string, chain?: string) => {
@@ -277,13 +280,21 @@ export const api = {
     );
   },
 
-  /** No portfolio endpoint exists; only wallet-read native balances are real. */
+  /** TEST DATA balances for interface testing (mocks only). Real balances come from api.portfolio. */
   portfolioTestData: async (): Promise<PortfolioBalance[] | null> => {
     if (!USE_MOCKS) return null;
     const m = await import("./mocks");
     return m.mockPortfolio();
   }
 };
+
+export interface AuthSession {
+  id: string;
+  walletAddress: string;
+  chain: string;
+  createdAt: string;
+  expiresAt: string;
+}
 
 export interface RiskReport {
   status: "HEALTHY" | "DEGRADED" | "UNHEALTHY" | string;

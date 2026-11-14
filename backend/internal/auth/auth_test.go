@@ -223,3 +223,26 @@ func TestRecoverRejectsHighS(t *testing.T) {
 		t.Fatal("high-s signature accepted")
 	}
 }
+
+func TestVerifyAcceptsChainFamilyAndCanonicalMessage(t *testing.T) {
+	mgr := NewManager(Config{})
+	wallet := newEVMWallet(t)
+	nonce, _ := mgr.GenerateNonce(ctx)
+	// The wallet signs the canonical message; the client omits "message".
+	sig := wallet.sign(SignInMessage(nonce))
+	session, _, err := mgr.VerifyWalletSignature(ctx, VerifyRequest{
+		ChainFamily: "evm", WalletAddress: wallet.address, Nonce: nonce, Signature: sig,
+	})
+	if err != nil || session.WalletAddress != wallet.address {
+		t.Fatalf("family/canonical verify = %+v, %v", session, err)
+	}
+
+	// A signature over different text must not verify against the canonical message.
+	nonce2, _ := mgr.GenerateNonce(ctx)
+	other := wallet.sign("something else " + nonce2)
+	if _, _, err := mgr.VerifyWalletSignature(ctx, VerifyRequest{
+		ChainFamily: "evm", WalletAddress: wallet.address, Nonce: nonce2, Signature: other,
+	}); !errors.Is(err, ErrInvalidSignature) {
+		t.Fatalf("mismatched signature err = %v", err)
+	}
+}

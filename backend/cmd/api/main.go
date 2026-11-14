@@ -29,6 +29,7 @@ import (
 	"universal-defi-intelligence/internal/config"
 	"universal-defi-intelligence/internal/httpapi"
 	"universal-defi-intelligence/internal/httpclient"
+	"universal-defi-intelligence/internal/portfolio"
 	"universal-defi-intelligence/internal/research/scenarios"
 	"universal-defi-intelligence/internal/risk"
 	"universal-defi-intelligence/internal/storage/postgres"
@@ -213,12 +214,21 @@ func run() error {
 		market = analyticsservice.NewReader(ingest, cfg.MarketData.TTL)
 	}
 
+	// Portfolio balances are read-only RPC calls; USD values only with live
+	// market data so fixture mode never calls a public price API.
+	portfolioCfg := portfolio.Config{Registry: reg, HTTPClient: httpclient.New(8 * time.Second)}
+	if cfg.MarketData.Mode == config.MarketDataLive {
+		portfolioCfg.Prices = &portfolio.LlamaPrices{Client: httpclient.New(cfg.MarketData.Timeout)}
+	}
+	portfolioReader := portfolio.NewReader(portfolioCfg)
+
 	handler, err := httpapi.NewHandler(httpapi.HandlerOptions{
 		Swaps:         swaps,
 		Auth:          authManager,
 		Risk:          riskEngine,
 		Market:        market,
 		Trading:       tradingEngine,
+		Portfolio:     portfolioReader,
 		Research:      scenarios.New(),
 		Config:        cfg,
 		Probes:        probes,

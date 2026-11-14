@@ -167,9 +167,22 @@ func (m *Manager) GenerateNonce(ctx context.Context) (string, error) {
 	return nonce, nil
 }
 
+// SignInMessage is the canonical text a wallet signs for a nonce. The nonce
+// endpoint returns it, and a verify request that omits "message" is checked
+// against exactly this text.
+func SignInMessage(nonce string) string {
+	return "Sign in to Universal DeFi Intelligence\nNonce: " + nonce
+}
+
+// familyChains maps chain-family names (as sent by wallet UIs) to a registry
+// chain of that family. Verification only depends on the family.
+var familyChains = map[string]string{"evm": "ethereum", "near": "near", "solana": "solana"}
+
 // VerifyRequest contains inputs needed to authenticate a wallet signature.
 type VerifyRequest struct {
-	Chain         string `json:"chain"`
+	Chain string `json:"chain"`
+	// ChainFamily is accepted as an alias of Chain ("evm", "near", "solana").
+	ChainFamily   string `json:"chainFamily,omitempty"`
 	WalletAddress string `json:"walletAddress"`
 	Nonce         string `json:"nonce"`
 	Signature     string `json:"signature"`
@@ -181,7 +194,10 @@ type VerifyRequest struct {
 // session. The returned token is shown to the client exactly once.
 func (m *Manager) VerifyWalletSignature(ctx context.Context, req VerifyRequest) (*Session, string, error) {
 	nonce := strings.TrimSpace(req.Nonce)
-	if nonce == "" || len(req.Message) == 0 || len(req.Message) > maxMessageBytes {
+	if req.Message == "" && nonce != "" {
+		req.Message = SignInMessage(nonce)
+	}
+	if nonce == "" || len(req.Message) > maxMessageBytes {
 		return nil, "", ErrInvalidNonce
 	}
 	// The nonce must be part of what the wallet signed; otherwise any old
@@ -190,7 +206,16 @@ func (m *Manager) VerifyWalletSignature(ctx context.Context, req VerifyRequest) 
 		return nil, "", fmt.Errorf("%w: signed message does not contain the nonce", ErrInvalidSignature)
 	}
 
-	chain, ok := m.registry.Get(strings.TrimSpace(req.Chain))
+	chainKey := strings.TrimSpace(req.Chain)
+	if chainKey == "" {
+		chainKey = strings.TrimSpace(req.ChainFamily)
+	}
+	if mapped, isFamily := familyChains[strings.ToLower(chainKey)]; isFamily {
+		if _, known := m.registry.Get(chainKey); !known {
+			chainKey = mapped
+		}
+	}
+	chain, ok := m.registry.Get(chainKey)
 	if !ok {
 		return nil, "", fmt.Errorf("%w: %s", ErrUnsupportedChain, req.Chain)
 	}

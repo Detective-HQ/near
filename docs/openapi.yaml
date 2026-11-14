@@ -306,23 +306,30 @@ paths:
         "200": { description: Risk report. }
   /api/v1/portfolio:
     get:
-      summary: Portfolio balances and USD valuations for an address
+      summary: Real on-chain balances for an address (read-only)
+      description: |
+        Reads native balances on every chain family the address matches (EVM, Solana, NEAR,
+        Stellar, Aptos) plus USDC on EVM chains, via the registry RPC endpoints. Amounts are exact.
+        USD values come from DeFiLlama only when MARKET_DATA_MODE=live and are null otherwise.
+        Other tokens need an indexer and are not returned. Without ?address= the signed-in wallet
+        is used; with neither, an empty result with quality "unavailable" is returned.
       parameters:
         - name: address
           in: query
-          description: Wallet address or account identifier.
-          schema: { type: string }
+          description: Wallet address or account id.
+          schema: { type: string, maxLength: 128 }
         - name: chain
           in: query
-          description: Optional chain key filter.
+          description: Optional chain key or alias to read only that chain.
           schema: { type: string }
       responses:
         "200":
-          description: Portfolio balances with valuations.
+          description: Balances. quality is live, or partial when some chains did not respond (listed in notice).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PortfolioResponse" }
-        "500": { $ref: "#/components/responses/Error" }
+        "400": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
   /api/v1/trading/overview:
     get:
       summary: Market regime and breadth on the default (4h) timeframe
@@ -418,12 +425,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [chain, walletAddress, nonce, message, signature]
+              required: [walletAddress, nonce, signature]
               properties:
                 chain: { type: string, description: Registry key or alias (ethereum, base, near, solana, ...). }
+                chainFamily: { type: string, enum: [evm, near, solana], description: Accepted instead of chain. }
                 walletAddress: { type: string }
                 nonce: { type: string }
-                message: { type: string, description: Must contain the nonce. }
+                message: { type: string, description: "Must contain the nonce. Omit it to verify against the exact `message` returned by /auth/nonce." }
                 signature: { type: string, description: "EVM: 65-byte hex r||s||v. NEAR/Solana: base58 or hex ed25519." }
                 publicKey: { type: string, description: "NEAR only: ed25519:<base58>." }
       responses:
@@ -435,6 +443,13 @@ paths:
       security: [{ bearer: [] }, { sessionCookie: [] }]
       responses:
         "200": { description: "`{ status: logged_out }`" }
+  /api/v1/auth/session:
+    get:
+      summary: Current wallet session (lets a reloaded UI know it is signed in)
+      security: [{ bearer: [] }, { sessionCookie: [] }]
+      responses:
+        "200": { description: "`{ session: { id, walletAddress, chain, createdAt, expiresAt }, authRequired }`" }
+        "401": { $ref: "#/components/responses/Error" }
   /api/v1/activity:
     get:
       summary: The caller's swaps, newest first (anonymous swaps for anonymous callers)

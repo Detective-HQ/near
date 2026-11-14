@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { api } from "../../lib/api-client";
-import type { Catalogue, RiskReport } from "../../lib/api-client";
+import type { AuthSession, Catalogue, RiskReport } from "../../lib/api-client";
 import type { ChainConfig } from "../../lib/contracts";
 import { createReadOnlyEvmWallet, parseRpcQuantity } from "../../lib/evm-wallet";
 import type { Eip1193Provider, EvmWalletState, ReadOnlyEvmWallet } from "../../lib/evm-wallet";
@@ -11,7 +11,7 @@ import { isUserRejection } from "../../lib/swap-runner";
 import { useOnline, useResource } from "./hooks";
 import type { Resource } from "./hooks";
 
-export type ToastMessage = "Copied" | "Wallet connected" | "Wallet disconnected" | "Request rejected in wallet";
+export type ToastMessage = "Copied" | "Wallet connected" | "Wallet disconnected" | "Request rejected in wallet" | "Signed in" | "Signed out" | "Sign-in failed";
 
 export interface WalletOption {
   id: string;
@@ -33,6 +33,11 @@ export interface WalletApi {
   connect: (option: WalletOption) => Promise<void>;
   disconnect: () => void;
   switchNetwork: (chainId: string) => Promise<void>;
+  /** wallet-signature session with the API, null when signed out */
+  session: AuthSession | null;
+  signingIn: boolean;
+  signIn: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 interface WorkspaceValue {
@@ -153,12 +158,54 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [toast]);
 
+  // ---- wallet sign-in (session cookie set by the API) ----
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+
+  // Restore an existing session (e.g. after a reload). 401 just means signed out.
+  useEffect(() => {
+    let active = true;
+    api.authSession().then((r) => active && setSession(r.session), () => active && setSession(null));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // A session for a different wallet than the connected one is not shown as signed in.
+  const activeSession = session && walletState.account && session.walletAddress.toLowerCase() === walletState.account.toLowerCase() ? session : null;
+
+  const signIn = useCallback(async () => {
+    const account = walletState.account;
+    if (!provider || !account) return;
+    setSigningIn(true);
+    try {
+      const { nonce, message } = await api.authNonce();
+      const hex = "0x" + Array.from(new TextEncoder().encode(message), (b) => b.toString(16).padStart(2, "0")).join("");
+      const signature = (await provider.request({ method: "personal_sign", params: [hex, account] })) as string;
+      const result = await api.authVerify({ chain: "evm", walletAddress: account, nonce, message, signature });
+      setSession(result.session);
+      toast("Signed in");
+    } catch (e) {
+      toast(isUserRejection(e) ? "Request rejected in wallet" : "Sign-in failed");
+    } finally {
+      setSigningIn(false);
+    }
+  }, [provider, walletState.account, toast]);
+
+  const signOut = useCallback(async () => {
+    await api.authLogout().catch(() => undefined);
+    setSession(null);
+    toast("Signed out");
+  }, [toast]);
+
   const disconnect = useCallback(() => {
+    if (session) void api.authLogout().catch(() => undefined);
+    setSession(null);
     walletRef.current?.forget();
     setWalletState(EMPTY_WALLET);
     setProvider(null);
     toast("Wallet disconnected");
-  }, [toast]);
+  }, [toast, session]);
 
   const switchNetwork = useCallback(async (chainId: string) => {
     if (!provider) return;
@@ -202,6 +249,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     connect,
     disconnect,
     switchNetwork,
+    session: activeSession,
+    signingIn,
+    signIn,
+    signOut,
   };
 
   const chainByKey = useCallback((key: string) => chainList?.find((c) => c.key === key) ?? null, [chainList]);
@@ -210,7 +261,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({ chains, catalogue, risk, online, wallet, toast, toasts, chainName, chainByKey }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [chains, catalogue, risk, online, walletState, provider, balanceAtomic, options, connecting, pickerOpen, toast, toasts, chainName, chainByKey],
+    [chains, catalogue, risk, online, walletState, provider, balanceAtomic, options, connecting, pickerOpen, session, signingIn, toast, toasts, chainName, chainByKey],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

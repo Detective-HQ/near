@@ -18,6 +18,7 @@ import (
 	"universal-defi-intelligence/internal/auth"
 	"universal-defi-intelligence/internal/config"
 	"universal-defi-intelligence/internal/httpapi/middleware"
+	"universal-defi-intelligence/internal/portfolio"
 	"universal-defi-intelligence/internal/research/scenarios"
 	"universal-defi-intelligence/internal/risk"
 	"universal-defi-intelligence/internal/swap/domain"
@@ -33,15 +34,17 @@ type Probe struct {
 
 // HandlerOptions wires the API to its dependencies.
 type HandlerOptions struct {
-	Swaps    *service.Service
-	Auth     *auth.Manager
-	Risk     *risk.Engine
-	Market   *analyticsservice.Reader // nil in fixture mode
-	Trading  *trading.Engine          // nil in fixture mode
-	Research *scenarios.Engine
-	Config   *config.Config
-	Probes   []Probe
-	Logger   *slog.Logger
+	Swaps   *service.Service
+	Auth    *auth.Manager
+	Risk    *risk.Engine
+	Market  *analyticsservice.Reader // nil in fixture mode
+	Trading *trading.Engine          // nil in fixture mode
+	// Portfolio reads on-chain balances; nil disables /portfolio reads.
+	Portfolio *portfolio.Reader
+	Research  *scenarios.Engine
+	Config    *config.Config
+	Probes    []Probe
+	Logger    *slog.Logger
 	// SecureCookies marks the session cookie Secure (off only for local HTTP).
 	SecureCookies bool
 }
@@ -53,6 +56,7 @@ type Handler struct {
 	risk          *risk.Engine
 	market        *analyticsservice.Reader
 	trading       *trading.Engine
+	portfolio     *portfolio.Reader
 	research      *scenarios.Engine
 	cfg           *config.Config
 	probes        []Probe
@@ -94,6 +98,7 @@ func NewHandler(opts HandlerOptions) (*Handler, error) {
 		risk:          opts.Risk,
 		market:        opts.Market,
 		trading:       opts.Trading,
+		portfolio:     opts.Portfolio,
 		research:      opts.Research,
 		cfg:           opts.Config,
 		probes:        opts.Probes,
@@ -247,7 +252,7 @@ func (h *Handler) AuthNonce(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]string{
 		"nonce":   nonce,
-		"message": "Sign in to Universal DeFi Intelligence\nNonce: " + nonce,
+		"message": auth.SignInMessage(nonce),
 	})
 }
 
@@ -279,6 +284,17 @@ func (h *Handler) AuthVerify(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 	writeJSON(w, http.StatusOK, map[string]any{"token": token, "session": session})
+}
+
+// AuthSession reports the caller's current session, so a reloaded UI can
+// tell whether it is still signed in. 401 when there is none.
+func (h *Handler) AuthSession(w http.ResponseWriter, r *http.Request) {
+	session := middleware.GetSession(r)
+	if session == nil {
+		middleware.WriteError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "No active session.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"session": session, "authRequired": h.auth.AuthRequired()})
 }
 
 // AuthLogout revokes the current session.

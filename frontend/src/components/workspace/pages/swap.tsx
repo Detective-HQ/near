@@ -25,7 +25,11 @@ import { useWorkspace } from "../workspace-context";
 
 type CatalogueAsset = Catalogue["assets"][number];
 
-const ROUTE_ERRORS = new Set(["UNSUPPORTED_ROUTE", "ROUTE_NOT_SUPPORTED", "UNSUPPORTED_ASSET", "ASSET_NOT_FOUND", "VALIDATION_FAILED", "INVALID_REQUEST"]);
+// Error codes meaning "this pair cannot be quoted" (Go API codes first, legacy names kept).
+const ROUTE_ERRORS = new Set([
+  "NO_ROUTE", "UNKNOWN_ASSET", "INVALID_ASSET", "INVALID_ASSET_PAIR", "SAME_ASSET",
+  "UNSUPPORTED_ROUTE", "ROUTE_NOT_SUPPORTED", "UNSUPPORTED_ASSET", "ASSET_NOT_FOUND", "VALIDATION_FAILED", "INVALID_REQUEST",
+]);
 
 function AssetPicker({
   side,
@@ -129,9 +133,15 @@ export function SwapPage() {
   const testData = Boolean(catalogue.data?.testData);
   const liveRouteCandidate = Boolean(from && to && from.id !== to.id && (testData || (from.enabledForLiveSwap && to.enabledForLiveSwap)));
 
+  // Live quotes need the recipient and refund address up front (the provider prices a concrete
+  // route). Live routes are EVM to EVM, so the connected EVM account is both.
+  const toChain = to ? chainByKey(to.chain) : null;
+  const evmRoute = fromChain?.family === "EVM" && toChain?.family === "EVM";
+  const quoteAccount = evmRoute && wallet.connected && wallet.state.account ? wallet.state.account : "";
+
   // Quotes: debounced 400ms, latest request wins.
   const request = useDebounced(
-    from && to && amountValid && slippageValid && liveRouteCandidate ? `${from.id}|${to.id}|${amount}|${slippageBps}` : "",
+    from && to && amountValid && slippageValid && liveRouteCandidate ? `${from.id}|${to.id}|${amount}|${slippageBps}|${quoteAccount}` : "",
     400,
   );
   const [quote, setQuote] = useState<SwapQuote | null>(null);
@@ -148,11 +158,17 @@ export function SwapPage() {
       setQuoteStatus("idle");
       return;
     }
-    const [o, d, amt, bps] = request.split("|");
+    const [o, d, amt, bps, account] = request.split("|");
     const n = ++seq.current;
     setQuoteStatus("loading");
     api
-      .quote({ originAssetId: o, destinationAssetId: d, amountIn: amt, slippageBps: Number(bps) })
+      .quote({
+        originAssetId: o,
+        destinationAssetId: d,
+        amountIn: amt,
+        slippageBps: Number(bps),
+        ...(account ? { recipient: account, refundTo: account } : {}),
+      })
       .then((q) => {
         if (n !== seq.current) return;
         if (q.mode === "simulation" && !USE_MOCKS) {

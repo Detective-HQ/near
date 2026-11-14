@@ -140,6 +140,7 @@ func (h *Handler) Routes() []Route {
 		{"POST", "/api/v1/auth/nonce", h.AuthNonce, false},
 		{"POST", "/api/v1/auth/verify", h.AuthVerify, false},
 		{"POST", "/api/v1/auth/logout", h.AuthLogout, false},
+		{"GET", "/api/v1/auth/session", h.AuthSession, false},
 		{"GET", "/api/v1/activity", h.Activity, true},
 		{"POST", "/api/v1/quotes", h.Quotes, true},
 		{"POST", "/api/v1/swaps", h.Swaps, true},

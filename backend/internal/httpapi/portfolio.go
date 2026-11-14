@@ -1,14 +1,14 @@
 package httpapi
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"universal-defi-intelligence/internal/config"
 	"universal-defi-intelligence/internal/httpapi/middleware"
-	"universal-defi-intelligence/internal/swap/service"
+	"universal-defi-intelligence/internal/portfolio"
 )
 
 // PortfolioBalanceDTO is one asset balance in a portfolio.
@@ -22,7 +22,8 @@ type PortfolioBalanceDTO struct {
 	AsOf     *string `json:"asOf"`
 }
 
-// PortfolioResponseDTO is the envelope for GET /api/v1/portfolio.
+// PortfolioResponseDTO is the envelope for GET /api/v1/portfolio. It mirrors
+// PortfolioResponse in frontend/src/lib/trading-contracts.ts.
 type PortfolioResponseDTO struct {
 	Source        string                `json:"source"`
 	AsOf          string                `json:"asOf"`
@@ -31,46 +32,14 @@ type PortfolioResponseDTO struct {
 	Chain         *string               `json:"chain"`
 	TotalValueUSD *string               `json:"totalValueUsd"`
 	Balances      []PortfolioBalanceDTO `json:"balances"`
+	Notice        string                `json:"notice"`
 }
 
-type portfolioSeed struct {
-	AssetID string
-	Symbol  string
-	Chain   string
-	Balance string
-}
+const portfolioNotice = "Read-only on-chain balances: native assets on every chain family the address matches, plus USDC on EVM chains. Other tokens need an indexer and are not shown."
 
-var defaultPortfolioSeeds = []portfolioSeed{
-	{AssetID: "ethereum:eth", Symbol: "ETH", Chain: "ethereum", Balance: "0.8421"},
-	{AssetID: "near:near", Symbol: "NEAR", Chain: "near", Balance: "412.5"},
-	{AssetID: "base:usdc", Symbol: "USDC", Chain: "base", Balance: "1250"},
-	{AssetID: "solana:sol", Symbol: "SOL", Chain: "solana", Balance: "3.2"},
-	{AssetID: "ethereum:link", Symbol: "LINK", Chain: "ethereum", Balance: "0.04"},
-}
-
-func (h *Handler) resolveAssetPrice(assetID string) (float64, bool) {
-	if micros, ok := service.DemoPriceMicros("demo:" + assetID); ok {
-		return float64(micros) / 1e6, true
-	}
-	if micros, ok := service.DemoPriceMicros(assetID); ok {
-		return float64(micros) / 1e6, true
-	}
-	switch strings.ToLower(assetID) {
-	case "ethereum:eth", "eth":
-		return 3400.0, true
-	case "near:near", "near":
-		return 5.10, true
-	case "base:usdc", "ethereum:usdc", "usdc":
-		return 1.00, true
-	case "solana:sol", "sol":
-		return 165.0, true
-	case "ethereum:link", "link":
-		return 15.50, true
-	}
-	return 0, false
-}
-
-// Portfolio reports portfolio balances and USD valuations for an address.
+// Portfolio reads real on-chain balances for ?address= (or the signed-in
+// wallet), optionally limited to ?chain=. USD values come from DeFiLlama only
+// when live market data is enabled; otherwise they are null.
 func (h *Handler) Portfolio(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	address := strings.TrimSpace(q.Get("address"))
@@ -79,91 +48,74 @@ func (h *Handler) Portfolio(w http.ResponseWriter, r *http.Request) {
 			address = sess.WalletAddress
 		}
 	}
-
 	chain := strings.ToLower(strings.TrimSpace(q.Get("chain")))
-	now := time.Now().UTC().Format(time.RFC3339)
-	quality := "live"
-	source := "Universal DeFi Intelligence Portfolio Engine"
-	if h.swaps != nil && h.swaps.QuoteMode() == config.QuoteModeDemo {
-		source = "Universal DeFi Intelligence Portfolio Engine (Demo Fixture)"
-	}
-
-	var addressPtr *string
-	if address != "" {
-		addressPtr = &address
-	}
 	var chainPtr *string
 	if chain != "" {
 		chainPtr = &chain
 	}
+	now := time.Now().UTC().Format(time.RFC3339)
 
 	if address == "" {
-		totalZero := "0"
 		writeJSON(w, http.StatusOK, PortfolioResponseDTO{
-			Source:        source,
-			AsOf:          now,
-			Quality:       quality,
-			Address:       nil,
-			Chain:         chainPtr,
-			TotalValueUSD: &totalZero,
-			Balances:      []PortfolioBalanceDTO{},
+			Source: "On-chain RPC", AsOf: now, Quality: "unavailable", Chain: chainPtr,
+			Balances: []PortfolioBalanceDTO{}, Notice: "Connect a wallet or pass ?address= to read balances.",
 		})
 		return
 	}
+	if h.portfolio == nil {
+		middleware.WriteError(w, r, http.StatusServiceUnavailable, "BALANCE_UNAVAILABLE", "Balance reads are not configured.")
+		return
+	}
+	if len(address) > 128 {
+		middleware.WriteError(w, r, http.StatusBadRequest, "VALIDATION_FAILED", "Address is too long.")
+		return
+	}
 
-	var balances []PortfolioBalanceDTO
-	var totalVal float64
-	hasPriced := false
-
-	for _, seed := range defaultPortfolioSeeds {
-		if chain != "" && !strings.EqualFold(seed.Chain, chain) {
-			continue
+	res, err := h.portfolio.Read(r.Context(), address, chain)
+	if err != nil {
+		switch {
+		case errors.Is(err, portfolio.ErrInvalidAddress):
+			middleware.WriteError(w, r, http.StatusBadRequest, "VALIDATION_FAILED", "The address is not valid for a supported chain.")
+		case errors.Is(err, portfolio.ErrUnavailable):
+			middleware.WriteError(w, r, http.StatusServiceUnavailable, "BALANCE_UNAVAILABLE", "Chain RPC endpoints did not respond; try again shortly.")
+		default:
+			h.writeError(w, r, err)
 		}
+		return
+	}
 
-		var valStr *string
-		if price, ok := h.resolveAssetPrice(seed.AssetID); ok {
-			var balFloat float64
-			_, _ = fmt.Sscanf(seed.Balance, "%f", &balFloat)
-			val := balFloat * price
-			formatted := fmt.Sprintf("%.2f", val)
-			valStr = &formatted
-			totalVal += val
-			hasPriced = true
+	balances := make([]PortfolioBalanceDTO, 0, len(res.Holdings))
+	var total float64
+	priced := false
+	for _, hld := range res.Holdings {
+		asOf := hld.AsOf.UTC().Format(time.RFC3339)
+		dto := PortfolioBalanceDTO{
+			AssetID: hld.AssetID, Symbol: hld.Symbol, Chain: hld.Chain,
+			Balance: hld.Balance(), Source: hld.Source, AsOf: &asOf,
 		}
-
-		asOfCopy := now
-		balances = append(balances, PortfolioBalanceDTO{
-			AssetID:  seed.AssetID,
-			Symbol:   seed.Symbol,
-			Chain:    seed.Chain,
-			Balance:  seed.Balance,
-			ValueUSD: valStr,
-			Source:   source,
-			AsOf:     &asOfCopy,
-		})
+		if hld.ValueUSD != nil {
+			v := fmt.Sprintf("%.2f", *hld.ValueUSD)
+			dto.ValueUSD = &v
+			total += *hld.ValueUSD
+			priced = true
+		}
+		balances = append(balances, dto)
 	}
-
-	if balances == nil {
-		balances = []PortfolioBalanceDTO{}
+	source := "On-chain RPC"
+	if res.Priced {
+		source += " + DeFiLlama prices"
 	}
-
-	var totalStr *string
-	if hasPriced {
-		t := fmt.Sprintf("%.2f", totalVal)
-		totalStr = &t
-	} else {
-		z := "0"
-		totalStr = &z
+	notice := portfolioNotice
+	if len(res.Failed) > 0 {
+		notice += " Unavailable right now: " + strings.Join(res.Failed, ", ") + "."
 	}
-
-	writeJSON(w, http.StatusOK, PortfolioResponseDTO{
-		Source:        source,
-		AsOf:          now,
-		Quality:       quality,
-		Address:       addressPtr,
-		Chain:         chainPtr,
-		TotalValueUSD: totalStr,
-		Balances:      balances,
-	})
+	out := PortfolioResponseDTO{
+		Source: source, AsOf: res.AsOf.UTC().Format(time.RFC3339), Quality: res.Quality,
+		Address: &res.Address, Chain: chainPtr, Balances: balances, Notice: notice,
+	}
+	if priced {
+		t := fmt.Sprintf("%.2f", total)
+		out.TotalValueUSD = &t
+	}
+	writeJSON(w, http.StatusOK, out)
 }
-
