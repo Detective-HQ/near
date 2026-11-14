@@ -2,8 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
+	"time"
 
+	"universal-defi-intelligence/internal/chains/rpc"
 	"universal-defi-intelligence/internal/swap/domain"
 	"universal-defi-intelligence/internal/swap/providers"
 )
@@ -18,9 +21,10 @@ type RecordDepositParams struct {
 
 // RecordDepositResult is the outcome of recording a deposit transaction.
 type RecordDepositResult struct {
-	Swap      domain.Swap    `json:"swap"`
-	Deposit   domain.Deposit `json:"deposit"`
-	Duplicate bool           `json:"duplicate"`
+	Swap         domain.Swap         `json:"swap"`
+	Deposit      domain.Deposit      `json:"deposit"`
+	Duplicate    bool                `json:"duplicate"`
+	Verification *VerificationResult `json:"verification,omitempty"`
 }
 
 // RecordDeposit processes a wallet-reported source transaction.
@@ -77,8 +81,67 @@ func (s *Service) RecordDeposit(ctx context.Context, params RecordDepositParams)
 	if err != nil {
 		return RecordDepositResult{}, err
 	}
+	s.eventBus.Publish(updated)
 	if duplicate || updated.Simulated {
-		return RecordDepositResult{Swap: updated, Deposit: deposit, Duplicate: duplicate}, nil
+		var v *VerificationResult
+		if updated.Simulated {
+			ver := VerificationResult{
+				Status:        "confirmed",
+				Confirmations: 1,
+				CheckedAt:     s.now().Format(time.RFC3339),
+			}
+			s.SetVerification(updated.ID, ver)
+			v = &ver
+		}
+		return RecordDepositResult{Swap: updated, Deposit: deposit, Duplicate: duplicate, Verification: v}, nil
+	}
+
+	initV := VerificationResult{
+		Status:        "pending",
+		Confirmations: 0,
+		CheckedAt:     s.now().Format(time.RFC3339),
+	}
+	s.SetVerification(updated.ID, initV)
+
+	if s.verifier != nil {
+		s.bgWg.Add(1)
+		go func() {
+			defer s.bgWg.Done()
+			bgCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			obs, err := s.verifier.Verify(bgCtx, rpc.Request{
+				Chain:      updated.OriginChain,
+				TxHash:     normalizedHash,
+				ExpectedTo: updated.DepositAddress,
+			})
+			status := "pending"
+			var conf uint64
+			if err != nil {
+				if errors.Is(err, rpc.ErrTransactionFailed) {
+					status = "failed"
+				} else if errors.Is(err, rpc.ErrVerificationMismatch) {
+					status = "mismatch"
+				}
+			} else if obs.Found {
+				conf = obs.Confirmations
+				if !obs.Success {
+					status = "failed"
+				} else if updated.DepositAddress != "" && obs.To != "" && !strings.EqualFold(obs.To, updated.DepositAddress) {
+					status = "mismatch"
+				} else {
+					status = "confirmed"
+				}
+			}
+			s.SetVerification(updated.ID, VerificationResult{
+				Status:        status,
+				Confirmations: conf,
+				CheckedAt:     s.now().Format(time.RFC3339),
+			})
+			if status == "failed" || status == "mismatch" {
+				s.logger.Warn("deposit verification flagged transaction issue",
+					"swap_id", updated.ID, "status", status, "tx_hash", normalizedHash)
+			}
+		}()
 	}
 
 	s.bgWg.Add(1)
@@ -98,7 +161,7 @@ func (s *Service) RecordDeposit(ctx context.Context, params RecordDepositParams)
 		}
 	}()
 
-	return RecordDepositResult{Swap: updated, Deposit: deposit}, nil
+	return RecordDepositResult{Swap: updated, Deposit: deposit, Verification: &initV}, nil
 }
 
 // checkOwner enforces that a swap with an owner is only touched by that owner.

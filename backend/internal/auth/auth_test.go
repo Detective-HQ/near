@@ -246,3 +246,31 @@ func TestVerifyAcceptsChainFamilyAndCanonicalMessage(t *testing.T) {
 		t.Fatalf("mismatched signature err = %v", err)
 	}
 }
+
+func TestNEP413Verification(t *testing.T) {
+	mgr := NewManager(Config{})
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	accountID := hex.EncodeToString(pub) // implicit account
+	nonce, _ := mgr.GenerateNonce(ctx)
+	msg := SignInMessage(nonce)
+	digest := nep413Digest(msg, nonce, accountID)
+	sig := ed25519.Sign(priv, digest)
+
+	session, _, err := mgr.VerifyWalletSignature(ctx, VerifyRequest{
+		ChainFamily:   "near",
+		WalletAddress: accountID,
+		Nonce:         nonce,
+		Message:       msg,
+		Signature:     base58.Encode(sig),
+		PublicKey:     "ed25519:" + base58.Encode(pub),
+	})
+	if err != nil {
+		t.Fatalf("NEP-413 verification failed: %v", err)
+	}
+	if session.WalletAddress != accountID {
+		t.Fatalf("session address = %s, want %s", session.WalletAddress, accountID)
+	}
+}

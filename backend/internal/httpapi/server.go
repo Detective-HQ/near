@@ -145,9 +145,15 @@ func (h *Handler) Routes() []Route {
 		{"POST", "/api/v1/quotes", h.Quotes, true},
 		{"POST", "/api/v1/swaps", h.Swaps, true},
 		{"GET", "/api/v1/swaps/{id}", h.SwapByID, true},
+		{"GET", "/api/v1/swaps/{id}/events", h.SwapEvents, true},
 		{"POST", "/api/v1/swaps/{id}/deposit", h.Deposit, true},
 		{"POST", "/api/v1/swaps/{id}/cancel", h.Cancel, true},
 		{"POST", "/api/v1/swaps/{id}/simulate", h.Simulate, true},
+		{"POST", "/api/v1/swaps/{id}/claim", h.Claim, true},
+		{"GET", "/api/v1/swaps/{id}/deposit-tx", h.DepositTx, true},
+		{"GET", "/api/v1/admin/swaps", h.AdminSwaps, false},
+		{"POST", "/api/v1/admin/swaps/{id}/repoll", h.AdminRepoll, false},
+		{"GET", "/api/v1/admin/provider/health", h.AdminProviderHealth, false},
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	"universal-defi-intelligence/internal/auth"
 	"universal-defi-intelligence/internal/chains/evm"
 	"universal-defi-intelligence/internal/config"
+	"universal-defi-intelligence/internal/risk"
 	"universal-defi-intelligence/internal/swap/domain"
 	"universal-defi-intelligence/internal/swap/memstore"
 	"universal-defi-intelligence/internal/swap/providers/alternative"
@@ -409,5 +410,200 @@ func TestLargeResponsesAreGzipped(t *testing.T) {
 	small := api.do("GET", "/healthz", nil, map[string]string{"Accept-Encoding": "gzip"})
 	if small.Header().Get("Content-Encoding") != "" {
 		t.Fatal("tiny response was compressed")
+	}
+}
+
+func TestClaimSwap(t *testing.T) {
+	api := newTestAPI(t, false, RouterOptions{})
+
+	login := func() (string, string) {
+		key, _ := secp256k1.GeneratePrivateKey()
+		hash := sha3.NewLegacyKeccak256()
+		hash.Write(key.PubKey().SerializeUncompressed()[1:])
+		address, _ := evm.Checksum(hash.Sum(nil)[12:])
+		nonce := decode[map[string]string](t, api.do("POST", "/api/v1/auth/nonce", "{}", nil))
+		rec := api.do("POST", "/api/v1/auth/verify", map[string]any{
+			"chain": "ethereum", "walletAddress": address, "nonce": nonce["nonce"],
+			"message": nonce["message"], "signature": signEVM(t, key, nonce["message"]),
+		}, nil)
+		if rec.Code != 200 {
+			t.Fatalf("verify = %d %s", rec.Code, rec.Body.String())
+		}
+		return decode[map[string]any](t, rec)["token"].(string), address
+	}
+
+	userToken, userAddr := login()
+	intruderToken, _ := login()
+	bearer := func(token string) map[string]string { return map[string]string{"Authorization": "Bearer " + token} }
+
+	recQuote := api.do("POST", "/api/v1/quotes", map[string]any{
+		"originAssetId": "demo:ethereum:eth", "destinationAssetId": "demo:base:usdc", "amountIn": "1",
+		"recipient": userAddr, "refundTo": userAddr,
+	}, nil)
+	quote := decode[struct {
+		Quote SwapQuoteDTO `json:"quote"`
+	}](t, recQuote).Quote
+
+	recCreate := api.do("POST", "/api/v1/swaps", map[string]any{"quoteId": quote.ID}, map[string]string{"Idempotency-Key": "claim-key-1"})
+	created := decode[struct {
+		Swap SwapRecordDTO `json:"swap"`
+	}](t, recCreate).Swap
+
+	// Anonymous claim -> 401
+	expectError(t, api.do("POST", "/api/v1/swaps/"+created.ID+"/claim", "{}", nil), http.StatusUnauthorized, "UNAUTHORIZED")
+
+	// Intruder claim -> 403
+	expectError(t, api.do("POST", "/api/v1/swaps/"+created.ID+"/claim", "{}", bearer(intruderToken)), http.StatusForbidden, "FORBIDDEN")
+
+	// Owner claim -> 200
+	claimed := decode[struct {
+		Swap SwapRecordDTO `json:"swap"`
+	}](t, api.do("POST", "/api/v1/swaps/"+created.ID+"/claim", "{}", bearer(userToken))).Swap
+	if claimed.ID != created.ID {
+		t.Fatalf("claimed ID = %s, want %s", claimed.ID, created.ID)
+	}
+
+	// Intruder try to reclaim -> 403
+	expectError(t, api.do("POST", "/api/v1/swaps/"+created.ID+"/claim", "{}", bearer(intruderToken)), http.StatusForbidden, "FORBIDDEN")
+
+	// User activity now contains this swap
+	act := decode[struct {
+		Swaps []SwapRecordDTO `json:"swaps"`
+	}](t, api.do("GET", "/api/v1/activity", nil, bearer(userToken)))
+	if len(act.Swaps) != 1 || act.Swaps[0].ID != created.ID {
+		t.Fatalf("user activity = %+v", act)
+	}
+}
+
+func TestSwapEventsSSE(t *testing.T) {
+	api := newTestAPI(t, false, RouterOptions{})
+
+	quote := decode[struct {
+		Quote SwapQuoteDTO `json:"quote"`
+	}](t, api.do("POST", "/api/v1/quotes", map[string]any{
+		"originAssetId": "demo:ethereum:eth", "destinationAssetId": "demo:base:usdc", "amountIn": "1",
+	}, nil)).Quote
+
+	created := decode[struct {
+		Swap SwapRecordDTO `json:"swap"`
+	}](t, api.do("POST", "/api/v1/swaps", map[string]any{"quoteId": quote.ID}, map[string]string{"Idempotency-Key": "events-key-1"})).Swap
+
+	// Advance to terminal state so handler exits immediately after initial event
+	api.do("POST", "/api/v1/swaps/"+created.ID+"/cancel", "{}", nil)
+
+	rec := api.do("GET", "/api/v1/swaps/"+created.ID+"/events", nil, map[string]string{"Accept": "text/event-stream"})
+	if rec.Code != 200 {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
+		t.Fatalf("content-type = %s, want text/event-stream", ct)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "event: swap") || !strings.Contains(body, created.ID) {
+		t.Fatalf("SSE body did not contain initial swap: %s", body)
+	}
+}
+
+func newTestAPIWithAdmin(t *testing.T, adminToken string) *testAPI {
+	t.Helper()
+	swaps, err := service.New(service.Config{
+		Store:     memstore.New(),
+		Provider:  alternative.New(),
+		QuoteMode: config.QuoteModeDemo,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{
+		Security: config.SecurityConfig{
+			AdminToken: adminToken,
+		},
+	}
+	riskEngine := risk.NewEngine(risk.Config{})
+	handler, err := NewHandler(HandlerOptions{
+		Swaps:  swaps,
+		Auth:   auth.NewManager(auth.Config{AuthRequired: false, Registry: swaps.Registry()}),
+		Risk:   riskEngine,
+		Config: cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &testAPI{t: t, handler: NewRouter(handler, slog.New(slog.NewTextHandler(io.Discard, nil)), RouterOptions{RateLimitRPS: 1000, RateLimitBurst: 1000})}
+}
+
+func TestDepositTx(t *testing.T) {
+	api := newTestAPI(t, false, RouterOptions{})
+
+	quote := decode[struct {
+		Quote SwapQuoteDTO `json:"quote"`
+	}](t, api.do("POST", "/api/v1/quotes", map[string]any{
+		"originAssetId": "demo:ethereum:eth", "destinationAssetId": "demo:base:usdc", "amountIn": "1",
+	}, nil)).Quote
+
+	created := decode[struct {
+		Swap SwapRecordDTO `json:"swap"`
+	}](t, api.do("POST", "/api/v1/swaps", map[string]any{"quoteId": quote.ID}, map[string]string{"Idempotency-Key": "deposit-tx-1"})).Swap
+
+	rec := api.do("GET", "/api/v1/swaps/"+created.ID+"/deposit-tx", nil, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	dto := decode[DepositTxDTO](t, rec)
+	if dto.Family != "EVM" && dto.Family != "evm" {
+		t.Fatalf("family = %s, want EVM", dto.Family)
+	}
+	if dto.Payload == nil {
+		t.Fatal("payload must not be nil")
+	}
+}
+
+func TestAdminEndpoints(t *testing.T) {
+	api := newTestAPIWithAdmin(t, "secret-token")
+
+	// 1. Without token -> 401
+	rec := api.do("GET", "/api/v1/admin/swaps", nil, nil)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+
+	// 2. With wrong token -> 401
+	rec = api.do("GET", "/api/v1/admin/swaps", nil, map[string]string{"Authorization": "Bearer wrong"})
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+
+	// 3. With correct token -> 200
+	rec = api.do("GET", "/api/v1/admin/swaps", nil, map[string]string{"Authorization": "Bearer secret-token"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	// 4. Provider health -> 200
+	rec = api.do("GET", "/api/v1/admin/provider/health", nil, map[string]string{"Authorization": "Bearer secret-token"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	var health map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &health)
+	if health["status"] == nil || health["circuitBreaker"] == nil {
+		t.Fatalf("provider health missing fields: %v", health)
+	}
+
+	// 5. Repoll -> create swap and repoll
+	quote := decode[struct {
+		Quote SwapQuoteDTO `json:"quote"`
+	}](t, api.do("POST", "/api/v1/quotes", map[string]any{
+		"originAssetId": "demo:ethereum:eth", "destinationAssetId": "demo:base:usdc", "amountIn": "1",
+	}, nil)).Quote
+	created := decode[struct {
+		Swap SwapRecordDTO `json:"swap"`
+	}](t, api.do("POST", "/api/v1/swaps", map[string]any{"quoteId": quote.ID}, map[string]string{"Idempotency-Key": "admin-repoll-1"})).Swap
+
+	rec = api.do("POST", "/api/v1/admin/swaps/"+created.ID+"/repoll", "{}", map[string]string{"Authorization": "Bearer secret-token"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("repoll status = %d, want 200: %s", rec.Code, rec.Body.String())
 	}
 }

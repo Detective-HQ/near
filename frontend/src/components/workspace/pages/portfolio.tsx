@@ -134,6 +134,12 @@ export function PortfolioPage() {
       <PageHeader title="Portfolio" sub="Your balances, read-only." testData={testData} />
       <ViewStateBlock view="portfolio" state={state} onAction={portfolioRes.reload} />
 
+      {portfolioRes.data?.notice && (
+        <p className="subtle-meta" style={{ marginTop: "0.5rem", marginBottom: "1rem" }}>
+          {portfolioRes.data.notice}
+        </p>
+      )}
+
       {all.length > 0 && (
         <>
           <div className="metric-strip">

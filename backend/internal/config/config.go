@@ -76,6 +76,8 @@ type SecurityConfig struct {
 	RateLimitBurst int
 	// MetricsToken, when set, is required as a bearer token on /metrics.
 	MetricsToken string
+	// AdminToken, when set, is required as a bearer token on /api/v1/admin/* operations routes.
+	AdminToken string
 	// WorkerMetricsAddr, when set, makes the worker serve /metrics there.
 	WorkerMetricsAddr string
 }
@@ -204,6 +206,7 @@ type rawConfig struct {
 	RateLimitRPS          int    `env:"RATE_LIMIT_RPS" envDefault:"20"`
 	RateLimitBurst        int    `env:"RATE_LIMIT_BURST" envDefault:"40"`
 	MetricsToken          string `env:"METRICS_TOKEN"`
+	AdminToken            string `env:"ADMIN_TOKEN"`
 	WorkerMetricsAddr     string `env:"WORKER_METRICS_ADDR"`
 
 	LogLevel  string `env:"LOG_LEVEL" envDefault:"info"`
@@ -519,6 +522,7 @@ func build(raw rawConfig) (*Config, error) {
 			RateLimitRPS:       float64(raw.RateLimitRPS),
 			RateLimitBurst:     raw.RateLimitBurst,
 			MetricsToken:       strings.TrimSpace(raw.MetricsToken),
+			AdminToken:         strings.TrimSpace(raw.AdminToken),
 			WorkerMetricsAddr:  strings.TrimSpace(raw.WorkerMetricsAddr),
 		},
 		Log: LogConfig{

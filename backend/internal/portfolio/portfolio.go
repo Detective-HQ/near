@@ -74,6 +74,21 @@ type PriceSource interface {
 	Current(ctx context.Context, keys []string) (map[string]float64, error)
 }
 
+// TokenAsset describes a non-native token available in the catalogue.
+type TokenAsset struct {
+	ID              string
+	Symbol          string
+	Chain           string
+	Decimals        int
+	ContractAddress string
+	PriceKey        string
+}
+
+// TokenCatalogue supplies non-native assets for token balance discovery.
+type TokenCatalogue interface {
+	ListTokens(ctx context.Context, chain string) ([]TokenAsset, error)
+}
+
 // token is a non-native asset read on a chain.
 type token struct {
 	symbol   string
@@ -107,6 +122,7 @@ type Config struct {
 	Registry   *registry.Registry
 	HTTPClient *http.Client
 	Prices     PriceSource // nil = no USD values
+	Catalogue  TokenCatalogue
 	Timeout    time.Duration
 	CacheTTL   time.Duration
 	Now        func() time.Time
@@ -170,8 +186,11 @@ func (r *Reader) Chains(address, only string) (map[string]string, error) {
 			add(registry.FamilyMove, a)
 		}
 	}
-	if a, err := near.ParseAccountID(address); err == nil {
-		add(registry.FamilyNEAR, a)
+	// EVM addresses (0x + 40 hex without dot) are not NEAR accounts.
+	if !strings.HasPrefix(strings.ToLower(address), "0x") || strings.Contains(address, ".") {
+		if a, err := near.ParseAccountID(address); err == nil {
+			add(registry.FamilyNEAR, a)
+		}
 	}
 	if only != "" {
 		key, ok := r.cfg.Registry.Canonical(only)
@@ -192,11 +211,16 @@ func (r *Reader) Chains(address, only string) (map[string]string, error) {
 
 // Read returns balances for address (optionally one chain), cached briefly.
 func (r *Reader) Read(ctx context.Context, address, only string) (Result, error) {
+	return r.ReadTokens(ctx, address, only, "catalogue")
+}
+
+// ReadTokens returns balances for address (optionally one chain and token filter), cached briefly.
+func (r *Reader) ReadTokens(ctx context.Context, address, only, tokens string) (Result, error) {
 	targets, err := r.Chains(address, only)
 	if err != nil {
 		return Result{}, err
 	}
-	key := strings.ToLower(strings.TrimSpace(address)) + "|" + strings.ToLower(only)
+	key := strings.ToLower(strings.TrimSpace(address)) + "|" + strings.ToLower(only) + "|" + strings.ToLower(tokens)
 	now := r.cfg.Now()
 	r.mu.Lock()
 	if c, ok := r.cache[key]; ok && now.Sub(c.at) < r.cfg.CacheTTL {
@@ -208,7 +232,7 @@ func (r *Reader) Read(ctx context.Context, address, only string) (Result, error)
 	v, err, _ := r.flight.Do(key, func() (any, error) {
 		readCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*r.cfg.Timeout)
 		defer cancel()
-		res, readErr := r.read(readCtx, targets)
+		res, readErr := r.read(readCtx, targets, tokens)
 		if readErr != nil {
 			return nil, readErr
 		}
@@ -228,7 +252,7 @@ func (r *Reader) Read(ctx context.Context, address, only string) (Result, error)
 	return v.(Result), nil
 }
 
-func (r *Reader) read(ctx context.Context, targets map[string]string) (Result, error) {
+func (r *Reader) read(ctx context.Context, targets map[string]string, tokens string) (Result, error) {
 	type outcome struct {
 		holdings []Holding
 		err      error
@@ -246,7 +270,7 @@ func (r *Reader) read(ctx context.Context, targets map[string]string) (Result, e
 		i, key := i, key
 		group.Go(func() error {
 			chain, _ := r.cfg.Registry.Get(key)
-			h, err := r.readChain(groupCtx, chain, targets[key])
+			h, err := r.readChain(groupCtx, chain, targets[key], tokens)
 			outcomes[i] = outcome{holdings: h, err: err}
 			return nil
 		})
@@ -316,11 +340,13 @@ func (r *Reader) holding(chain registry.Chain, symbol, assetID string, amount *b
 		PriceKey: priceKey, Source: source, AsOf: r.cfg.Now()}
 }
 
-func (r *Reader) readChain(ctx context.Context, chain registry.Chain, address string) ([]Holding, error) {
+func (r *Reader) readChain(ctx context.Context, chain registry.Chain, address, tokens string) ([]Holding, error) {
 	urls := r.endpoints(chain)
 	native := chain.NativeCurrency
 	nativeID := chain.Key + ":" + strings.ToLower(native.Symbol)
 	source := chain.Name + " RPC"
+	includeCatalogue := strings.EqualFold(tokens, "catalogue") || tokens == ""
+
 	switch chain.Family {
 	case registry.FamilyEVM:
 		client := &jsonrpc.Client{URLs: urls, HTTPClient: r.cfg.HTTPClient, Timeout: r.cfg.Timeout}
@@ -333,11 +359,24 @@ func (r *Reader) readChain(ctx context.Context, chain registry.Chain, address st
 			return nil, err
 		}
 		out := []Holding{r.holding(chain, native.Symbol, nativeID, bal, native.Decimals, nativePriceKeys[chain.Key], source)}
-		if t, ok := usdcByChain[chain.Key]; ok {
+
+		var catTokens []TokenAsset
+		if includeCatalogue && r.cfg.Catalogue != nil {
+			catTokens, _ = r.cfg.Catalogue.ListTokens(ctx, chain.Key)
+		}
+
+		var multicallHoldings []Holding
+		if len(catTokens) > 0 {
+			multicallHoldings = r.readEVMTokens(ctx, client, chain, address, catTokens)
+		}
+
+		if len(multicallHoldings) > 0 {
+			out = append(out, multicallHoldings...)
+		} else if t, ok := usdcByChain[chain.Key]; ok {
 			data := "0x70a08231" + strings.Repeat("0", 24) + strings.ToLower(strings.TrimPrefix(address, "0x"))
 			var hexTok string
 			if err := client.Call(ctx, "eth_call", []any{map[string]string{"to": t.contract, "data": data}, "latest"}, &hexTok); err == nil {
-				if tb, perr := parseHexQuantity(hexTok); perr == nil {
+				if tb, perr := parseHexQuantity(hexTok); perr == nil && tb.Sign() > 0 {
 					out = append(out, r.holding(chain, t.symbol, chain.Key+":usdc", tb, t.decimals, t.priceKey, source))
 				}
 			}
@@ -352,7 +391,16 @@ func (r *Reader) readChain(ctx context.Context, chain registry.Chain, address st
 		if err := client.Call(ctx, "getBalance", []any{address}, &res); err != nil {
 			return nil, err
 		}
-		return []Holding{r.holding(chain, native.Symbol, nativeID, new(big.Int).SetUint64(res.Value), native.Decimals, nativePriceKeys[chain.Key], source)}, nil
+		out := []Holding{r.holding(chain, native.Symbol, nativeID, new(big.Int).SetUint64(res.Value), native.Decimals, nativePriceKeys[chain.Key], source)}
+		if includeCatalogue {
+			var catTokens []TokenAsset
+			if r.cfg.Catalogue != nil {
+				catTokens, _ = r.cfg.Catalogue.ListTokens(ctx, chain.Key)
+			}
+			spls := r.readSolanaSPLTokens(ctx, client, chain, address, catTokens)
+			out = append(out, spls...)
+		}
+		return out, nil
 
 	case registry.FamilyNEAR:
 		client := &jsonrpc.Client{URLs: urls, HTTPClient: r.cfg.HTTPClient, Timeout: r.cfg.Timeout}

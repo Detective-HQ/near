@@ -237,6 +237,26 @@ function NetworkBanner() {
   );
 }
 
+function CapabilityBanner() {
+  const { capabilities } = useWorkspace();
+  if (!capabilities) return null;
+  if (capabilities.demoMode) {
+    return (
+      <div className="fixture-banner ws-banner" role="status">
+        <p>Demo mode: swaps are simulations.</p>
+      </div>
+    );
+  }
+  if (capabilities.quoteMode === "live" && !capabilities.executionEnabled) {
+    return (
+      <div className="fixture-banner ws-banner" role="status">
+        <p>Live execution is off.</p>
+      </div>
+    );
+  }
+  return null;
+}
+
 function Frame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { online, toasts } = useWorkspace();
@@ -296,6 +316,7 @@ function Frame({ children }: { children: ReactNode }) {
           </div>
         )}
         <NetworkBanner />
+        <CapabilityBanner />
         <main className="app-content" id="ws-main" tabIndex={-1}>
           {children}
         </main>

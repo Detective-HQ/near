@@ -45,7 +45,7 @@ func (b *bufferedWriter) Write(p []byte) (int, error) {
 // transfer time on real networks. Writers and buffers are pooled.
 func Gzip(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") || r.Method == http.MethodHead {
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") || r.Method == http.MethodHead || strings.HasSuffix(r.URL.Path, "/events") || r.Header.Get("Accept") == "text/event-stream" {
 			next.ServeHTTP(w, r)
 			return
 		}

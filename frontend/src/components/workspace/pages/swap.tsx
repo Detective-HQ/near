@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { api, ApiRequestError, USE_MOCKS } from "../../../lib/api-client";
+import { api, ApiRequestError, UnauthorizedError, USE_MOCKS } from "../../../lib/api-client";
 import type { Catalogue } from "../../../lib/api-client";
 import type { SwapQuote, SwapRecord } from "../../../lib/contracts";
 import { bpsToPercent, cmp, div, formatDecimal, formatPercent, fromAtomic, percentToBps } from "../../../lib/decimal";
@@ -106,7 +106,7 @@ function formatSeconds(s: number | null | undefined): string {
 }
 
 export function SwapPage() {
-  const { catalogue, risk, online, wallet, chainName, chainByKey, toast } = useWorkspace();
+  const { catalogue, risk, online, wallet, chainName, chainByKey, toast, capabilities } = useWorkspace();
   const { get, update } = useUrlParams();
   const assets = catalogue.data?.assets ?? [];
   const byId = (id: string) => assets.find((a) => a.id === id) ?? null;
@@ -277,7 +277,21 @@ export function SwapPage() {
         } : null,
         onProgress: (p, swap) => {
           setPhase(p);
-          if (swap) setRecord(swap);
+          if (swap) {
+            setRecord(swap);
+            if (!wallet.session) {
+              try {
+                const raw = localStorage.getItem("udi_anonymous_swaps");
+                const arr: string[] = raw ? JSON.parse(raw) : [];
+                if (!arr.includes(swap.id)) {
+                  arr.push(swap.id);
+                  localStorage.setItem("udi_anonymous_swaps", JSON.stringify(arr));
+                }
+              } catch {
+                // Ignore storage issues
+              }
+            }
+          }
         },
       });
       if (result.kind === "rejected") {
@@ -329,8 +343,22 @@ export function SwapPage() {
 
   return (
     <>
-      <PageHeader title="Swap" sub="Move assets across chains from your own wallet." testData={testData} />
+      <PageHeader
+        title="Swap"
+        sub="Move assets across chains from your own wallet."
+        testData={testData}
+        simulation={catalogue.data?.simulation}
+      />
       <ViewStateBlock view="swap" state={state} onAction={catalogue.reload} />
+
+      {capabilities?.authRequired && wallet.connected && !wallet.session && (
+        <div className="fixture-banner ws-banner" role="status">
+          <p>Sign in with your wallet to continue.</p>
+          <button type="button" className="button button-secondary button-small" disabled={wallet.signingIn} onClick={() => void wallet.signIn()}>
+            {wallet.signingIn ? "Signing in..." : "Sign in"}
+          </button>
+        </div>
+      )}
 
       {catalogue.data && (
         <div className="content-grid">
@@ -396,8 +424,20 @@ export function SwapPage() {
             {quoteStatus === "loading" && <p className="subtle-meta">Getting quote...</p>}
             {quoteStatus === "error" && !routeError && (
               <div className="empty-state ws-state" role="alert">
-                <p>{quoteError instanceof ApiRequestError && (quoteError.status >= 502 || quoteError.code === "API_UNAVAILABLE") ? "Data unavailable right now." : "Something went wrong. Please try again."}</p>
-                <button type="button" className="button button-secondary button-small" onClick={() => setRefreshNonce((v) => v + 1)}>Retry</button>
+                <p>
+                  {quoteError instanceof UnauthorizedError || (quoteError as { status?: number })?.status === 401
+                    ? "Sign in with your wallet to continue."
+                    : quoteError instanceof ApiRequestError && (quoteError.status >= 502 || quoteError.code === "API_UNAVAILABLE")
+                    ? "Data unavailable right now."
+                    : "Something went wrong. Please try again."}
+                </p>
+                {quoteError instanceof UnauthorizedError || (quoteError as { status?: number })?.status === 401 ? (
+                  <button type="button" className="button button-secondary button-small" disabled={wallet.signingIn} onClick={() => void wallet.signIn()}>
+                    {wallet.signingIn ? "Signing in..." : "Sign in"}
+                  </button>
+                ) : (
+                  <button type="button" className="button button-secondary button-small" onClick={() => setRefreshNonce((v) => v + 1)}>Retry</button>
+                )}
               </div>
             )}
             {quote && quoteStatus === "ready" && (

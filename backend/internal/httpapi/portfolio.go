@@ -35,10 +35,10 @@ type PortfolioResponseDTO struct {
 	Notice        string                `json:"notice"`
 }
 
-const portfolioNotice = "Read-only on-chain balances: native assets on every chain family the address matches, plus USDC on EVM chains. Other tokens need an indexer and are not shown."
+const portfolioNotice = "Read-only on-chain balances: native assets on every chain family the address matches, plus USDC and catalogue tokens on EVM and Solana. Other tokens need an indexer and are not shown."
 
 // Portfolio reads real on-chain balances for ?address= (or the signed-in
-// wallet), optionally limited to ?chain=. USD values come from DeFiLlama only
+// wallet), optionally limited to ?chain= and ?tokens=. USD values come from DeFiLlama only
 // when live market data is enabled; otherwise they are null.
 func (h *Handler) Portfolio(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
@@ -49,6 +49,7 @@ func (h *Handler) Portfolio(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	chain := strings.ToLower(strings.TrimSpace(q.Get("chain")))
+	tokens := strings.ToLower(strings.TrimSpace(q.Get("tokens")))
 	var chainPtr *string
 	if chain != "" {
 		chainPtr = &chain
@@ -71,7 +72,7 @@ func (h *Handler) Portfolio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := h.portfolio.Read(r.Context(), address, chain)
+	res, err := h.portfolio.ReadTokens(r.Context(), address, chain, tokens)
 	if err != nil {
 		switch {
 		case errors.Is(err, portfolio.ErrInvalidAddress):

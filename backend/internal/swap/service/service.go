@@ -9,10 +9,18 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"universal-defi-intelligence/internal/chains/registry"
+	"universal-defi-intelligence/internal/chains/rpc"
 	"universal-defi-intelligence/internal/config"
 	"universal-defi-intelligence/internal/swap/domain"
 	"universal-defi-intelligence/internal/swap/providers"
 )
+
+// VerificationResult describes the on-chain deposit verification observation.
+type VerificationResult struct {
+	Status        string `json:"status"` // "pending" | "confirmed" | "failed" | "mismatch"
+	Confirmations uint64 `json:"confirmations"`
+	CheckedAt     string `json:"checkedAt"`
+}
 
 // Store defines the persistence operations required by the swap service.
 // *repository.Store (PostgreSQL) and *memstore.Store both satisfy it.
@@ -42,6 +50,9 @@ type Store interface {
 	GetAssetByID(ctx context.Context, id string) (domain.Asset, error)
 	ListAssets(ctx context.Context, chain string) ([]domain.Asset, error)
 	UpsertAssets(ctx context.Context, assets []domain.Asset, source string, observedAt time.Time) (int, error)
+	ClaimSwap(ctx context.Context, id, principal, wallet string) (domain.Swap, error)
+	ListStuckSwaps(ctx context.Context, limit int) ([]domain.Swap, error)
+	RepollSwap(ctx context.Context, id string) (domain.Swap, error)
 }
 
 // ProviderObserver receives the outcome of every provider call. The risk
@@ -65,6 +76,7 @@ type Config struct {
 	CatalogueTTL time.Duration
 	Observer     ProviderObserver
 	Logger       *slog.Logger
+	Verifier     rpc.ReceiptVerifier
 	Now          func() time.Time
 }
 
@@ -80,8 +92,14 @@ type Service struct {
 	catalogueTTL        time.Duration
 	observer            ProviderObserver
 	logger              *slog.Logger
+	verifier            rpc.ReceiptVerifier
 	now                 func() time.Time
 	bgWg                sync.WaitGroup
+
+	verificationsMu sync.RWMutex
+	verifications   map[string]VerificationResult
+
+	eventBus *EventBus
 
 	catalogueMu     sync.RWMutex
 	catalogue       *catalogueSnapshot
@@ -156,8 +174,33 @@ func New(cfg Config) (*Service, error) {
 		catalogueTTL:        catalogueTTL,
 		observer:            cfg.Observer,
 		logger:              logger,
+		verifier:            cfg.Verifier,
 		now:                 now,
+		verifications:       make(map[string]VerificationResult),
+		eventBus:            NewEventBus(),
 	}, nil
+}
+
+// EventBus returns the swap event bus for subscribing to lifecycle changes.
+func (s *Service) EventBus() *EventBus {
+	return s.eventBus
+}
+
+// GetVerification returns the deposit verification state for a swap, if any.
+func (s *Service) GetVerification(swapID string) *VerificationResult {
+	s.verificationsMu.RLock()
+	defer s.verificationsMu.RUnlock()
+	if v, ok := s.verifications[swapID]; ok {
+		return &v
+	}
+	return nil
+}
+
+// SetVerification records a deposit verification observation.
+func (s *Service) SetVerification(swapID string, v VerificationResult) {
+	s.verificationsMu.Lock()
+	defer s.verificationsMu.Unlock()
+	s.verifications[swapID] = v
 }
 
 // QuoteMode reports whether the service serves demo or live quotes.
@@ -168,6 +211,19 @@ func (s *Service) LiveExecutionEnabled() bool { return s.enableLiveExecution }
 
 // Registry exposes the chain registry used for validation.
 func (s *Service) Registry() *registry.Registry { return s.registry }
+
+// ListStuckSwaps returns swaps with stuck_at set.
+func (s *Service) ListStuckSwaps(ctx context.Context, limit int) ([]domain.Swap, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	return s.store.ListStuckSwaps(ctx, limit)
+}
+
+// RepollSwap clears stuck_at and sets next_poll_at = now.
+func (s *Service) RepollSwap(ctx context.Context, id string) (domain.Swap, error) {
+	return s.store.RepollSwap(ctx, id)
+}
 
 func (s *Service) observe(err error) {
 	if s.observer != nil {

@@ -216,7 +216,11 @@ func run() error {
 
 	// Portfolio balances are read-only RPC calls; USD values only with live
 	// market data so fixture mode never calls a public price API.
-	portfolioCfg := portfolio.Config{Registry: reg, HTTPClient: httpclient.New(8 * time.Second)}
+	portfolioCfg := portfolio.Config{
+		Registry:   reg,
+		HTTPClient: httpclient.New(8 * time.Second),
+		Catalogue:  swapsTokenAdapter{swaps: swaps},
+	}
 	if cfg.MarketData.Mode == config.MarketDataLive {
 		portfolioCfg.Prices = &portfolio.LlamaPrices{Client: httpclient.New(cfg.MarketData.Timeout)}
 	}
@@ -297,3 +301,30 @@ func newLogger(cfg config.LogConfig) *slog.Logger {
 	}
 	return slog.New(handler)
 }
+
+type swapsTokenAdapter struct {
+	swaps *service.Service
+}
+
+func (a swapsTokenAdapter) ListTokens(ctx context.Context, chain string) ([]portfolio.TokenAsset, error) {
+	assets, _, err := a.swaps.ListAssets(ctx, chain)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]portfolio.TokenAsset, 0, len(assets))
+	for _, asset := range assets {
+		if asset.ContractAddress == "" {
+			continue
+		}
+		out = append(out, portfolio.TokenAsset{
+			ID:              asset.ID,
+			Symbol:          asset.Symbol,
+			Chain:           asset.Chain,
+			Decimals:        asset.Decimals,
+			ContractAddress: asset.ContractAddress,
+			PriceKey:        asset.Chain + ":" + strings.ToLower(asset.ContractAddress),
+		})
+	}
+	return out, nil
+}
+

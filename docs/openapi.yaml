@@ -322,6 +322,10 @@ paths:
           in: query
           description: Optional chain key or alias to read only that chain.
           schema: { type: string }
+        - name: tokens
+          in: query
+          description: Optional token filter, defaults to catalogue to read ERC-20 and SPL tokens.
+          schema: { type: string }
       responses:
         "200":
           description: Balances. quality is live, or partial when some chains did not respond (listed in notice).
@@ -556,6 +560,21 @@ paths:
         "200": { description: Swap., content: { application/json: { schema: { $ref: "#/components/schemas/SwapEnvelope" } } } }
         "403": { $ref: "#/components/responses/Error" }
         "404": { $ref: "#/components/responses/Error" }
+  /api/v1/swaps/{id}/events:
+    get:
+      summary: Server-sent events stream for swap lifecycle updates
+      x-auth: optional-or-required
+      security: [{}, { bearer: [] }, { sessionCookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/SwapId" }]
+      responses:
+        "200":
+          description: Event stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
   /api/v1/swaps/{id}/deposit:
     post:
       summary: Record the wallet's source transaction (advances to DEPOSIT_SUBMITTED atomically)
@@ -582,6 +601,12 @@ paths:
                 properties:
                   swap: { $ref: "#/components/schemas/Swap" }
                   duplicate: { type: boolean }
+                  verification:
+                    type: object
+                    properties:
+                      status: { type: string, enum: [pending, confirmed, failed, mismatch] }
+                      confirmations: { type: integer }
+                      checkedAt: { type: string }
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
@@ -604,3 +629,121 @@ paths:
       responses:
         "200": { description: Swap., content: { application/json: { schema: { $ref: "#/components/schemas/SwapEnvelope" } } } }
         "409": { $ref: "#/components/responses/Error" }
+  /api/v1/swaps/{id}/claim:
+    post:
+      summary: Claim an anonymous swap for the signed-in wallet
+      x-auth: optional-or-required
+      security: [{}, { bearer: [] }, { sessionCookie: [] }]
+      parameters: [{ $ref: "#/components/parameters/SwapId" }]
+      responses:
+        "200": { description: Swap., content: { application/json: { schema: { $ref: "#/components/schemas/SwapEnvelope" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /api/v1/swaps/{id}/deposit-tx:
+    get:
+      summary: Unsigned deposit transaction payload for a browser wallet
+      description: |
+        Returns an unsigned transfer payload (EVM, NEAR, Solana, Stellar, Aptos)
+        for a swap currently in AWAITING_USER_DEPOSIT.
+      x-auth: optional-or-required
+      security: [{}, { bearer: [] }, { sessionCookie: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/SwapId" }
+        - name: from
+          in: query
+          description: Source wallet address.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Unsigned deposit payload.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  family: { type: string }
+                  chainKey: { type: string }
+                  payload: { type: object }
+                  memo: { type: string, nullable: true }
+                  expiresAt: { type: string, nullable: true }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /api/v1/admin/swaps:
+    get:
+      summary: List stuck swaps (operations only, requires ADMIN_TOKEN)
+      security: [{ bearer: [] }]
+      parameters:
+        - name: stuck
+          in: query
+          schema: { type: boolean }
+        - name: limit
+          in: query
+          schema: { type: integer, maximum: 100 }
+      responses:
+        "200":
+          description: Stuck swaps list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  swaps:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        quoteId: { type: string }
+                        state: { type: string }
+                        providerStatus: { type: string, nullable: true }
+                        stuckAt: { type: string }
+                        lastErrorCode: { type: string, nullable: true }
+                        originChain: { type: string }
+                        destinationChain: { type: string }
+                        createdAt: { type: string }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /api/v1/admin/swaps/{id}/repoll:
+    post:
+      summary: Clear stuck_at and immediately repoll a swap (requires ADMIN_TOKEN)
+      security: [{ bearer: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/SwapId" }
+      responses:
+        "200":
+          description: Repoll scheduled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  swapId: { type: string }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /api/v1/admin/provider/health:
+    get:
+      summary: Provider health metrics (requires ADMIN_TOKEN)
+      security: [{ bearer: [] }]
+      responses:
+        "200":
+          description: Provider health.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  circuitBreaker: { type: string }
+                  providerErrorRate: { type: number }
+                  lastSuccessfulPoll: { type: string, nullable: true }
+                  catalogueStale: { type: boolean }
+                  catalogueLastRefreshed: { type: string, nullable: true }
+                  activeAlerts:
+                    type: array
+                    items: { type: string }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }

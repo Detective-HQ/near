@@ -221,6 +221,63 @@ func (s *Store) GetSwapByIdempotencyKey(_ context.Context, key string) (domain.S
 	return s.swaps[id], nil
 }
 
+// ClaimSwap assigns an unowned swap to the principal if the wallet matches.
+func (s *Store) ClaimSwap(_ context.Context, id, principal, wallet string) (domain.Swap, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	swap, ok := s.swaps[id]
+	if !ok {
+		return domain.Swap{}, domain.New(domain.CodeSwapNotFound, "Swap not found.")
+	}
+	if swap.SessionID != "" && !strings.EqualFold(swap.SessionID, principal) {
+		return domain.Swap{}, domain.New(domain.CodeForbidden, "Swap is already claimed.")
+	}
+	if !strings.EqualFold(swap.RefundAddress, wallet) && !strings.EqualFold(swap.RecipientAddress, wallet) {
+		return domain.Swap{}, domain.New(domain.CodeForbidden, "Wallet does not match swap recipient or refund address.")
+	}
+	swap.SessionID = principal
+	swap.UpdatedAt = s.now()
+	s.swaps[id] = swap
+	return swap, nil
+}
+
+// ListStuckSwaps returns swaps with stuck_at set, ordered by stuck_at descending.
+func (s *Store) ListStuckSwaps(_ context.Context, limit int) ([]domain.Swap, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var list []domain.Swap
+	for _, sw := range s.swaps {
+		if !sw.StuckAt.IsZero() {
+			list = append(list, sw)
+		}
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].StuckAt.After(list[j].StuckAt)
+	})
+	if limit > 0 && len(list) > limit {
+		list = list[:limit]
+	}
+	return list, nil
+}
+
+// RepollSwap clears stuck_at and sets next_poll_at to now.
+func (s *Store) RepollSwap(_ context.Context, id string) (domain.Swap, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	sw, ok := s.swaps[id]
+	if !ok {
+		return domain.Swap{}, domain.New(domain.CodeSwapNotFound, "Swap not found.")
+	}
+	now := s.now()
+	sw.StuckAt = time.Time{}
+	sw.NextPollAt = now
+	sw.UpdatedAt = now
+	s.swaps[id] = sw
+	return sw, nil
+}
+
 // UpdateSwapState applies one optimistic transition plus its audit event.
 func (s *Store) UpdateSwapState(
 	_ context.Context,

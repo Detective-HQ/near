@@ -102,24 +102,55 @@ type TxRefsDTO struct {
 	Refund      *string `json:"refund"`
 }
 
+type DepositVerificationDTO struct {
+	Status        string `json:"status"`
+	Confirmations uint64 `json:"confirmations"`
+	CheckedAt     string `json:"checkedAt"`
+}
+
+type DepositTxDTO struct {
+	Family    string  `json:"family"`
+	ChainKey  string  `json:"chainKey"`
+	Payload   any     `json:"payload"`
+	Memo      *string `json:"memo,omitempty"`
+	ExpiresAt *string `json:"expiresAt,omitempty"`
+}
+
+type AdminSwapDTO struct {
+	ID             string  `json:"id"`
+	QuoteID        string  `json:"quoteId"`
+	State          string  `json:"state"`
+	ProviderStatus *string `json:"providerStatus"`
+	StuckAt        string  `json:"stuckAt"`
+	LastErrorCode  *string `json:"lastErrorCode"`
+	OriginChain    string  `json:"originChain"`
+	DestChain      string  `json:"destinationChain"`
+	CreatedAt      string  `json:"createdAt"`
+}
+
+type AdminSwapsResponseDTO struct {
+	Swaps []AdminSwapDTO `json:"swaps"`
+}
+
 type SwapRecordDTO struct {
-	ID               string         `json:"id"`
-	QuoteID          string         `json:"quoteId"`
-	State            string         `json:"state"`
-	ProviderStatus   *string        `json:"providerStatus"`
-	Mode             string         `json:"mode"`
-	RealSettlement   bool           `json:"realSettlement"`
-	Simulated        bool           `json:"simulated"`
-	ProviderUpdated  *string        `json:"providerUpdatedAt,omitempty"`
-	Transactions     TxRefsDTO      `json:"transactions"`
-	TransactionLinks TxRefsDTO      `json:"transactionLinks"`
-	DepositAddress   *string        `json:"depositAddress"`
-	DepositMemo      *string        `json:"depositMemo"`
-	ExpiresAt        *string        `json:"expiresAt"`
-	CreatedAt        string         `json:"createdAt"`
-	UpdatedAt        string         `json:"updatedAt"`
-	Events           []SwapEventDTO `json:"events"`
-	Quote            SwapQuoteDTO   `json:"quote"`
+	ID               string                  `json:"id"`
+	QuoteID          string                  `json:"quoteId"`
+	State            string                  `json:"state"`
+	ProviderStatus   *string                 `json:"providerStatus"`
+	Mode             string                  `json:"mode"`
+	RealSettlement   bool                    `json:"realSettlement"`
+	Simulated        bool                    `json:"simulated"`
+	ProviderUpdated  *string                 `json:"providerUpdatedAt,omitempty"`
+	Transactions     TxRefsDTO               `json:"transactions"`
+	TransactionLinks TxRefsDTO               `json:"transactionLinks"`
+	DepositAddress   *string                 `json:"depositAddress"`
+	DepositMemo      *string                 `json:"depositMemo"`
+	ExpiresAt        *string                 `json:"expiresAt"`
+	CreatedAt        string                  `json:"createdAt"`
+	UpdatedAt        string                  `json:"updatedAt"`
+	Events           []SwapEventDTO          `json:"events"`
+	Quote            SwapQuoteDTO            `json:"quote"`
+	Verification     *DepositVerificationDTO `json:"verification,omitempty"`
 }
 
 type MetricDTO struct {
@@ -423,6 +454,14 @@ func (h *Handler) swapDTO(ctx context.Context, view service.SwapView) SwapRecord
 	if !swap.LastPolledAt.IsZero() {
 		providerUpdated = timePtr(swap.LastPolledAt)
 	}
+	var verification *DepositVerificationDTO
+	if v := h.swaps.GetVerification(swap.ID); v != nil {
+		verification = &DepositVerificationDTO{
+			Status:        v.Status,
+			Confirmations: v.Confirmations,
+			CheckedAt:     v.CheckedAt,
+		}
+	}
 	return SwapRecordDTO{
 		ID:               swap.ID,
 		QuoteID:          swap.QuoteID,
@@ -441,6 +480,7 @@ func (h *Handler) swapDTO(ctx context.Context, view service.SwapView) SwapRecord
 		UpdatedAt:        swap.UpdatedAt.UTC().Format(time.RFC3339),
 		Events:           events,
 		Quote:            h.quoteDTO(ctx, view.Quote),
+		Verification:     verification,
 	}
 }
 

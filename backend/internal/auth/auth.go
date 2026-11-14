@@ -19,6 +19,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -249,7 +250,7 @@ func (m *Manager) VerifyWalletSignature(ctx context.Context, req VerifyRequest) 
 		if parseErr != nil {
 			return nil, "", fmt.Errorf("%w: %v", ErrInvalidSignature, parseErr)
 		}
-		if err := m.verifyNEARSignature(ctx, account, req.PublicKey, req.Message, req.Signature); err != nil {
+		if err := m.verifyNEARSignature(ctx, account, req.PublicKey, req.Message, req.Nonce, req.Signature); err != nil {
 			return nil, "", fmt.Errorf("%w: %v", ErrInvalidSignature, err)
 		}
 		wallet = account
@@ -433,7 +434,37 @@ func verifySolanaSignature(walletAddress, message, signature string) error {
 	return nil
 }
 
-func (m *Manager) verifyNEARSignature(ctx context.Context, accountID, publicKey, message, signature string) error {
+func nep413Digest(message, nonce, recipient string) []byte {
+	var buf []byte
+	tag := make([]byte, 4)
+	binary.LittleEndian.PutUint32(tag, 2147484061)
+	buf = append(buf, tag...)
+
+	msgLen := make([]byte, 4)
+	binary.LittleEndian.PutUint32(msgLen, uint32(len(message)))
+	buf = append(buf, msgLen...)
+	buf = append(buf, []byte(message)...)
+
+	nonceBytes := make([]byte, 32)
+	if nRaw, err := hex.DecodeString(strings.TrimPrefix(nonce, "0x")); err == nil && len(nRaw) <= 32 {
+		copy(nonceBytes, nRaw)
+	} else {
+		copy(nonceBytes, []byte(nonce))
+	}
+	buf = append(buf, nonceBytes...)
+
+	recLen := make([]byte, 4)
+	binary.LittleEndian.PutUint32(recLen, uint32(len(recipient)))
+	buf = append(buf, recLen...)
+	buf = append(buf, []byte(recipient)...)
+
+	buf = append(buf, 0) // CallbackUrl Option<string> = None
+
+	hash := sha256.Sum256(buf)
+	return hash[:]
+}
+
+func (m *Manager) verifyNEARSignature(ctx context.Context, accountID, publicKey, message, nonce, signature string) error {
 	keyB58 := strings.TrimPrefix(strings.TrimSpace(publicKey), "ed25519:")
 	if keyB58 == "" {
 		return errors.New("near public key is required")
@@ -446,7 +477,12 @@ func (m *Manager) verifyNEARSignature(ctx context.Context, accountID, publicKey,
 	if err != nil || len(sig) != ed25519.SignatureSize {
 		return errors.New("invalid near signature format")
 	}
-	if !ed25519.Verify(pubKey, []byte(message), sig) {
+	valid := ed25519.Verify(pubKey, []byte(message), sig)
+	if !valid {
+		digest := nep413Digest(message, nonce, accountID)
+		valid = ed25519.Verify(pubKey, digest, sig)
+	}
+	if !valid {
 		return errors.New("near ed25519 signature mismatch")
 	}
 

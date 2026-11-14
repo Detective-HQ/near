@@ -216,4 +216,5 @@ export interface PortfolioResponse extends Provenance {
   chain: string | null;
   totalValueUsd: string | null;
   balances: PortfolioBalance[];
+  notice?: string;
 }

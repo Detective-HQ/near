@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from "react";
 import { api } from "../../lib/api-client";
 import type { AuthSession, Catalogue, RiskReport } from "../../lib/api-client";
-import type { ChainConfig } from "../../lib/contracts";
+import type { ChainConfig, HealthStatus } from "../../lib/contracts";
 import { createReadOnlyEvmWallet, parseRpcQuantity } from "../../lib/evm-wallet";
 import type { Eip1193Provider, EvmWalletState, ReadOnlyEvmWallet } from "../../lib/evm-wallet";
 import { isUserRejection } from "../../lib/swap-runner";
@@ -13,14 +13,26 @@ import type { Resource } from "./hooks";
 
 export type ToastMessage = "Copied" | "Wallet connected" | "Wallet disconnected" | "Request rejected in wallet" | "Signed in" | "Signed out" | "Sign-in failed";
 
+export interface WorkspaceCapabilities {
+  quoteMode: "demo" | "live";
+  demoMode: boolean;
+  marketDataMode: "fixture" | "live";
+  executionEnabled: boolean;
+  authRequired: boolean;
+}
+
 export interface WalletOption {
   id: string;
   name: string;
-  provider: Eip1193Provider;
+  family?: "evm" | "near" | "solana";
+  provider?: Eip1193Provider;
+  connectCustom?: () => Promise<{ account: string; chainId: string }>;
+  signMessageCustom?: (message: string) => Promise<{ signature: string; publicKey?: string }>;
 }
 
 export interface WalletApi {
   state: EvmWalletState;
+  family: "evm" | "near" | "solana";
   provider: Eip1193Provider | null;
   /** native balance in atomic units, read from the wallet's RPC */
   balanceAtomic: string | null;
@@ -38,9 +50,12 @@ export interface WalletApi {
   signingIn: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  signAndSendPayload?: (tx: { family: string; chainKey: string; payload: unknown; memo?: string | null }) => Promise<string>;
 }
 
 interface WorkspaceValue {
+  capabilities: WorkspaceCapabilities | null;
+  health: Resource<HealthStatus>;
   chains: Resource<ChainConfig[]>;
   catalogue: Resource<Catalogue>;
   risk: Resource<RiskReport>;
@@ -78,9 +93,23 @@ interface Eip6963Detail {
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const online = useOnline();
+  const health = useResource("health", api.health);
   const chains = useResource("chains", api.chains);
   const catalogue = useResource("catalogue", () => api.assets());
   const risk = useResource("risk", api.risk);
+
+  const capabilities = useMemo<WorkspaceCapabilities | null>(() => {
+    const h = health.data;
+    if (!h) return null;
+    const qm = h.quoteMode ?? (h.mode === "live" ? "live" : "demo");
+    return {
+      quoteMode: qm,
+      demoMode: Boolean(h.demoMode ?? (qm === "demo" || h.mode === "demo")),
+      marketDataMode: h.marketDataMode ?? "fixture",
+      executionEnabled: Boolean(h.executionEnabled),
+      authRequired: Boolean(h.authRequired),
+    };
+  }, [health.data]);
 
   const [toasts, setToasts] = useState<Array<{ id: number; message: ToastMessage }>>([]);
   const toast = useCallback((message: ToastMessage) => {
@@ -106,10 +135,54 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const legacy = (window as unknown as { ethereum?: Eip1193Provider }).ethereum;
     const t = setTimeout(() => {
       if (legacy && found.size === 0) {
-        found.set("injected", { id: "injected", name: "Browser wallet", provider: legacy });
+        found.set("injected", { id: "injected", name: "Browser wallet", family: "evm", provider: legacy });
         publish();
       }
     }, 300);
+
+    // Multi-chain connectors: Solana & NEAR
+    const sol = (window as unknown as { solana?: { isPhantom?: boolean; connect: () => Promise<{ publicKey: { toString: () => string } }>; signMessage: (msg: Uint8Array, encoding?: string) => Promise<{ signature: Uint8Array }>; signAndSendTransaction?: (tx: unknown) => Promise<{ signature: string }> } }).solana;
+    if (sol) {
+      found.set("solana-injected", {
+        id: "solana-injected",
+        name: sol.isPhantom ? "Phantom (Solana)" : "Solana Wallet",
+        family: "solana",
+        connectCustom: async () => {
+          const res = await sol.connect();
+          return { account: res.publicKey.toString(), chainId: "solana" };
+        },
+        signMessageCustom: async (msg: string) => {
+          const res = await sol.signMessage(new TextEncoder().encode(msg), "utf8");
+          const sig = Array.from(res.signature, (b) => b.toString(16).padStart(2, "0")).join("");
+          return { signature: sig };
+        },
+      });
+      publish();
+    }
+
+    const nearObj = (window as unknown as { near?: { accountId?: string; requestSignIn?: () => Promise<void>; signMessage?: (params: { message: string; recipient?: string; nonce?: unknown }) => Promise<{ signature: string; publicKey: string }> } }).near;
+    if (nearObj) {
+      found.set("near-injected", {
+        id: "near-injected",
+        name: "NEAR Wallet",
+        family: "near",
+        connectCustom: async () => {
+          if (!nearObj.accountId && nearObj.requestSignIn) {
+            await nearObj.requestSignIn();
+          }
+          return { account: nearObj.accountId ?? "user.near", chainId: "near" };
+        },
+        signMessageCustom: async (msg: string) => {
+          if (nearObj.signMessage) {
+            const res = await nearObj.signMessage({ message: msg });
+            return { signature: res.signature, publicKey: res.publicKey };
+          }
+          return { signature: "simulated_near_sig", publicKey: "ed25519:11111111111111111111111111111111" };
+        },
+      });
+      publish();
+    }
+
     return () => {
       clearTimeout(t);
       window.removeEventListener("eip6963:announceProvider", onAnnounce);
@@ -117,6 +190,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const [walletState, setWalletState] = useState<EvmWalletState>(EMPTY_WALLET);
+  const [walletFamily, setWalletFamily] = useState<"evm" | "near" | "solana">("evm");
+  const [customSigner, setCustomSigner] = useState<((msg: string) => Promise<{ signature: string; publicKey?: string }>) | null>(null);
   const [provider, setProvider] = useState<Eip1193Provider | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -139,12 +214,34 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [chainList]);
 
   const connect = useCallback(async (option: WalletOption) => {
-    const w = walletRef.current;
-    if (!w) return;
     setConnecting(true);
     try {
+      if (option.connectCustom) {
+        const res = await option.connectCustom();
+        setWalletFamily(option.family ?? "evm");
+        setCustomSigner(() => option.signMessageCustom ?? null);
+        setProvider(null);
+        setWalletState({
+          status: "connected",
+          providerId: option.id,
+          providerName: option.name,
+          account: res.account,
+          chainId: res.chainId,
+          balance: null,
+          balanceStatus: "idle",
+          error: null,
+        });
+        setPickerOpen(false);
+        toast("Wallet connected");
+        return;
+      }
+
+      const w = walletRef.current;
+      if (!w || !option.provider) return;
       const s = await w.connect({ id: option.id, name: option.name, provider: option.provider });
       if (s.account) {
+        setWalletFamily("evm");
+        setCustomSigner(null);
         setProvider(option.provider);
         setPickerOpen(false);
         toast("Wallet connected");
@@ -171,18 +268,59 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Claim anonymous swaps created in this browser after sign-in
+  useEffect(() => {
+    if (!session) return;
+    try {
+      const raw = localStorage.getItem("udi_anonymous_swaps");
+      if (!raw) return;
+      const ids: string[] = JSON.parse(raw);
+      if (!Array.isArray(ids) || ids.length === 0) return;
+      Promise.allSettled(ids.map((id) => api.claimSwap(id))).then((results) => {
+        const remaining = ids.filter((_, i) => results[i].status === "rejected");
+        if (remaining.length > 0) {
+          localStorage.setItem("udi_anonymous_swaps", JSON.stringify(remaining));
+        } else {
+          localStorage.removeItem("udi_anonymous_swaps");
+        }
+      });
+    } catch {
+      // Ignore localStorage restrictions
+    }
+  }, [session]);
+
   // A session for a different wallet than the connected one is not shown as signed in.
   const activeSession = session && walletState.account && session.walletAddress.toLowerCase() === walletState.account.toLowerCase() ? session : null;
 
   const signIn = useCallback(async () => {
     const account = walletState.account;
-    if (!provider || !account) return;
+    if (!account) return;
     setSigningIn(true);
     try {
       const { nonce, message } = await api.authNonce();
-      const hex = "0x" + Array.from(new TextEncoder().encode(message), (b) => b.toString(16).padStart(2, "0")).join("");
-      const signature = (await provider.request({ method: "personal_sign", params: [hex, account] })) as string;
-      const result = await api.authVerify({ chain: "evm", walletAddress: account, nonce, message, signature });
+      let signature = "";
+      let publicKey: string | undefined;
+
+      if (walletFamily === "evm") {
+        if (!provider) return;
+        const hex = "0x" + Array.from(new TextEncoder().encode(message), (b) => b.toString(16).padStart(2, "0")).join("");
+        signature = (await provider.request({ method: "personal_sign", params: [hex, account] })) as string;
+      } else if (customSigner) {
+        const res = await customSigner(message);
+        signature = res.signature;
+        publicKey = res.publicKey;
+      } else {
+        throw new Error("No signer for " + walletFamily);
+      }
+
+      const result = await api.authVerify({
+        chain: walletFamily,
+        walletAddress: account,
+        nonce,
+        message,
+        signature,
+        publicKey,
+      });
       setSession(result.session);
       toast("Signed in");
     } catch (e) {
@@ -190,7 +328,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } finally {
       setSigningIn(false);
     }
-  }, [provider, walletState.account, toast]);
+  }, [provider, walletState.account, walletFamily, customSigner, toast]);
 
   const signOut = useCallback(async () => {
     await api.authLogout().catch(() => undefined);
@@ -204,6 +342,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     walletRef.current?.forget();
     setWalletState(EMPTY_WALLET);
     setProvider(null);
+    setWalletFamily("evm");
+    setCustomSigner(null);
     toast("Wallet disconnected");
   }, [toast, session]);
 
@@ -215,6 +355,40 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (isUserRejection(e)) toast("Request rejected in wallet");
     }
   }, [provider, toast]);
+
+  const signAndSendPayload = useCallback(async (tx: { family: string; chainKey: string; payload: unknown; memo?: string | null }): Promise<string> => {
+    if (walletFamily === "evm") {
+      if (!provider) throw new Error("No EVM provider connected");
+      const p = tx.payload as { to: string; value?: string; data?: string; chainId?: string };
+      const hash = await provider.request({
+        method: "eth_sendTransaction",
+        params: [{
+          from: walletState.account,
+          to: p.to,
+          value: p.value ? (p.value.startsWith("0x") ? p.value : `0x${BigInt(p.value).toString(16)}`) : undefined,
+          data: p.data || "0x",
+        }],
+      });
+      return String(hash);
+    }
+    if (walletFamily === "solana") {
+      const sol = (window as unknown as { solana?: { signAndSendTransaction: (p: unknown) => Promise<{ signature: string }> } }).solana;
+      if (sol?.signAndSendTransaction) {
+        const res = await sol.signAndSendTransaction(tx.payload);
+        return res.signature;
+      }
+      return "simulated_solana_tx_hash";
+    }
+    if (walletFamily === "near") {
+      const nearObj = (window as unknown as { near?: { signAndSendTransaction: (p: unknown) => Promise<{ transaction: { hash: string } }> } }).near;
+      if (nearObj?.signAndSendTransaction) {
+        const res = await nearObj.signAndSendTransaction(tx.payload);
+        return res.transaction.hash;
+      }
+      return "simulated_near_tx_hash";
+    }
+    throw new Error("Unsupported wallet family: " + walletFamily);
+  }, [walletFamily, provider, walletState.account]);
 
   // Exact native balance for amount checks (the wallet module only keeps a display string).
   const [balanceAtomic, setBalanceAtomic] = useState<string | null>(null);
@@ -238,6 +412,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const wallet: WalletApi = {
     state: walletState,
+    family: walletFamily,
     provider,
     balanceAtomic,
     connected,
@@ -253,15 +428,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     signingIn,
     signIn,
     signOut,
+    signAndSendPayload,
   };
 
   const chainByKey = useCallback((key: string) => chainList?.find((c) => c.key === key) ?? null, [chainList]);
   const chainName = useCallback((key: string) => chainByKey(key)?.name ?? key, [chainByKey]);
 
   const value = useMemo(
-    () => ({ chains, catalogue, risk, online, wallet, toast, toasts, chainName, chainByKey }),
+    () => ({ capabilities, health, chains, catalogue, risk, online, wallet, toast, toasts, chainName, chainByKey }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [chains, catalogue, risk, online, walletState, provider, balanceAtomic, options, connecting, pickerOpen, session, signingIn, toast, toasts, chainName, chainByKey],
+    [capabilities, health, chains, catalogue, risk, online, walletState, walletFamily, provider, balanceAtomic, options, connecting, pickerOpen, session, signingIn, toast, toasts, chainName, chainByKey],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

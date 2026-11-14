@@ -46,7 +46,12 @@ export function ExplorePage() {
 
   return (
     <>
-      <PageHeader title="Explore" sub="Chains, assets and routes you can use." testData={catalogue.data?.testData} />
+      <PageHeader
+        title="Explore"
+        sub="Chains, assets and routes you can use."
+        testData={catalogue.data?.testData}
+        simulation={catalogue.data?.simulation}
+      />
 
       <div className="ws-filters">
         <SearchField label="Search" placeholder="Search by name, symbol or contract" value={q} onChange={(v) => update({ q: v })} />
