@@ -1,6 +1,5 @@
 import { BrandLogo } from "./brand-logo";
 import { CHAINS } from "./config";
-import { LeafSprout } from "./foliage";
 
 export function ChainSlider() {
   const chains = CHAINS.filter((c) => c.enabled);
@@ -18,10 +17,7 @@ export function ChainSlider() {
   );
   return (
     <section className="lp-section lp-chains" aria-labelledby="lp-chains-label">
-      <p className="lp-label lp-center" id="lp-chains-label">
-        <LeafSprout className="lp-label-sprout" />
-        <span>One interface across</span>
-      </p>
+      <p className="lp-label lp-center" id="lp-chains-label">One interface across</p>
       <div className="lp-marquee">
         <div className="lp-marquee-track">
           {row(false)}

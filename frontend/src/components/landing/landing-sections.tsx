@@ -8,14 +8,12 @@ import { Principles } from "./principles";
 import { Ribbons } from "./ribbons";
 import { SiteFooter } from "./site-footer";
 import { TechGrid } from "./tech-grid";
-import { GardenAmbience } from "./foliage";
 import "./landing.css";
 
 /** Everything below the hero. Server-rendered; no client JavaScript. */
 export function LandingSections() {
   return (
     <div className="lp">
-      <GardenAmbience />
       <ChainSlider />
       <BentoGrid />
       <Ribbons />

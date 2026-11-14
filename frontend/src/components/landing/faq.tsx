@@ -1,5 +1,3 @@
-import { LeafSprout } from "./foliage";
-
 const FAQS = [
   {
     q: "Does Zonyx hold my funds?",
@@ -27,7 +25,6 @@ export function Faq() {
   return (
     <section className="lp-section lp-faq-wrap" aria-labelledby="lp-faq-h">
       <header className="lp-head">
-        <span className="lp-label"><LeafSprout className="lp-label-sprout" />Common questions</span>
         <h2 id="lp-faq-h">FAQ</h2>
       </header>
       <div className="lp-faq">
