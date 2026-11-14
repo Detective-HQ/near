@@ -690,7 +690,7 @@ func (e *Engine) Backtests(ctx context.Context) (BacktestsResponse, error) {
 				{Label: "Expired", Value: fmt.Sprint(bt.Expired)},
 				{Label: "Average R (net)", Value: dec(bt.AvgR, 2)},
 				{Label: "Total R (net)", Value: dec(bt.TotalR, 2)},
-				{Label: "Profit factor", Value: dec(bt.ProfitFact, 2)},
+				{Label: "Gross gain / gross loss", Value: dec(bt.ProfitFact, 2)},
 			},
 			Methodology:    backtestMethodology(tf),
 			CostsAssumed:   fmt.Sprintf("%d bps of notional per round trip, converted to R per trade; no slippage beyond that.", backtestCostBps),

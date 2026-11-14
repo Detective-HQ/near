@@ -97,10 +97,15 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("load chain registry: %w", err)
 	}
+	catalogueMaxAge := 2 * cfg.Catalogue.TTL
+	if cfg.Execution.QuoteMode == config.QuoteModeDemo {
+		// The demo catalogue is built into the binary and cannot go stale.
+		catalogueMaxAge = 100 * 365 * 24 * time.Hour
+	}
 	riskEngine := risk.NewEngine(risk.Config{
 		MaxSlippageBps:     500,
 		WarningSlippageBps: 200,
-		CatalogueMaxAge:    2 * cfg.Catalogue.TTL,
+		CatalogueMaxAge:    catalogueMaxAge,
 	})
 
 	// ---- persistence ------------------------------------------------------

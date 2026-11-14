@@ -95,6 +95,11 @@ func (s *Service) loadCatalogue(ctx context.Context) (*catalogueSnapshot, error)
 func (s *Service) refreshCatalogue(ctx context.Context) (*catalogueSnapshot, error) {
 	now := s.now()
 	if s.quoteMode == config.QuoteModeDemo {
+		// The demo catalogue is built in, so every load is a fresh one. Report it,
+		// otherwise the risk engine marks the catalogue stale and blocks demo swaps.
+		if s.observer != nil {
+			s.observer.ObserveCatalogueRefresh(now)
+		}
 		return newSnapshot(DemoAssets(), "demo_fixture", now), nil
 	}
 

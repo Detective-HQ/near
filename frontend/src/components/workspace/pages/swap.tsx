@@ -131,7 +131,9 @@ export function SwapPage() {
   const exceedsBalance = balance !== null && amountValid && cmp(amount, balance) > 0;
 
   const testData = Boolean(catalogue.data?.testData);
-  const liveRouteCandidate = Boolean(from && to && from.id !== to.id && (testData || (from.enabledForLiveSwap && to.enabledForLiveSwap)));
+  // Backend demo mode: routes are simulations, labelled "SIMULATION" on this page.
+  const simulation = Boolean(catalogue.data?.simulation);
+  const liveRouteCandidate = Boolean(from && to && from.id !== to.id && (testData || simulation || (from.enabledForLiveSwap && to.enabledForLiveSwap)));
 
   // Live quotes need the recipient and refund address up front (the provider prices a concrete
   // route). Live routes are EVM to EVM, so the connected EVM account is both.
@@ -171,7 +173,7 @@ export function SwapPage() {
       })
       .then((q) => {
         if (n !== seq.current) return;
-        if (q.mode === "simulation" && !USE_MOCKS) {
+        if (q.mode === "simulation" && !USE_MOCKS && !simulation) {
           setQuoteError(new ApiRequestError("Simulated quotes are test data.", 503, "API_UNAVAILABLE", null));
           setQuoteStatus("error");
           return;
@@ -185,6 +187,7 @@ export function SwapPage() {
         setQuoteError(e);
         setQuoteStatus("error");
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, refreshNonce]);
 
   const now = useNow(1000);

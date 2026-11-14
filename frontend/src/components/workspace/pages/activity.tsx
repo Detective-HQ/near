@@ -24,7 +24,8 @@ function Pill({ state }: { state: string }) {
 }
 
 export function ActivityPage() {
-  const { wallet, online, chainName, chainByKey } = useWorkspace();
+  const { wallet, online, chainName, chainByKey, catalogue } = useWorkspace();
+  const demoBackend = Boolean(catalogue.data?.simulation);
   const { get, update } = useUrlParams();
   const res = useResource(wallet.connected ? `activity:${wallet.state.account}` : null, () => api.activity());
   const [live, setLive] = useState<Record<string, SwapRecord>>({});
@@ -61,10 +62,11 @@ export function ActivityPage() {
   const records = useMemo(() => {
     const all = [...(res.data?.swaps ?? []), ...extraSwaps];
     const list = all.map((r) => live[r.id] ?? r);
-    // Simulated records are test data and only appear in TEST DATA mode.
-    return USE_MOCKS ? list : list.filter((r) => r.mode !== "simulation");
-  }, [res.data, extraSwaps, live]);
-  const testData = records.some((r) => r.mode === "simulation");
+    // Simulated records appear in TEST DATA mode, or when the backend itself runs in demo mode.
+    return USE_MOCKS || demoBackend ? list : list.filter((r) => r.mode !== "simulation");
+  }, [res.data, extraSwaps, live, demoBackend]);
+  const hasSimulated = records.some((r) => r.mode === "simulation");
+  const testData = USE_MOCKS && hasSimulated;
 
   // Poll in-progress swaps; stop once each reaches a final state.
   const pending = records.filter((r) => !isFinalSwapState(r.state)).map((r) => r.id).join(",");
@@ -135,7 +137,7 @@ export function ActivityPage() {
 
   return (
     <>
-      <PageHeader title="Activity" sub="Every swap, start to finish." testData={testData} />
+      <PageHeader title="Activity" sub="Every swap, start to finish." testData={testData} simulation={hasSimulated} />
 
       <div className="ws-filters">
         <FilterSelect label="Status" value={status} options={PILLS.map((p) => ({ value: p, label: p }))} onChange={(v) => update({ status: v })} />
@@ -167,7 +169,7 @@ export function ActivityPage() {
         <section className="panel panel-pad" aria-label="Swaps">
           <div className="panel-title">
             <h2>Swaps</h2>
-            <Provenance source={testData ? "TEST DATA" : "Zonyx API"} time={res.fetchedAt} quality="Live" />
+            <Provenance source={testData ? "TEST DATA" : hasSimulated ? "Zonyx API (simulation)" : "Zonyx API"} time={res.fetchedAt} quality="Live" />
           </div>
           <div className="table-wrap">
             <table className="data-table">
