@@ -9,6 +9,12 @@ import { useResource, useUrlParams } from "../hooks";
 import { Drawer, PageHeader, Provenance, ViewStateBlock } from "../ui";
 import { useWorkspace } from "../workspace-context";
 
+/** Plain decimals are percentages; anything with a unit (e.g. "5.18R", risk multiples) is shown as sent. */
+function fmtDrawdown(v: string | null): string {
+  if (!v) return "Not available";
+  return /^-?\d+(\.\d+)?$/.test(v.trim()) ? formatPercent(v, 1) : v;
+}
+
 export function TradingBacktestPage() {
   const { online } = useWorkspace();
   const { get, update } = useUrlParams();
@@ -48,13 +54,13 @@ export function TradingBacktestPage() {
                 {d.items.map((b) => (
                   <tr key={b.id}>
                     <td><button type="button" className="ws-row-btn" onClick={() => update({ run: b.id })}>{b.model}</button></td>
-                    <td>{b.period.from} – {b.period.to}</td>
+                    <td>{b.period.from.slice(0, 10)} – {b.period.to.slice(0, 10)}</td>
                     <td>{b.universe}</td>
                     <td>{b.timeframe}</td>
                     <td className="num">{b.sampleSize}</td>
                     <td>{b.costs}</td>
                     <td>{b.benchmark}</td>
-                    <td className="num">{b.maxDrawdown ? formatPercent(b.maxDrawdown, 1) : "Not available"}</td>
+                    <td className="num">{fmtDrawdown(b.maxDrawdown)}</td>
                   </tr>
                 ))}
               </tbody>

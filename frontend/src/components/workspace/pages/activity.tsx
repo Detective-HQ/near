@@ -24,17 +24,49 @@ function Pill({ state }: { state: string }) {
 }
 
 export function ActivityPage() {
-  const { wallet, online, chainName, chainByKey } = useWorkspace();
+  const { wallet, online, chainName, chainByKey, catalogue } = useWorkspace();
+  const demoBackend = Boolean(catalogue.data?.simulation);
   const { get, update } = useUrlParams();
-  const res = useResource(wallet.connected ? `activity:${wallet.state.account}` : null, api.activity);
+  const res = useResource(wallet.connected ? `activity:${wallet.state.account}` : null, () => api.activity());
   const [live, setLive] = useState<Record<string, SwapRecord>>({});
+  const [extraSwaps, setExtraSwaps] = useState<SwapRecord[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    if (res.data) {
+      setCursor(res.data.nextCursor ?? null);
+      setExtraSwaps([]);
+    }
+  }, [res.data]);
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const more = await api.activity(cursor, 50);
+      setExtraSwaps((prev) => {
+        const seen = new Set(prev.map((s) => s.id));
+        (res.data?.swaps ?? []).forEach((s) => seen.add(s.id));
+        const additions = more.swaps.filter((s) => !seen.has(s.id));
+        return [...prev, ...additions];
+      });
+      setCursor(more.nextCursor ?? null);
+    } catch {
+      // keep current
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const records = useMemo(() => {
-    const list = (res.data ?? []).map((r) => live[r.id] ?? r);
-    // Simulated records are test data and only appear in TEST DATA mode.
-    return USE_MOCKS ? list : list.filter((r) => r.mode !== "simulation");
-  }, [res.data, live]);
-  const testData = records.some((r) => r.mode === "simulation");
+    const all = [...(res.data?.swaps ?? []), ...extraSwaps];
+    const list = all.map((r) => live[r.id] ?? r);
+    // Simulated records appear in TEST DATA mode, or when the backend itself runs in demo mode.
+    return USE_MOCKS || demoBackend ? list : list.filter((r) => r.mode !== "simulation");
+  }, [res.data, extraSwaps, live, demoBackend]);
+  const hasSimulated = records.some((r) => r.mode === "simulation");
+  const testData = USE_MOCKS && hasSimulated;
 
   // Poll in-progress swaps; stop once each reaches a final state.
   const pending = records.filter((r) => !isFinalSwapState(r.state)).map((r) => r.id).join(",");
@@ -105,7 +137,7 @@ export function ActivityPage() {
 
   return (
     <>
-      <PageHeader title="Activity" sub="Every swap, start to finish." testData={testData} />
+      <PageHeader title="Activity" sub="Every swap, start to finish." testData={testData} simulation={hasSimulated} />
 
       <div className="ws-filters">
         <FilterSelect label="Status" value={status} options={PILLS.map((p) => ({ value: p, label: p }))} onChange={(v) => update({ status: v })} />
@@ -137,7 +169,7 @@ export function ActivityPage() {
         <section className="panel panel-pad" aria-label="Swaps">
           <div className="panel-title">
             <h2>Swaps</h2>
-            <Provenance source={testData ? "TEST DATA" : "Zonyx API"} time={res.fetchedAt} quality="Live" />
+            <Provenance source={testData ? "TEST DATA" : hasSimulated ? "Zonyx API (simulation)" : "Zonyx API"} time={res.fetchedAt} quality="Live" />
           </div>
           <div className="table-wrap">
             <table className="data-table">
@@ -174,7 +206,25 @@ export function ActivityPage() {
               </tbody>
             </table>
           </div>
+          {page * PAGE_SIZE < filtered.length && (
+            <div className="deposit-actions section" style={{ justifyContent: "center" }}>
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => update({ page: String(page + 1) })}
+              >
+                Load more
+              </button>
+            </div>
+          )}
           <Pager page={page} pageSize={PAGE_SIZE} total={filtered.length} onPage={(p) => update({ page: String(p) })} />
+          {cursor && (
+            <div style={{ textAlign: "center", marginTop: "1rem" }}>
+              <button type="button" className="button button-secondary button-small" disabled={loadingMore} onClick={() => void loadMore()}>
+                {loadingMore ? "Loading..." : "Load more"}
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -194,7 +244,7 @@ export function ActivityPage() {
               ))}
             </ol>
             <div className="swap-transactions">
-              {txRow("Source", open.transactions.source, open.transactionLinks?.source, open.quote.originAsset.chain)}
+              {txRow("Deposit", open.transactions.source, open.transactionLinks?.source, open.quote.originAsset.chain)}
               {txRow("Destination", open.transactions.destination, open.transactionLinks?.destination, open.quote.destinationAsset.chain)}
               {txRow("Refund", open.transactions.refund, open.transactionLinks?.refund, open.quote.originAsset.chain)}
               {!open.transactions.source && !open.transactions.destination && !open.transactions.refund && (

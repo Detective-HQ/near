@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { api, ApiRequestError, USE_MOCKS } from "../../../lib/api-client";
+import { api, ApiRequestError, UnauthorizedError, USE_MOCKS } from "../../../lib/api-client";
 import type { Catalogue } from "../../../lib/api-client";
 import type { SwapQuote, SwapRecord } from "../../../lib/contracts";
 import { bpsToPercent, cmp, div, formatDecimal, formatPercent, fromAtomic, percentToBps } from "../../../lib/decimal";
@@ -25,7 +25,11 @@ import { useWorkspace } from "../workspace-context";
 
 type CatalogueAsset = Catalogue["assets"][number];
 
-const ROUTE_ERRORS = new Set(["UNSUPPORTED_ROUTE", "ROUTE_NOT_SUPPORTED", "UNSUPPORTED_ASSET", "ASSET_NOT_FOUND", "VALIDATION_FAILED", "INVALID_REQUEST"]);
+// Error codes meaning "this pair cannot be quoted" (Go API codes first, legacy names kept).
+const ROUTE_ERRORS = new Set([
+  "NO_ROUTE", "UNKNOWN_ASSET", "INVALID_ASSET", "INVALID_ASSET_PAIR", "SAME_ASSET",
+  "UNSUPPORTED_ROUTE", "ROUTE_NOT_SUPPORTED", "UNSUPPORTED_ASSET", "ASSET_NOT_FOUND", "VALIDATION_FAILED", "INVALID_REQUEST",
+]);
 
 function AssetPicker({
   side,
@@ -102,7 +106,7 @@ function formatSeconds(s: number | null | undefined): string {
 }
 
 export function SwapPage() {
-  const { catalogue, risk, online, wallet, chainName, chainByKey, toast } = useWorkspace();
+  const { catalogue, risk, online, wallet, chainName, chainByKey, toast, capabilities } = useWorkspace();
   const { get, update } = useUrlParams();
   const assets = catalogue.data?.assets ?? [];
   const byId = (id: string) => assets.find((a) => a.id === id) ?? null;
@@ -127,11 +131,19 @@ export function SwapPage() {
   const exceedsBalance = balance !== null && amountValid && cmp(amount, balance) > 0;
 
   const testData = Boolean(catalogue.data?.testData);
-  const liveRouteCandidate = Boolean(from && to && from.id !== to.id && (testData || (from.enabledForLiveSwap && to.enabledForLiveSwap)));
+  // Backend demo mode: routes are simulations, labelled "SIMULATION" on this page.
+  const simulation = Boolean(catalogue.data?.simulation);
+  const liveRouteCandidate = Boolean(from && to && from.id !== to.id && (testData || simulation || (from.enabledForLiveSwap && to.enabledForLiveSwap)));
+
+  // Live quotes need the recipient and refund address up front (the provider prices a concrete
+  // route). Live routes are EVM to EVM, so the connected EVM account is both.
+  const toChain = to ? chainByKey(to.chain) : null;
+  const evmRoute = fromChain?.family === "EVM" && toChain?.family === "EVM";
+  const quoteAccount = evmRoute && wallet.connected && wallet.state.account ? wallet.state.account : "";
 
   // Quotes: debounced 400ms, latest request wins.
   const request = useDebounced(
-    from && to && amountValid && slippageValid && liveRouteCandidate ? `${from.id}|${to.id}|${amount}|${slippageBps}` : "",
+    from && to && amountValid && slippageValid && liveRouteCandidate ? `${from.id}|${to.id}|${amount}|${slippageBps}|${quoteAccount}` : "",
     400,
   );
   const [quote, setQuote] = useState<SwapQuote | null>(null);
@@ -148,14 +160,20 @@ export function SwapPage() {
       setQuoteStatus("idle");
       return;
     }
-    const [o, d, amt, bps] = request.split("|");
+    const [o, d, amt, bps, account] = request.split("|");
     const n = ++seq.current;
     setQuoteStatus("loading");
     api
-      .quote({ originAssetId: o, destinationAssetId: d, amountIn: amt, slippageBps: Number(bps) })
+      .quote({
+        originAssetId: o,
+        destinationAssetId: d,
+        amountIn: amt,
+        slippageBps: Number(bps),
+        ...(account ? { recipient: account, refundTo: account } : {}),
+      })
       .then((q) => {
         if (n !== seq.current) return;
-        if (q.mode === "simulation" && !USE_MOCKS) {
+        if (q.mode === "simulation" && !USE_MOCKS && !simulation) {
           setQuoteError(new ApiRequestError("Simulated quotes are test data.", 503, "API_UNAVAILABLE", null));
           setQuoteStatus("error");
           return;
@@ -169,6 +187,7 @@ export function SwapPage() {
         setQuoteError(e);
         setQuoteStatus("error");
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, refreshNonce]);
 
   const now = useNow(1000);
@@ -261,7 +280,21 @@ export function SwapPage() {
         } : null,
         onProgress: (p, swap) => {
           setPhase(p);
-          if (swap) setRecord(swap);
+          if (swap) {
+            setRecord(swap);
+            if (!wallet.session) {
+              try {
+                const raw = localStorage.getItem("udi_anonymous_swaps");
+                const arr: string[] = raw ? JSON.parse(raw) : [];
+                if (!arr.includes(swap.id)) {
+                  arr.push(swap.id);
+                  localStorage.setItem("udi_anonymous_swaps", JSON.stringify(arr));
+                }
+              } catch {
+                // Ignore storage issues
+              }
+            }
+          }
         },
       });
       if (result.kind === "rejected") {
@@ -313,8 +346,22 @@ export function SwapPage() {
 
   return (
     <>
-      <PageHeader title="Swap" sub="Move assets across chains from your own wallet." testData={testData} />
+      <PageHeader
+        title="Swap"
+        sub="Move assets across chains from your own wallet."
+        testData={testData}
+        simulation={catalogue.data?.simulation}
+      />
       <ViewStateBlock view="swap" state={state} onAction={catalogue.reload} />
+
+      {capabilities?.authRequired && wallet.connected && !wallet.session && (
+        <div className="fixture-banner ws-banner" role="status">
+          <p>Sign in with your wallet to continue.</p>
+          <button type="button" className="button button-secondary button-small" disabled={wallet.signingIn} onClick={() => void wallet.signIn()}>
+            {wallet.signingIn ? "Signing in..." : "Sign in"}
+          </button>
+        </div>
+      )}
 
       {catalogue.data && (
         <div className="content-grid">
@@ -364,6 +411,7 @@ export function SwapPage() {
               {lowLiquidity && <li className="warning-text">Low liquidity on this route.</li>}
               {aboutToExpire && <li className="warning-text">Quote is about to expire.</li>}
               {stale && <li className="warning-text">Price data is stale. Refresh before swapping.</li>}
+              {quote?.depositMemo && <li className="warning-text">This route needs a memo. It is added for you; do not remove it.</li>}
             </ul>
 
             <div className="swap-actions">
@@ -380,8 +428,20 @@ export function SwapPage() {
             {quoteStatus === "loading" && <p className="subtle-meta">Getting quote...</p>}
             {quoteStatus === "error" && !routeError && (
               <div className="empty-state ws-state" role="alert">
-                <p>{quoteError instanceof ApiRequestError && (quoteError.status >= 502 || quoteError.code === "API_UNAVAILABLE") ? "Data unavailable right now." : "Something went wrong. Please try again."}</p>
-                <button type="button" className="button button-secondary button-small" onClick={() => setRefreshNonce((v) => v + 1)}>Retry</button>
+                <p>
+                  {quoteError instanceof UnauthorizedError || (quoteError as { status?: number })?.status === 401
+                    ? "Sign in with your wallet to continue."
+                    : quoteError instanceof ApiRequestError && (quoteError.status >= 502 || quoteError.code === "API_UNAVAILABLE")
+                    ? "Data unavailable right now."
+                    : "Something went wrong. Please try again."}
+                </p>
+                {quoteError instanceof UnauthorizedError || (quoteError as { status?: number })?.status === 401 ? (
+                  <button type="button" className="button button-secondary button-small" disabled={wallet.signingIn} onClick={() => void wallet.signIn()}>
+                    {wallet.signingIn ? "Signing in..." : "Sign in"}
+                  </button>
+                ) : (
+                  <button type="button" className="button button-secondary button-small" onClick={() => setRefreshNonce((v) => v + 1)}>Retry</button>
+                )}
               </div>
             )}
             {quote && quoteStatus === "ready" && (
@@ -404,6 +464,14 @@ export function SwapPage() {
       <Modal open={reviewOpen} title="Review swap" onClose={() => !running && setReviewOpen(false)}>
         {quote && phase === null && (
           <div className="quote-result">
+            <p className="notice-block ws-irreversible" role="note">
+              Transfers are irreversible. Check the network and address.
+            </p>
+            {quote.depositMemo && (
+              <p className="warning-text ws-memo-warn" role="alert">
+                This route needs a memo. It is added for you; do not remove it.
+              </p>
+            )}
             <DefRow label="You pay">{`${formatDecimal(quote.amountIn, 8)} ${quote.originAsset.symbol} on ${chainName(quote.originAsset.chain)}`}</DefRow>
             <DefRow label="You receive (estimate)">{`${formatDecimal(quote.amountOutEstimate, 8)} ${quote.destinationAsset.symbol} on ${chainName(quote.destinationAsset.chain)}`}</DefRow>
             {quoteRows}

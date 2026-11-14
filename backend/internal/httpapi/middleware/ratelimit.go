@@ -1,55 +1,42 @@
 package middleware
 
 import (
-	"encoding/json"
 	"net/http"
 	"sync"
 	"time"
 )
 
-type rateLimitErrorResponse struct {
-	Error struct {
-		Code    string `json:"code"`
-		Message string `json:"message"`
-	} `json:"error"`
-	RequestID string `json:"requestId"`
-}
+// maxTrackedClients bounds the limiter's memory. When it is full, idle
+// entries are swept; if every entry is still active, new clients share one
+// overflow bucket instead of growing the map without bound.
+const maxTrackedClients = 50_000
 
-// TokenBucket implements a thread-safe token-bucket rate limiter without external dependencies.
+// TokenBucket is a thread-safe token-bucket rate limiter.
 type TokenBucket struct {
 	mu     sync.Mutex
-	rate   float64 // tokens per second
-	burst  float64 // maximum bucket size
-	tokens float64 // current tokens
+	rate   float64
+	burst  float64
+	tokens float64
 	last   time.Time
 }
 
-// NewTokenBucket creates a new token bucket limiter.
+// NewTokenBucket creates a full bucket.
 func NewTokenBucket(rps float64, burst int) *TokenBucket {
-	return &TokenBucket{
-		rate:   rps,
-		burst:  float64(burst),
-		tokens: float64(burst),
-		last:   time.Now(),
-	}
+	return &TokenBucket{rate: rps, burst: float64(burst), tokens: float64(burst), last: time.Now()}
 }
 
-// Allow reports whether a request is allowed under the rate limit.
+// Allow reports whether one request may proceed now.
 func (tb *TokenBucket) Allow() bool {
 	tb.mu.Lock()
 	defer tb.mu.Unlock()
-
 	now := time.Now()
-	elapsed := now.Sub(tb.last).Seconds()
+	tb.tokens += now.Sub(tb.last).Seconds() * tb.rate
 	tb.last = now
-
-	tb.tokens += elapsed * tb.rate
 	if tb.tokens > tb.burst {
 		tb.tokens = tb.burst
 	}
-
-	if tb.tokens >= 1.0 {
-		tb.tokens -= 1.0
+	if tb.tokens >= 1 {
+		tb.tokens--
 		return true
 	}
 	return false
@@ -60,82 +47,73 @@ type clientEntry struct {
 	lastSeen time.Time
 }
 
-// IPRateLimiter limits incoming requests per client IP.
+// IPRateLimiter limits requests per resolved client IP.
 type IPRateLimiter struct {
-	mu      sync.Mutex
-	clients map[string]*clientEntry
-	r       float64
-	b       int
+	mu        sync.Mutex
+	clients   map[string]*clientEntry
+	overflow  *TokenBucket
+	rate      float64
+	burst     int
+	idleAfter time.Duration
+	lastSweep time.Time
 }
 
-// NewIPRateLimiter creates an IP-based rate limiter with token bucket parameters.
+// NewIPRateLimiter creates a per-IP limiter without background goroutines.
 func NewIPRateLimiter(rps float64, burst int) *IPRateLimiter {
-	lim := &IPRateLimiter{
-		clients: make(map[string]*clientEntry),
-		r:       rps,
-		b:       burst,
+	return &IPRateLimiter{
+		clients:   make(map[string]*clientEntry),
+		overflow:  NewTokenBucket(rps, burst),
+		rate:      rps,
+		burst:     burst,
+		idleAfter: 10 * time.Minute,
+		lastSweep: time.Now(),
 	}
-
-	go lim.cleanup(10 * time.Minute)
-	return lim
 }
 
-func (i *IPRateLimiter) getLimiter(ip string) *TokenBucket {
+// Allow reports whether a request from ip may proceed.
+func (i *IPRateLimiter) Allow(ip string) bool {
+	return i.limiterFor(ip).Allow()
+}
+
+func (i *IPRateLimiter) limiterFor(ip string) *TokenBucket {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-
-	entry, exists := i.clients[ip]
-	if !exists {
-		entry = &clientEntry{
-			limiter:  NewTokenBucket(i.r, i.b),
-			lastSeen: time.Now(),
-		}
-		i.clients[ip] = entry
+	now := time.Now()
+	if entry, ok := i.clients[ip]; ok {
+		entry.lastSeen = now
+		return entry.limiter
 	}
-	entry.lastSeen = time.Now()
+	if now.Sub(i.lastSweep) > time.Minute || len(i.clients) >= maxTrackedClients {
+		cutoff := now.Add(-i.idleAfter)
+		for key, entry := range i.clients {
+			if entry.lastSeen.Before(cutoff) {
+				delete(i.clients, key)
+			}
+		}
+		i.lastSweep = now
+	}
+	if len(i.clients) >= maxTrackedClients {
+		return i.overflow
+	}
+	entry := &clientEntry{limiter: NewTokenBucket(i.rate, i.burst), lastSeen: now}
+	i.clients[ip] = entry
 	return entry.limiter
 }
 
-func (i *IPRateLimiter) cleanup(maxAge time.Duration) {
-	ticker := time.NewTicker(5 * time.Minute)
-	for range ticker.C {
-		i.mu.Lock()
-		cutoff := time.Now().Add(-maxAge)
-		for ip, entry := range i.clients {
-			if entry.lastSeen.Before(cutoff) {
-				delete(i.clients, ip)
-			}
-		}
-		i.mu.Unlock()
-	}
-}
-
-// RateLimit returns HTTP middleware enforcing IP-based rate limiting.
+// RateLimit enforces per-client limits. Health probes are exempt so
+// orchestrators can always reach them.
 func RateLimit(limiter *IPRateLimiter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if limiter == nil {
+			if limiter == nil || r.URL.Path == "/healthz" || r.URL.Path == "/readyz" || r.URL.Path == "/metrics" {
 				next.ServeHTTP(w, r)
 				return
 			}
-
-			ip := clientIP(r)
-			l := limiter.getLimiter(ip)
-			if !l.Allow() {
-				reqID := GetRequestID(r)
-				w.Header().Set("Content-Type", "application/json; charset=utf-8")
-				w.Header().Set("Cache-Control", "no-store")
-				w.Header().Set("X-Request-Id", reqID)
+			if !limiter.Allow(ClientIP(r)) {
 				w.Header().Set("Retry-After", "1")
-				w.WriteHeader(http.StatusTooManyRequests)
-
-				resp := rateLimitErrorResponse{RequestID: reqID}
-				resp.Error.Code = "RATE_LIMITED"
-				resp.Error.Message = "Too many requests. Please wait and retry."
-				_ = json.NewEncoder(w).Encode(resp)
+				WriteError(w, r, http.StatusTooManyRequests, "RATE_LIMITED", "Too many requests. Please wait and retry.")
 				return
 			}
-
 			next.ServeHTTP(w, r)
 		})
 	}

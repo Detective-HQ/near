@@ -150,6 +150,7 @@ export interface ResearchScenario {
   feeRatePct: number;
   capturePct: number;
   activityGrowthPct: number;
+  projectedAnnualFeesUsd?: number;
 }
 
 export interface ResearchInputs {
@@ -169,11 +170,14 @@ export interface ApiErrorBody {
 
 export interface HealthStatus {
   status: string;
-  mode: string;
+  mode?: string;
   quoteMode: "demo" | "live";
   demoMode: boolean;
   liveQuotesConfigured: boolean;
   marketDataMode: "fixture" | "live";
   executionEnabled: boolean;
+  authRequired?: boolean;
+  capabilityFlags?: Record<string, boolean>;
   capturedAt: string;
+  fixtureDate?: string;
 }

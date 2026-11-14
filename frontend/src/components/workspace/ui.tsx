@@ -9,16 +9,17 @@ import { viewMessage } from "../../lib/view-state";
 import type { ViewKey, ViewState } from "../../lib/view-state";
 import { useWorkspace } from "./workspace-context";
 
-export function PageHeader({ title, sub, actions, testData }: { title: string; sub: string; actions?: ReactNode; testData?: boolean }) {
+export function PageHeader({ title, sub, actions, testData, simulation }: { title: string; sub: string; actions?: ReactNode; testData?: boolean; simulation?: boolean }) {
   return (
     <header className="page-header">
       <div>
         <h1>{title}</h1>
         <p>{sub}</p>
       </div>
-      {(actions || testData) && (
+      {(actions || testData || simulation) && (
         <div className="header-actions">
           {testData && <TestDataTag />}
+          {!testData && simulation && <span className="state-pill warn" title="Simulation mode. Not real transactions.">Simulation</span>}
           {actions}
         </div>
       )}
@@ -81,17 +82,27 @@ export function ViewStateBlock({
   onAction?: () => void;
   actionHref?: string;
 }) {
+  const { wallet } = useWorkspace();
   if (state === "loading") return <Skeleton rows={5} />;
   const msg = viewMessage(view, state, staleTime);
   if (!msg) return null;
   const banner = state === "stale" || state === "partial";
+  const handleAction = () => {
+    if (state === "unauthorized" && !onAction && !actionHref) {
+      void wallet.signIn();
+      return;
+    }
+    onAction?.();
+  };
   return (
     <div className={banner ? "fixture-banner ws-banner" : "empty-state ws-state"} role={state === "error" ? "alert" : "status"}>
       <p>{msg.message}</p>
       {msg.action && (actionHref ? (
         <a className="button button-secondary button-small" href={actionHref}>{msg.action}</a>
-      ) : onAction ? (
-        <button className="button button-secondary button-small" type="button" onClick={onAction}>{msg.action}</button>
+      ) : (onAction || state === "unauthorized") ? (
+        <button className="button button-secondary button-small" type="button" onClick={handleAction} disabled={state === "unauthorized" && wallet.signingIn}>
+          {state === "unauthorized" && wallet.signingIn ? "Signing in..." : msg.action}
+        </button>
       ) : null)}
     </div>
   );

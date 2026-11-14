@@ -12,6 +12,7 @@ export interface SwapRunnerApi {
   recordDeposit(id: string, txHash: string, chainId: string): Promise<SwapRecord>;
   cancelSwap(id: string): Promise<SwapRecord>;
   getSwap(id: string): Promise<SwapRecord>;
+  depositTx?(id: string, from?: string): Promise<{ family: string; chainKey: string; payload: unknown; memo?: string | null; expiresAt?: string | null }>;
 }
 
 export interface SwapRunnerWallet {
@@ -19,6 +20,7 @@ export interface SwapRunnerWallet {
   chainId: string;
   /** Asks the wallet to sign and broadcast the deposit; resolves with the tx hash. */
   sendDeposit(swap: SwapRecord): Promise<string>;
+  signAndSendPayload?(tx: { family: string; chainKey: string; payload: unknown; memo?: string | null }): Promise<string>;
 }
 
 export interface RunOptions {
@@ -75,7 +77,12 @@ export async function runSwap(opts: RunOptions): Promise<RunResult> {
     );
     let txHash: string;
     try {
-      txHash = await wallet.sendDeposit(swap);
+      if (api.depositTx && wallet.signAndSendPayload) {
+        const tx = await api.depositTx(swap.id, wallet.account);
+        txHash = await wallet.signAndSendPayload(tx);
+      } else {
+        txHash = await wallet.sendDeposit(swap);
+      }
     } catch (error) {
       // Nothing was sent: discard the unfunded instruction.
       await api.cancelSwap(swap.id).catch(() => undefined);
@@ -84,6 +91,36 @@ export async function runSwap(opts: RunOptions): Promise<RunResult> {
     }
     swap = await api.recordDeposit(swap.id, txHash, wallet.chainId);
     onProgress("submitted", swap);
+
+    // Stream updates via Server-Sent Events with fallback to polling
+    if (typeof EventSource !== "undefined") {
+      try {
+        const es = new EventSource(`/api/v1/swaps/${encodeURIComponent(swap.id)}/events`);
+        await new Promise<void>((resolve) => {
+          es.addEventListener("swap", (e: MessageEvent) => {
+            try {
+              const updated = JSON.parse(e.data) as SwapRecord;
+              swap = updated;
+              if (!isFinalSwapState(swap.state)) {
+                onProgress("processing", swap);
+              } else {
+                es.close();
+                resolve();
+              }
+            } catch {
+              // ignore parse errors
+            }
+          });
+          es.onerror = () => {
+            es.close();
+            resolve();
+          };
+        });
+      } catch {
+        // EventSource unavailable or failed; fall back to polling below
+      }
+    }
+
     for (let i = 0; i < maxPolls && !isFinalSwapState(swap.state); i++) {
       if (cancelled()) return { kind: "stopped", swap };
       await sleep(pollMs);

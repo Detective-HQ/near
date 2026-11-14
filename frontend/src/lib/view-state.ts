@@ -1,7 +1,7 @@
 // Shared view states and their copy. Every workspace view resolves to one of these.
 // No imports so it can be unit-tested directly.
 
-export type ViewState = "loading" | "offline" | "error" | "unavailable" | "empty" | "stale" | "partial" | "ready";
+export type ViewState = "loading" | "offline" | "error" | "unavailable" | "empty" | "stale" | "partial" | "ready" | "unauthorized";
 
 export type ViewKey =
   | "explore"
@@ -46,9 +46,10 @@ export interface ErrorLike {
   name?: string;
 }
 
-/** Missing endpoints, upstream outages, network failures and gated fixtures are "unavailable"; everything else is an error. */
-export function classifyError(error: unknown): "unavailable" | "error" {
+/** Missing endpoints, upstream outages, network failures and gated fixtures are "unavailable"; 401 is unauthorized; everything else is an error. */
+export function classifyError(error: unknown): "unavailable" | "error" | "unauthorized" {
   const e = (error ?? {}) as ErrorLike;
+  if (e.status === 401 || e.name === "UnauthorizedError" || e.code === "UNAUTHORIZED") return "unauthorized";
   if (e.name === "UnavailableError" || e.name === "TypeError") return "unavailable";
   if (e.status === 404 || e.status === 502 || e.status === 503 || e.status === 504) return "unavailable";
   if (e.code === "API_UNAVAILABLE" || e.code === "NOT_FOUND" || e.code === "UPSTREAM_UNAVAILABLE") return "unavailable";
@@ -91,6 +92,8 @@ export function viewMessage(view: ViewKey, state: ViewState, staleTime = "unknow
       return { message: STATE_COPY.unavailable, action: "Retry" };
     case "error":
       return { message: STATE_COPY.error, action: "Retry" };
+    case "unauthorized":
+      return { message: "Sign in with your wallet to continue.", action: "Sign in" };
     case "offline":
       return { message: STATE_COPY.offline };
     default:

@@ -9,19 +9,70 @@ import { qualityFromStatus, regimeLabel } from "../../../lib/quality";
 import type { Signal } from "../../../lib/trading-contracts";
 import { deriveViewState } from "../../../lib/view-state";
 import { useResource, useUrlParams } from "../hooks";
-import { FilterSelect, InfoTip, PageHeader, Provenance, QualityBadge, ScoreCell, SearchField, Tabs, ViewStateBlock } from "../ui";
+import { FilterSelect, InfoTip, PageHeader, Provenance, QualityBadge, ScoreCell, SearchField, Skeleton, Tabs, ViewStateBlock } from "../ui";
 import { useWorkspace } from "../workspace-context";
 
 const TABS = ["Top 20 bullish", "Top 20 bearish"] as const;
 const FILTER_KEYS = ["timeframe", "chain", "asset", "venue", "quote", "liquidityTier"] as const;
 
-export const SCORE_TIP = "A ranking score from 0-100. Not a probability.";
+export const SCORE_TIP = "A ranking score from 0 to 100. Not a probability.";
 export const COVERAGE_TIP = "Share of evidence available for this score.";
 
 function Move({ value }: { value: number | null }) {
   if (value === null) return <span>Not available</span>;
   if (value === 0) return <span aria-label="No change in rank">—</span>;
   return <span aria-label={`${value > 0 ? "Up" : "Down"} ${Math.abs(value)} places`}>{value > 0 ? "▲" : "▼"} {Math.abs(value)}</span>;
+}
+
+function TopMoversCard() {
+  const { chainName } = useWorkspace();
+  const topMovers = useResource("trading-top-movers", () => api.tradingTopMovers());
+  const d = topMovers.data;
+  if (topMovers.loading) return <Skeleton rows={4} />;
+  if (topMovers.error || !d) {
+    return (
+      <section className="panel panel-pad section" aria-label="Top movers">
+        <div className="panel-title">
+          <h2>Top movers</h2>
+        </div>
+        <p className="subtle-meta">Data unavailable right now.</p>
+      </section>
+    );
+  }
+  return (
+    <section className="panel panel-pad section" aria-label="Top movers">
+      <div className="panel-title">
+        <h2>Top movers</h2>
+        <Provenance source={d.source} time={d.asOf} quality={qualityFromStatus(d.quality)} />
+      </div>
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Asset</th>
+              <th scope="col">Chain</th>
+              <th scope="col" className="num">24h Change</th>
+              <th scope="col">Direction</th>
+            </tr>
+          </thead>
+          <tbody>
+            {d.items.slice(0, 10).map((s) => (
+              <tr key={s.assetId}>
+                <td>
+                  <Link href={`/workspace/trading/${encodeURIComponent(s.assetId)}`}>
+                    <strong>{s.symbol}</strong>
+                  </Link>
+                </td>
+                <td>{chainName(s.chain)}</td>
+                <td className="num">{s.change ? formatPercent(s.change, 2, true) : "Not available"}</td>
+                <td>{s.direction ?? "neutral"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
 }
 
 export function TradingPage() {
@@ -73,6 +124,8 @@ export function TradingPage() {
         <div><dt>Model</dt><dd>{o?.modelVersion ? `Model ${o.modelVersion}` : "Not available"}</dd></div>
         <div><dt>As of</dt><dd>{o ? formatTime(o.asOf) : "Not available"}</dd></div>
       </dl>
+
+      <TopMoversCard />
 
       {f && (
         <div className="ws-filters">

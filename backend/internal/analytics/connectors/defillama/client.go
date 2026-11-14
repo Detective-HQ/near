@@ -124,23 +124,45 @@ func (c *Client) Fetch(ctx context.Context, chain string) (domain.Snapshot, erro
 		canonicalChain = titleCase(chainKey)
 	}
 
-	// 2. Fetch TVL history
-	series, latestTVL, tvlObservedAt, tvlErr := c.fetchHistoricalTVL(ctx, canonicalChain)
+	// 2-6. The remaining five endpoints only depend on the canonical chain
+	// name, so they are fetched concurrently: a cold snapshot costs about two
+	// upstream round trips instead of six sequential ones.
+	var (
+		series                                 []domain.SeriesPoint
+		latestTVL                              *float64
+		tvlObservedAt                          time.Time
+		tvlErr                                 error
+		dexVolume, stableSupply                *float64
+		fees24h, revenue24h                    *float64
+		dexURL, stableURL, feesURL, revenueURL string
+		dexErr, stableErr, feesErr, revenueErr error
+		wg                                     sync.WaitGroup
+	)
+	wg.Add(5)
+	go func() {
+		defer wg.Done()
+		series, latestTVL, tvlObservedAt, tvlErr = c.fetchHistoricalTVL(ctx, canonicalChain)
+	}()
+	go func() {
+		defer wg.Done()
+		dexVolume, dexURL, dexErr = c.fetchDEXVolume(ctx, canonicalChain)
+	}()
+	go func() {
+		defer wg.Done()
+		stableSupply, stableURL, stableErr = c.fetchStablecoinSupply(ctx, canonicalChain)
+	}()
+	go func() {
+		defer wg.Done()
+		fees24h, feesURL, feesErr = c.fetchOverviewMetric(ctx, canonicalChain, "dailyFees")
+	}()
+	go func() {
+		defer wg.Done()
+		revenue24h, revenueURL, revenueErr = c.fetchOverviewMetric(ctx, canonicalChain, "dailyRevenue")
+	}()
+	wg.Wait()
 	if currentTVL == nil && latestTVL != nil {
 		currentTVL = latestTVL
 	}
-
-	// 3. Fetch DEX 24h volume
-	dexVolume, dexURL, dexErr := c.fetchDEXVolume(ctx, canonicalChain)
-
-	// 4. Fetch Stablecoin supply
-	stableSupply, stableURL, stableErr := c.fetchStablecoinSupply(ctx, canonicalChain)
-
-	// 5. Fetch Protocol fees 24h
-	fees24h, feesURL, feesErr := c.fetchOverviewMetric(ctx, canonicalChain, "dailyFees")
-
-	// 6. Fetch Protocol revenue 24h
-	revenue24h, revenueURL, revenueErr := c.fetchOverviewMetric(ctx, canonicalChain, "dailyRevenue")
 
 	metrics := make([]domain.MetricObservation, 0, 5)
 

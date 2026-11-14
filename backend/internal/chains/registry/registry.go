@@ -56,6 +56,7 @@ type NativeCurrency struct {
 // Chain is one entry in the registry.
 type Chain struct {
 	Key                string         `yaml:"key"`
+	Aliases            []string       `yaml:"aliases"`
 	Name               string         `yaml:"name"`
 	Family             Family         `yaml:"family"`
 	ChainID            string         `yaml:"chain_id"`
@@ -125,6 +126,17 @@ func Parse(data []byte) (*Registry, error) {
 			chainIDs[chain.ChainID] = chain.Key
 		}
 		chain.RPCURLs = append([]string(nil), chain.RPCURLs...)
+		chain.Aliases = append([]string(nil), chain.Aliases...)
+		for _, alias := range chain.Aliases {
+			alias = strings.ToLower(strings.TrimSpace(alias))
+			if !keyPattern.MatchString(alias) {
+				return nil, fmt.Errorf("chain registry: chain %q: invalid alias %q", chain.Key, alias)
+			}
+			if _, exists := registry.byKey[alias]; exists {
+				return nil, fmt.Errorf("chain registry: duplicate key or alias %q", alias)
+			}
+			registry.byKey[alias] = len(registry.chains)
+		}
 		registry.byKey[chain.Key] = len(registry.chains)
 		registry.chains = append(registry.chains, chain)
 	}
@@ -242,9 +254,22 @@ func (r *Registry) Get(key string) (Chain, bool) {
 	}
 	index, ok := r.byKey[key]
 	if !ok {
-		return Chain{}, false
+		index, ok = r.byKey[strings.ToLower(strings.TrimSpace(key))]
+		if !ok {
+			return Chain{}, false
+		}
 	}
 	return cloneChain(r.chains[index]), true
+}
+
+// Canonical resolves a chain key or a provider alias (for example the 1Click
+// blockchain name "eth") to the registry's canonical key.
+func (r *Registry) Canonical(key string) (string, bool) {
+	chain, ok := r.Get(key)
+	if !ok {
+		return "", false
+	}
+	return chain.Key, true
 }
 
 // ByChainID returns an EVM chain by its decimal chain ID.
@@ -329,5 +354,6 @@ func (r *Registry) ExplorerAddress(key, address string) (string, bool) {
 
 func cloneChain(chain Chain) Chain {
 	chain.RPCURLs = append([]string(nil), chain.RPCURLs...)
+	chain.Aliases = append([]string(nil), chain.Aliases...)
 	return chain
 }

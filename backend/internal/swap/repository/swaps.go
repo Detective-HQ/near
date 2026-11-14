@@ -66,13 +66,13 @@ func (s *Store) CreateSwap(ctx context.Context, swap domain.Swap, idempotencyKey
 				state, provider_status, real_settlement, origin_chain, destination_chain,
 				deposit_address, deposit_memo, recipient_address, refund_address,
 				source_tx_hash, expires_at, next_poll_at, poll_attempts, last_polled_at,
-				created_at, updated_at
+				created_at, updated_at, simulated
 			) VALUES (
 				$1, $2, $3, $4, $5,
 				$6, NULLIF($7, ''), $8, $9, $10,
 				$11, $12, $13, $14,
 				NULLIF($15, ''), $16, $17, $18, $19,
-				$20, $21
+				$20, $21, $22
 			)
 			ON CONFLICT (idempotency_key) DO NOTHING
 			RETURNING `+swapColumns, swapInsertArgs(swap)...)
@@ -196,7 +196,7 @@ func (s *Store) UpdateSwapState(
 			UPDATE swaps
 			SET state = $3,
 				provider_status = NULLIF($4, ''),
-				real_settlement = $5,
+				real_settlement = ($5 AND NOT simulated),
 				updated_at = $6
 			WHERE id = $1 AND state = $2
 			RETURNING `+swapColumns,
@@ -260,14 +260,18 @@ func (s *Store) ListSwaps(ctx context.Context, limit int, cursor string) ([]doma
 
 // ListSwapsBySession returns one keyset page scoped to a session for ownership
 // checks in the activity endpoint.
+//
+// An empty sessionID lists only anonymous swaps (session_id IS NULL), so an
+// unauthenticated caller can never page through another wallet's swaps.
 func (s *Store) ListSwapsBySession(ctx context.Context, sessionID string, limit int, cursor string) ([]domain.Swap, string, error) {
-	if strings.TrimSpace(sessionID) == "" {
-		return nil, "", domain.New(domain.CodeValidationFailed, "Session id is required.")
-	}
-	return s.listSwaps(ctx, sessionID, limit, cursor)
+	return s.listSwapsWhere(ctx, `WHERE session_id IS NOT DISTINCT FROM NULLIF($2, '')`, strings.TrimSpace(sessionID), limit, cursor)
 }
 
 func (s *Store) listSwaps(ctx context.Context, sessionID string, limit int, cursor string) ([]domain.Swap, string, error) {
+	return s.listSwapsWhere(ctx, `WHERE ($2 = '' OR session_id = $2)`, sessionID, limit, cursor)
+}
+
+func (s *Store) listSwapsWhere(ctx context.Context, where, sessionID string, limit int, cursor string) ([]domain.Swap, string, error) {
 	if err := s.ready(); err != nil {
 		return nil, "", err
 	}
@@ -277,7 +281,6 @@ func (s *Store) listSwaps(ctx context.Context, sessionID string, limit int, curs
 	}
 
 	args := []any{pageSize + 1, sessionID}
-	where := `WHERE ($2 = '' OR session_id = $2)`
 	if strings.TrimSpace(cursor) != "" {
 		position, decodeErr := DecodeCursor(cursor)
 		if decodeErr != nil {
@@ -409,6 +412,7 @@ func swapInsertArgs(swap domain.Swap) []any {
 		nullableTime(swap.LastPolledAt),
 		swap.CreatedAt,
 		swap.UpdatedAt,
+		swap.Simulated,
 	}
 }
 
@@ -421,4 +425,94 @@ func clonePayload(payload map[string]any) map[string]any {
 		out[key] = value
 	}
 	return out
+}
+
+// ClaimSwap assigns an unowned swap to the principal if the wallet matches.
+func (s *Store) ClaimSwap(ctx context.Context, id, principal, wallet string) (domain.Swap, error) {
+	if err := s.ready(); err != nil {
+		return domain.Swap{}, err
+	}
+	swap, err := s.GetSwapByID(ctx, id)
+	if err != nil {
+		return domain.Swap{}, err
+	}
+	if swap.SessionID != "" && !strings.EqualFold(swap.SessionID, principal) {
+		return domain.Swap{}, domain.New(domain.CodeForbidden, "Swap is already claimed.")
+	}
+	if !strings.EqualFold(swap.RefundAddress, wallet) && !strings.EqualFold(swap.RecipientAddress, wallet) {
+		return domain.Swap{}, domain.New(domain.CodeForbidden, "Wallet does not match swap recipient or refund address.")
+	}
+	now := time.Now().UTC()
+	query := `
+		UPDATE swaps
+		SET session_id = $1, updated_at = $2
+		WHERE id = $3 AND (session_id IS NULL OR session_id = '' OR session_id = $1)
+		RETURNING updated_at;
+	`
+	var updatedAt time.Time
+	err = s.pool.QueryRow(ctx, query, principal, now, id).Scan(&updatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Swap{}, domain.New(domain.CodeForbidden, "Swap is already claimed.")
+		}
+		return domain.Swap{}, postgres.MapError(err)
+	}
+	swap.SessionID = principal
+	swap.UpdatedAt = updatedAt
+	return swap, nil
+}
+
+// ListStuckSwaps returns swaps with stuck_at set, ordered by stuck_at descending.
+func (s *Store) ListStuckSwaps(ctx context.Context, limit int) ([]domain.Swap, error) {
+	if err := s.ready(); err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	query := `
+		SELECT ` + swapColumns + `
+		FROM swaps
+		WHERE stuck_at IS NOT NULL
+		ORDER BY stuck_at DESC
+		LIMIT $1;
+	`
+	rows, err := s.pool.Query(ctx, query, limit)
+	if err != nil {
+		return nil, postgres.MapError(err)
+	}
+	defer rows.Close()
+
+	var swaps []domain.Swap
+	for rows.Next() {
+		sw, err := scanSwap(rows)
+		if err != nil {
+			return nil, postgres.MapError(err)
+		}
+		swaps = append(swaps, sw)
+	}
+	return swaps, rows.Err()
+}
+
+// RepollSwap clears stuck_at and sets next_poll_at to now.
+func (s *Store) RepollSwap(ctx context.Context, id string) (domain.Swap, error) {
+	if err := s.ready(); err != nil {
+		return domain.Swap{}, err
+	}
+	now := time.Now().UTC()
+	query := `
+		UPDATE swaps
+		SET stuck_at = NULL, next_poll_at = $1, updated_at = $1
+		WHERE id = $2
+		RETURNING ` + swapColumns + `;
+	`
+	row := s.pool.QueryRow(ctx, query, now, id)
+	sw, err := scanSwap(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Swap{}, domain.New(domain.CodeSwapNotFound, "Swap not found.")
+		}
+		return domain.Swap{}, postgres.MapError(err)
+	}
+	return sw, nil
 }

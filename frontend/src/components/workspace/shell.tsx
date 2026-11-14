@@ -8,6 +8,8 @@ import { USE_MOCKS } from "../../lib/api-client";
 import { shortenEvmAddress } from "../../lib/evm-wallet";
 import { explorerAddressUrl } from "../../lib/explorer";
 import { STATE_COPY } from "../../lib/view-state";
+import { WalletContextProvider } from "../../lib/wallets/context";
+import { MultiChainWalletButton } from "./wallet-modal";
 import { Modal } from "./ui";
 import { useWorkspace, WorkspaceProvider } from "./workspace-context";
 
@@ -140,6 +142,7 @@ function WalletButton() {
     <div className="ws-wallet" ref={ref}>
       <button type="button" className="button button-secondary" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
         {shortenEvmAddress(account)}
+        {wallet.session ? <span className="subtle-meta"> · signed in</span> : null}
       </button>
       {menu && (
         <div className="ws-menu panel" role="menu">
@@ -153,6 +156,30 @@ function WalletButton() {
           >
             Copy address
           </button>
+          {wallet.session ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenu(false);
+                void wallet.signOut();
+              }}
+            >
+              Sign out
+            </button>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={wallet.signingIn}
+              onClick={() => {
+                setMenu(false);
+                void wallet.signIn();
+              }}
+            >
+              {wallet.signingIn ? "Confirm in your wallet..." : "Sign in with wallet"}
+            </button>
+          )}
           {explorer ? (
             <a role="menuitem" href={explorer} target="_blank" rel="noreferrer" onClick={() => setMenu(false)}>View on explorer</a>
           ) : (
@@ -212,6 +239,26 @@ function NetworkBanner() {
   );
 }
 
+function CapabilityBanner() {
+  const { capabilities } = useWorkspace();
+  if (!capabilities) return null;
+  if (capabilities.demoMode) {
+    return (
+      <div className="fixture-banner ws-banner" role="status">
+        <p>Demo mode: swaps are simulations.</p>
+      </div>
+    );
+  }
+  if (capabilities.quoteMode === "live" && !capabilities.executionEnabled) {
+    return (
+      <div className="fixture-banner ws-banner" role="status">
+        <p>Live execution is off.</p>
+      </div>
+    );
+  }
+  return null;
+}
+
 function Frame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { online, toasts } = useWorkspace();
@@ -263,7 +310,7 @@ function Frame({ children }: { children: ReactNode }) {
       <div className="main-shell">
         <div className="ws-topbar">
           <GlobalSearch />
-          <WalletButton />
+          <MultiChainWalletButton />
         </div>
         {!online && (
           <div className="fixture-banner ws-banner" role="status">
@@ -271,6 +318,7 @@ function Frame({ children }: { children: ReactNode }) {
           </div>
         )}
         <NetworkBanner />
+        <CapabilityBanner />
         <main className="app-content" id="ws-main" tabIndex={-1}>
           {children}
         </main>
@@ -292,7 +340,9 @@ function Frame({ children }: { children: ReactNode }) {
 export function WorkspaceShell({ children }: { children: ReactNode }) {
   return (
     <WorkspaceProvider>
-      <Frame>{children}</Frame>
+      <WalletContextProvider>
+        <Frame>{children}</Frame>
+      </WalletContextProvider>
     </WorkspaceProvider>
   );
 }

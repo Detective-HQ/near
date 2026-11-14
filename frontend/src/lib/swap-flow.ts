@@ -41,6 +41,10 @@ export function swapCta(i: CtaInput): SwapCta {
 export type SwapPill = "Pending" | "Processing" | "Completed" | "Failed" | "Refunded";
 
 const PILL: Record<string, SwapPill> = {
+  CREATED: "Pending",
+  QUOTING: "Pending",
+  QUOTED: "Pending",
+  QUOTE_UNAVAILABLE: "Failed",
   QUOTE_READY: "Pending",
   AWAITING_USER_DEPOSIT: "Pending",
   SIMULATED_DEPOSIT: "Pending",
@@ -69,7 +73,8 @@ export function swapPillTone(p: SwapPill): "" | "good" | "warn" | "bad" {
   return "";
 }
 
-const FINAL = new Set(["SUCCEEDED", "SIMULATION_COMPLETE", "FAILED", "EXPIRED", "CANCELLED", "REFUNDED"]);
+// Terminal states of the Go API lifecycle (plus legacy simulation names).
+const FINAL = new Set(["SUCCEEDED", "SIMULATION_COMPLETE", "FAILED", "EXPIRED", "CANCELLED", "REFUNDED", "QUOTE_UNAVAILABLE"]);
 export function isFinalSwapState(state: string): boolean {
   return FINAL.has(state);
 }

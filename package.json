@@ -15,7 +15,7 @@
     "build:backend": "cd backend && go build ./cmd/api",
     "start": "npm --prefix frontend run start",
     "typecheck": "npm --prefix frontend run typecheck",
-    "test:backend": "cd backend && go test ./internal/httpapi ./internal/swap/domain",
+    "test:backend": "cd backend && go test ./...",
     "check": "npm run typecheck && npm run test:backend"
   },
   "devDependencies": {

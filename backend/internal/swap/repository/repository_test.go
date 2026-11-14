@@ -699,7 +699,7 @@ func TestMigrationUpDownStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("migrate up: %v", err)
 	}
-	wantVersions := []int64{1, 2, 3, 4, 5, 6}
+	wantVersions := []int64{1, 2, 3, 4, 5, 6, 7, 8}
 	if len(applied) != len(wantVersions) {
 		t.Fatalf("applied versions = %v, want %v", applied, wantVersions)
 	}
@@ -712,8 +712,8 @@ func TestMigrationUpDownStatus(t *testing.T) {
 	if version, err = ts.migrator.Version(ctx); err != nil {
 		t.Fatalf("version after up: %v", err)
 	}
-	if version != 6 {
-		t.Fatalf("version after up = %d, want 6", version)
+	if version != 8 {
+		t.Fatalf("version after up = %d, want 8", version)
 	}
 	if err := ts.migrator.Check(ctx); err != nil {
 		t.Fatalf("check after up: %v", err)
@@ -722,8 +722,8 @@ func TestMigrationUpDownStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("status: %v", err)
 	}
-	if len(statuses) != 6 {
-		t.Fatalf("status rows = %d, want 6", len(statuses))
+	if len(statuses) != 8 {
+		t.Fatalf("status rows = %d, want 8", len(statuses))
 	}
 	for _, status := range statuses {
 		if status.State != "applied" {
@@ -735,44 +735,52 @@ func TestMigrationUpDownStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("migrate down: %v", err)
 	}
-	if rolledBack != 6 {
-		t.Fatalf("rolled back version = %d, want 6", rolledBack)
+	if rolledBack != 8 {
+		t.Fatalf("rolled back version = %d, want 8", rolledBack)
 	}
-	if version, err = ts.migrator.Version(ctx); err != nil {
-		t.Fatalf("version after down: %v", err)
+	if relationExists(t, ts, "trading_signals") {
+		t.Fatal("trading_signals still exists after rolling back migration 8")
 	}
-	if version != 5 {
-		t.Fatalf("version after down = %d, want 5", version)
+	if !relationExists(t, ts, "auth_sessions") {
+		t.Fatal("rolling back migration 8 removed migration 7 tables")
 	}
-	if columnExists(t, ts, "swaps", "stuck_at") {
-		t.Fatal("swaps.stuck_at still exists after rolling back migration 6")
+
+	// Roll back migration 7 too and verify its reversal.
+	if rolledBack, err = ts.migrator.Down(ctx); err != nil || rolledBack != 7 {
+		t.Fatalf("migrate down 7 = %d, %v", rolledBack, err)
 	}
-	if !relationExists(t, ts, "research_models") {
-		t.Fatal("research_models was removed by rolling back migration 6")
+	if columnExists(t, ts, "swaps", "simulated") || columnExists(t, ts, "quotes", "recipient_address") {
+		t.Fatal("migration 7 columns still exist after rolling it back")
 	}
-	if !relationExists(t, ts, "quotes") {
-		t.Fatal("quotes was removed by rolling back migration 6")
+	if relationExists(t, ts, "auth_sessions") || relationExists(t, ts, "auth_nonces") {
+		t.Fatal("auth tables still exist after rolling back migration 7")
+	}
+	if !columnExists(t, ts, "swaps", "stuck_at") {
+		t.Fatal("rolling back migration 7 removed migration 6 columns")
+	}
+	if version, err = ts.migrator.Version(ctx); err != nil || version != 6 {
+		t.Fatalf("version after two downs = %d, %v", version, err)
 	}
 	if err := ts.migrator.Check(ctx); err == nil {
-		t.Fatal("check succeeded while migration 6 was pending")
+		t.Fatal("check succeeded while migrations were pending")
 	}
 
 	applied, err = ts.migrator.Up(ctx)
 	if err != nil {
 		t.Fatalf("migrate up again: %v", err)
 	}
-	if len(applied) != 1 || applied[0] != 6 {
-		t.Fatalf("re-applied versions = %v, want [6]", applied)
+	if len(applied) != 2 || applied[0] != 7 || applied[1] != 8 {
+		t.Fatalf("re-applied versions = %v, want [7 8]", applied)
 	}
 
 	rolledBackVersions, err := ts.migrator.DownTo(ctx, 0)
 	if err != nil {
 		t.Fatalf("migrate down to zero: %v", err)
 	}
-	if len(rolledBackVersions) != 6 {
-		t.Fatalf("down-to-zero versions = %v, want all six", rolledBackVersions)
+	if len(rolledBackVersions) != 8 {
+		t.Fatalf("down-to-zero versions = %v, want all eight", rolledBackVersions)
 	}
-	for _, table := range []string{"assets", "quotes", "swaps", "swap_transactions", "swap_events", "metric_observations", "data_snapshots", "research_models"} {
+	for _, table := range []string{"trading_signals", "auth_sessions", "auth_nonces", "assets", "quotes", "swaps", "swap_transactions", "swap_events", "metric_observations", "data_snapshots", "research_models"} {
 		if relationExists(t, ts, table) {
 			t.Fatalf("%s still exists after down-to-zero", table)
 		}
@@ -810,7 +818,7 @@ func columnExists(t *testing.T, ts *testSchema, table, column string) bool {
 		SELECT EXISTS (
 			SELECT 1
 			FROM information_schema.columns
-			WHERE table_name = $1 AND column_name = $2
+			WHERE table_schema = current_schema() AND table_name = $1 AND column_name = $2
 		)`, table, column).Scan(&exists); err != nil {
 		t.Fatalf("look up column %s.%s: %v", table, column, err)
 	}

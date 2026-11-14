@@ -1,4 +1,4 @@
-// TEST DATA for endpoints the Go API does not serve yet. Only used when
+// TEST DATA for interface testing without live market data. Only used when
 // NEXT_PUBLIC_USE_MOCKS=true, and every view that renders it shows a "TEST DATA" tag.
 // Values are deterministic placeholders for interface testing, not observations.
 import type {

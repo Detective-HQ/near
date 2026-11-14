@@ -1,6 +1,8 @@
-// Proposed contract for the read-only trading and portfolio endpoints.
-// The Go API does not implement these yet; the frontend shows "Data unavailable right now."
-// until it does, or serves TEST DATA when NEXT_PUBLIC_USE_MOCKS=true.
+// Contract for the read-only trading endpoints served by the Go API
+// (backend/internal/trading, documented in docs/openapi.yaml and
+// docs/research-methodology.md#trading-signals). They require MARKET_DATA_MODE=live;
+// otherwise the API answers 503 and the frontend shows "Data unavailable right now."
+// TEST DATA is served instead when NEXT_PUBLIC_USE_MOCKS=true.
 // All numeric values are decimal strings. Timestamps are ISO-8601 UTC.
 
 export type ApiQuality = "live" | "delayed" | "stale" | "partial" | "unavailable";
@@ -195,6 +197,10 @@ export interface BacktestsResponse extends Provenance {
   items: Backtest[];
 }
 
+export interface TopMoversResponse extends Provenance {
+  items: Signal[];
+}
+
 export interface PortfolioBalance {
   assetId: string;
   symbol: string;
@@ -203,4 +209,12 @@ export interface PortfolioBalance {
   valueUsd: string | null;
   source: string;
   asOf: string | null;
+}
+
+export interface PortfolioResponse extends Provenance {
+  address: string | null;
+  chain: string | null;
+  totalValueUsd: string | null;
+  balances: PortfolioBalance[];
+  notice?: string;
 }

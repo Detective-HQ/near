@@ -324,6 +324,66 @@ The roadmap omits:
 
 ---
 
+### Phase 11 — Audit remediation & real integration (2026-11-13)
+
+A full-codebase audit found that Phases 6–8 were implemented as packages but **not wired**: `cmd/api` served an in-memory demo store (float amount math, no Postgres, no provider, no registry), and several security and lifecycle bugs existed. Fixed:
+
+- [x] **11.1** `cmd/api` wires PostgreSQL (or `memstore` only in `APP_ENV=local` without `DATABASE_URL`), the 1Click + alternative provider chain, chain registry, swap service, wallet auth, risk engine and DeFiLlama analytics. Invalid config is fatal; the API refuses to start on a stale schema.
+- [x] **11.2** Auth: EVM signatures verified by secp256k1 recovery over the EIP-191 digest (previously never checked); NEAR keys must belong to the account (implicit derivation or `view_access_key` FullAccess); nonce must be inside the signed message; session id independent of the token; sessions/nonces persisted in Postgres (`auth_sessions`, `auth_nonces`).
+- [x] **11.3** Ownership: quotes/swaps record the wallet principal; every read/mutation checks it (anonymous cancel bypass closed); activity is scoped per wallet; `AUTH_REQUIRED` config flag added and enforced by middleware.
+- [x] **11.4** Funds safety: no recipient fallback to token contract / zero address; executable swaps reuse the dry-quote recipient and refund address (stored on `quotes`).
+- [x] **11.5** Lifecycle: provider status jumps (e.g. `AWAITING_USER_DEPOSIT -> SUCCESS`) are walked hop by hop with one audit event each instead of being rejected forever; unfunded swaps are expired only after the provider confirms no deposit.
+- [x] **11.6** Provider chain aliases (`eth`, `arb`, `sol`, `bsc`, ...) resolve to registry keys.
+- [x] **11.7** Idempotency resolved before the provider call (a replay no longer allocates a new deposit address); deposit recording + transition is one DB transaction; a tx hash can fund only one swap (`swap_transactions_deposit_once`).
+- [x] **11.8** Fee no longer overwritten with slippage; simulation swaps are flagged `simulated`, never polled, never `real_settlement`.
+- [x] **11.9** HTTP edge: X-Forwarded-For trusted only from `TRUSTED_PROXY_CIDRS`; bounded rate limiter; CORS allowlist (`CORS_ALLOWED_ORIGINS`, wildcards rejected); body limit with 413; request-id sanitization; method-aware 405s; generic auth errors; CSP header.
+- [x] **11.10** Response contract matches `frontend/src/lib/contracts.ts` (`{chains}`, `{assets}`, `{quote}`, `{swap, created}`, `{swaps, nextCursor}`); research from the scenario engine; markets/intelligence live from DeFiLlama when `MARKET_DATA_MODE=live` with fixture fallback.
+- [x] **11.11** Risk engine fed by every provider call and catalogue refresh.
+- [x] **11.12** Next.js proxy forwards client IP, `Set-Cookie`, `Retry-After`, `cursor`/`limit`; Compose binds DB/Redis/API to loopback with a trusted internal subnet.
+
+Verification: `gofmt`, `go vet ./...`, `go mod tidy -diff`, `go test ./...` (all packages), frontend `tsc` and 34 tests, and both smoke scripts against the real API binary pass. **Not yet verified locally:** the PostgreSQL integration suite (local Postgres needs credentials; CI runs it) and `go test -race` (CI only).
+
+### Phase 12 — Latency (2026-11-13)
+
+- [x] **12.1** Shared pooled keep-alive HTTP client (`internal/httpclient`) for 1Click, NEAR RPC and DeFiLlama — warm TLS reuse instead of per-call handshakes.
+- [x] **12.2** DeFiLlama: five independent endpoints fetched concurrently (cold snapshot ≈2 round trips instead of 6); `analytics/service.Reader` adds TTL cache, singleflight and stale-on-error; forced refresh limited to once per 30 s.
+- [x] **12.3** Asset catalogue served from an in-process snapshot (singleflight refresh, stale-on-error); encoded `/assets` bodies cached per snapshot and chain.
+- [x] **12.4** Activity/swap views hydrated with 3 batched queries run concurrently (no N+1).
+- [x] **12.5** `/chains` and `/research/scenarios` encoded once.
+- [x] **12.6** gzip (BestSpeed, pooled) for JSON ≥1 KB to direct clients; the Next proxy requests `identity` to avoid double compression on the internal hop.
+- [x] **12.7** In-memory quote eviction made O(1) amortized: quote creation went from 379 to 2,767 req/s (p50 9.8 ms -> 0.67 ms) under load.
+
+### Phase 13 — Trading intelligence backend & verification (2026-11-13)
+
+- [x] **13.1** `internal/trading`: 20-asset universe, DeFiLlama coins price source (500-point request cap respected), OHLC candles approximated from sampled prices (4h from hourly, 1d from 4-hourly; no `1h` because no sub-hour data exists).
+- [x] **13.2** Model `trend-structure-1.0` (momentum, EMA trend, structure breaks), structure rules `structure-1.0` (swings, BOS/CHoCH, order blocks, fair value gaps, zone status), liquidity levels, scenarios. Volume/depth/derivatives returned as `null` + `unavailable`, never estimated.
+- [x] **13.3** Signal journal (immutable, idempotent; Postgres `trading_signals` via migration 00008, memory fallback) graded on executable prices; walk-forward backtests net of 10 bps. A look-ahead bias (grading limit entries as filled) was found on live data and fixed, with a regression test.
+- [x] **13.4** All nine `/api/v1/trading/*` routes served, typed errors (404/400/503), worker job records the journal continuously.
+- [x] **13.5** Latency: concurrency 8, stale-while-revalidate (serve cached up to 4x TTL while one background refresh runs), warm-up at startup; cached reads ~3 ms.
+- [x] **13.6** `docs/openapi.yaml` regenerated; router registers from one route table and `TestOpenAPIMatchesRoutes` fails on drift. Trading methodology documented in `docs/research-methodology.md#trading-signals`.
+- [x] **13.7** PostgreSQL integration suite run locally against a throwaway PostgreSQL 16: all 43 repository/storage/trading DB tests pass (536 tests total, 0 skipped). Migration up/down/down-to verified for 7 and 8; a test helper that leaked across schemas was fixed.
+- [x] **13.8** End-to-end on Postgres: migrate -> API -> smoke script passes; swaps survive an API restart; live DeFiLlama trading endpoints verified.
+
+- [x] **13.9** `go test -race ./...` run locally in WSL Ubuntu (Go 1.26.2, gcc 13): all packages pass with no data races (database tests skipped; no `TEST_DATABASE_URL`).
+
+### Phase 14 — Cloud database production readiness (2026-11-13)
+
+- [x] **14.1** Production refuses plaintext database connections (`DB_REQUIRE_TLS`, default on in production; requires `sslmode=require|verify-ca|verify-full`).
+- [x] **14.2** `DB_PGBOUNCER=true` makes pgx safe behind PgBouncer transaction pooling (Neon pooler, Supabase 6543).
+- [x] **14.3** `backend/.env.production.example` and `docs/deploy.md` (cloud DB setup, migrate-then-deploy order, scaling, launch checks, operations).
+
+- [x] **14.4** Prometheus monitoring: `/metrics` (optional bearer token) with per-route request/latency, provider outcomes, swap transitions, stuck swaps and trading scan duration; worker metrics on `WORKER_METRICS_ADDR`. Race-clean.
+- [x] **14.5** Render deployment section in `docs/deploy.md`.
+
+### Remaining (needs the owner)
+
+- [ ] Choose the cloud database provider and hosting, create the accounts and secrets.
+- [ ] Commit the current changes on `jiban` (owner commits) and deploy following `docs/deploy.md`.
+- [ ] Before enabling real-money swaps: obtain `ONECLICK_JWT`, run one small live swap end to end, then set `ENABLE_LIVE_EXECUTION=true`.
+- [ ] After the first deploy: confirm `TRUSTED_PROXY_CIDRS` by checking real client IPs in the API logs.
+
+---
+
 ## 4. Revised execution order
 
 The roadmap's phase order is mostly sound; only Section 8's order is wrong. Use:
@@ -464,3 +524,6 @@ Non-errors (do not use the error envelope):
 | 2026-11-13 | HTTP API + auth + risk | Done | `internal/httpapi/`, `internal/auth/`, `internal/risk/`; server hardening, middleware chain, health/ready probes, risk engine, multi-chain auth |
 | 2026-11-13 | Docker + E2E + docs | Done | Phase 9: Multi-stage Dockerfile.backend, healthchecks, Compose stack, ADR 0002, runbook, architecture, E2E smoke scripts, CI compose smoke |
 | 2026-11-13 | Frontend integration & proxy cutover | Done | Phase 10: Next.js API route proxy forwarding auth & session headers, risk & auth endpoints enabled, dev runner verified |
+| 2026-11-13 | Audit remediation & integration | Done | Phase 11: API wired to real service/storage/provider; auth, ownership, funds-safety, lifecycle and edge fixes |
+| 2026-11-13 | Latency pass | Done | Phase 12: pooled clients, concurrent analytics, caches, batched views, gzip, O(1) quote eviction |
+| 2026-11-13 | Trading backend + full verification | Done | Phase 13: trading analytics, OpenAPI with drift test, Postgres integration suite and E2E verified locally |

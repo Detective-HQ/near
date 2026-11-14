@@ -2,24 +2,16 @@ param(
     [string]$BaseUrl = "http://127.0.0.1:8081"
 )
 
+# End-to-end smoke test for the Go API in demo mode (Windows PowerShell 5.1+).
 $ErrorActionPreference = "Stop"
+$script:Step = 0
 
-Write-Host "============================================="
-Write-Host "Running E2E Smoke Test against $BaseUrl"
-Write-Host "============================================="
-
-function Test-Endpoint {
-    param([string]$Name, [string]$Url, [string]$Method = "GET", [hashtable]$Headers = @{}, [string]$Body = $null)
-    Write-Host -NoNewline "$Name... "
-    $params = @{
-        Uri = $Url
-        Method = $Method
-        Headers = $Headers
-    }
-    if ($Body) {
-        $params.Body = $Body
-        $params.ContentType = "application/json"
-    }
+function Invoke-Step {
+    param([string]$Name, [string]$Path, [string]$Method = "GET", [hashtable]$Headers = @{}, [string]$Body = $null)
+    $script:Step++
+    Write-Host -NoNewline "$script:Step. $Name... "
+    $params = @{ Uri = "$BaseUrl$Path"; Method = $Method; Headers = $Headers; UseBasicParsing = $true }
+    if ($Body) { $params.Body = $Body; $params.ContentType = "application/json" }
     try {
         $resp = Invoke-RestMethod @params
         Write-Host "OK"
@@ -30,72 +22,50 @@ function Test-Endpoint {
     }
 }
 
-# 1. /healthz
-$null = Test-Endpoint -Name "1. Checking /healthz" -Url "$BaseUrl/healthz"
-
-# 2. /readyz
-$null = Test-Endpoint -Name "2. Checking /readyz" -Url "$BaseUrl/readyz"
-
-# 3. /api/v1/health
-$null = Test-Endpoint -Name "3. Checking /api/v1/health" -Url "$BaseUrl/api/v1/health"
-
-# 4. /api/v1/chains
-$null = Test-Endpoint -Name "4. Checking /api/v1/chains" -Url "$BaseUrl/api/v1/chains"
-
-# 5. /api/v1/assets
-$null = Test-Endpoint -Name "5. Checking /api/v1/assets?chain=near" -Url "$BaseUrl/api/v1/assets?chain=near"
-
-# 6. /api/v1/quotes
-$quoteBody = @{
-    originAssetId = "demo:near:near"
-    destinationAssetId = "demo:base:usdc"
-    amountIn = "10"
-} | ConvertTo-Json
-$quote = Test-Endpoint -Name "6. Creating quote via POST /api/v1/quotes" -Url "$BaseUrl/api/v1/quotes" -Method "POST" -Body $quoteBody
-$quoteId = $quote.id
-if (-not $quoteId) {
-    Write-Host "FAILED: quoteId not found"
-    exit 1
-}
-
-# 7. /api/v1/swaps
-$idempKey = "smoke-idemp-" + [System.Guid]::NewGuid().ToString()
-$swapBody = @{ quoteId = $quoteId } | ConvertTo-Json
-$swap = Test-Endpoint -Name "7. Creating swap via POST /api/v1/swaps" -Url "$BaseUrl/api/v1/swaps" -Method "POST" -Headers @{ "Idempotency-Key" = $idempKey } -Body $swapBody
-$swapId = $swap.id
-if (-not $swapId) {
-    Write-Host "FAILED: swapId not found"
-    exit 1
-}
-
-# 8. /api/v1/swaps/{id}/deposit
-$depBody = @{
-    txHash = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-    chainId = "8453"
-} | ConvertTo-Json
-$null = Test-Endpoint -Name "8. Submitting deposit via POST /api/v1/swaps/$swapId/deposit" -Url "$BaseUrl/api/v1/swaps/$swapId/deposit" -Method "POST" -Body $depBody
-
-# 9. /api/v1/swaps/{id}
-$swapState = Test-Endpoint -Name "9. Verifying swap state via GET /api/v1/swaps/$swapId" -Url "$BaseUrl/api/v1/swaps/$swapId"
-if ($swapState.state -ne "DEPOSIT_SUBMITTED") {
-    Write-Host "FAILED: Expected DEPOSIT_SUBMITTED, got $($swapState.state)"
-    exit 1
-}
-
-# 10. /api/v1/swaps/{id}/simulate
-$null = Test-Endpoint -Name "10. Advancing simulation via POST /api/v1/swaps/$swapId/simulate" -Url "$BaseUrl/api/v1/swaps/$swapId/simulate" -Method "POST"
-
-# 11. /api/v1/activity
-$null = Test-Endpoint -Name "11. Checking activity via GET /api/v1/activity" -Url "$BaseUrl/api/v1/activity"
-
-# 12. /api/v1/risk/status
-$risk = Test-Endpoint -Name "12. Checking risk status via GET /api/v1/risk/status" -Url "$BaseUrl/api/v1/risk/status"
-if ($risk.status -ne "HEALTHY") {
-    Write-Host "FAILED: Risk status is $($risk.status)"
-    exit 1
+function Assert-Equal($Actual, $Expected, $Label) {
+    if ($Actual -ne $Expected) {
+        Write-Host "FAILED: $Label is '$Actual', expected '$Expected'"
+        exit 1
+    }
 }
 
 Write-Host "============================================="
-Write-Host "All E2E Smoke Tests PASSED successfully!"
+Write-Host "E2E smoke test against $BaseUrl"
 Write-Host "============================================="
 
+Invoke-Step "GET /healthz" "/healthz" | Out-Null
+Invoke-Step "GET /readyz" "/readyz" | Out-Null
+$health = Invoke-Step "GET /api/v1/health" "/api/v1/health"
+$chains = Invoke-Step "GET /api/v1/chains" "/api/v1/chains"
+if ($chains.chains.Count -lt 1) { Write-Host "FAILED: no chains"; exit 1 }
+Invoke-Step "GET /api/v1/assets?chain=eth" "/api/v1/assets?chain=eth" | Out-Null
+Invoke-Step "GET /api/v1/research/scenarios" "/api/v1/research/scenarios" | Out-Null
+
+$quote = Invoke-Step "POST /api/v1/quotes" "/api/v1/quotes" "POST" @{} '{"originAssetId":"demo:ethereum:usdc","destinationAssetId":"demo:base:usdc","amountIn":"25"}'
+$quoteId = $quote.quote.id
+
+$key = "smoke-" + [guid]::NewGuid().ToString("N")
+$created = Invoke-Step "POST /api/v1/swaps" "/api/v1/swaps" "POST" @{ "Idempotency-Key" = $key } "{`"quoteId`":`"$quoteId`"}"
+$swapId = $created.swap.id
+$replay = Invoke-Step "replay POST /api/v1/swaps" "/api/v1/swaps" "POST" @{ "Idempotency-Key" = $key } "{`"quoteId`":`"$quoteId`"}"
+Assert-Equal $replay.swap.id $swapId "replayed swap id"
+Assert-Equal $replay.created $false "replay created flag"
+
+$hash = "0x" + ([guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N"))
+$deposit = Invoke-Step "POST /api/v1/swaps/{id}/deposit" "/api/v1/swaps/$swapId/deposit" "POST" @{} "{`"txHash`":`"$hash`",`"chainId`":`"1`"}"
+Assert-Equal $deposit.swap.state "DEPOSIT_SUBMITTED" "state after deposit"
+
+foreach ($want in @("PROCESSING", "SUCCEEDED")) {
+    $sim = Invoke-Step "POST /api/v1/swaps/{id}/simulate -> $want" "/api/v1/swaps/$swapId/simulate" "POST" @{} "{}"
+    Assert-Equal $sim.swap.state $want "simulated state"
+    Assert-Equal $sim.swap.realSettlement $false "realSettlement"
+}
+
+Invoke-Step "GET /api/v1/swaps/{id}" "/api/v1/swaps/$swapId" | Out-Null
+Invoke-Step "GET /api/v1/activity" "/api/v1/activity" | Out-Null
+$risk = Invoke-Step "GET /api/v1/risk/status" "/api/v1/risk/status"
+Write-Host "Risk status: $($risk.status)"
+
+Write-Host "============================================="
+Write-Host "All E2E smoke tests passed."
+Write-Host "============================================="

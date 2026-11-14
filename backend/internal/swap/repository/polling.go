@@ -55,6 +55,7 @@ func (s *Store) ClaimDueSwaps(ctx context.Context, now time.Time, limit int, lea
 			FROM swaps
 			WHERE state = ANY($3::text[])
 				AND stuck_at IS NULL
+				AND NOT simulated
 				AND next_poll_at <= $1
 			ORDER BY next_poll_at ASC
 			FOR UPDATE SKIP LOCKED
@@ -171,7 +172,7 @@ func (s *Store) RecordPollResult(ctx context.Context, result PollResult) (domain
 			SET state = $3,
 				provider_status = NULLIF($4, ''),
 				source_tx_hash = COALESCE(NULLIF(source_tx_hash, ''), NULLIF($5, '')),
-				real_settlement = real_settlement OR $6,
+				real_settlement = real_settlement OR ($6 AND NOT simulated),
 				next_poll_at = $7,
 				poll_attempts = $8,
 				last_polled_at = $9,

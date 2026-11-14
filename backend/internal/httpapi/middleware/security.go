@@ -5,58 +5,71 @@ import (
 	"strings"
 )
 
-// SecurityHeaders adds hardened security headers to all responses.
+// SecurityHeaders adds hardened headers to every response.
 func SecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h := w.Header()
+		h.Set("Cache-Control", "no-store")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
 		next.ServeHTTP(w, r)
 	})
 }
 
-// CORSConfig configures cross-origin resource sharing.
+// CORSConfig configures cross-origin access.
 type CORSConfig struct {
+	// AllowedOrigins is an exact-match allowlist (scheme://host[:port]).
 	AllowedOrigins []string
-	AllowAll       bool
 }
 
-// CORS returns CORS middleware with strict allowlisting and safe defaults.
+// CORS answers only allowlisted origins and never uses a wildcard. With an
+// empty allowlist no CORS headers are emitted at all (same-origin only).
 func CORS(cfg CORSConfig) func(http.Handler) http.Handler {
-	allowedMap := make(map[string]struct{}, len(cfg.AllowedOrigins))
-	for _, o := range cfg.AllowedOrigins {
-		allowedMap[strings.ToLower(strings.TrimSpace(o))] = struct{}{}
+	allowed := make(map[string]struct{}, len(cfg.AllowedOrigins))
+	for _, origin := range cfg.AllowedOrigins {
+		allowed[strings.ToLower(strings.TrimRight(strings.TrimSpace(origin), "/"))] = struct{}{}
 	}
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
-			if origin != "" {
-				lowerOrigin := strings.ToLower(origin)
-				allowed := false
-				if cfg.AllowAll {
-					allowed = true
-					w.Header().Set("Access-Control-Allow-Origin", "*")
-				} else if _, ok := allowedMap[lowerOrigin]; ok {
-					allowed = true
-					w.Header().Set("Access-Control-Allow-Origin", origin)
-					w.Header().Set("Access-Control-Allow-Credentials", "true")
-				}
-
-				if allowed {
-					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
-					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Idempotency-Key, Accept, Authorization, X-Request-Id")
-					w.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
-					w.Header().Set("Access-Control-Max-Age", "86400")
-				}
+			_, ok := allowed[strings.ToLower(origin)]
+			if origin != "" && ok {
+				h := w.Header()
+				h.Set("Access-Control-Allow-Origin", origin)
+				h.Set("Access-Control-Allow-Credentials", "true")
+				h.Add("Vary", "Origin")
+				h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+				h.Set("Access-Control-Allow-Headers", "Content-Type, Idempotency-Key, Accept, Authorization, X-Request-Id")
+				h.Set("Access-Control-Expose-Headers", "X-Request-Id")
+				h.Set("Access-Control-Max-Age", "600")
 			}
-
-			if r.Method == http.MethodOptions {
+			if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+				if !ok {
+					WriteError(w, r, http.StatusForbidden, "FORBIDDEN", "Origin is not allowed.")
+					return
+				}
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
 
+// MaxBody caps request bodies; reads past the limit fail with
+// *http.MaxBytesError, which handlers map to 413 BODY_TOO_LARGE.
+func MaxBody(limit int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.ContentLength > limit {
+				WriteError(w, r, http.StatusRequestEntityTooLarge, "BODY_TOO_LARGE", "Request body is too large.")
+				return
+			}
+			if r.Body != nil {
+				r.Body = http.MaxBytesReader(w, r.Body, limit)
+			}
 			next.ServeHTTP(w, r)
 		})
 	}

@@ -51,6 +51,8 @@ type Quote struct {
 	FeeData                 map[string]any
 	DepositAddress          string
 	DepositMemo             string
+	Recipient               string
+	RefundTo                string
 	ExpiresAt               time.Time
 	RawResponse             []byte
 	CreatedAt               time.Time
@@ -87,21 +89,24 @@ type Swap struct {
 	State                  State
 	ProviderStatus         ProviderStatus
 	RealSettlement         bool
-	OriginChain            string
-	DestinationChain       string
-	DepositAddress         string
-	DepositMemo            string
-	RecipientAddress       string
-	RefundAddress          string
-	SourceTxHash           string
-	ExpiresAt              time.Time
-	NextPollAt             time.Time
-	PollAttempts           int
-	LastPolledAt           time.Time
-	StuckAt                time.Time
-	LastErrorCode          Code
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
+	// Simulated marks a local demo record. It is never polled against a
+	// provider and can never become a real settlement.
+	Simulated        bool
+	OriginChain      string
+	DestinationChain string
+	DepositAddress   string
+	DepositMemo      string
+	RecipientAddress string
+	RefundAddress    string
+	SourceTxHash     string
+	ExpiresAt        time.Time
+	NextPollAt       time.Time
+	PollAttempts     int
+	LastPolledAt     time.Time
+	StuckAt          time.Time
+	LastErrorCode    Code
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // Event is an immutable audit entry for a swap state change. OldState is empty

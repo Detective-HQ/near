@@ -14,9 +14,11 @@ import type {
   HistoryResponse,
   LiquidityResponse,
   PortfolioBalance,
+  PortfolioResponse,
   ScenarioResponse,
   SignalsResponse,
   StructureResponse,
+  TopMoversResponse,
   TradingOverview
 } from "./trading-contracts";
 
@@ -34,6 +36,14 @@ export class ApiRequestError extends Error {
     this.status = status;
     this.code = code;
     this.requestId = requestId;
+  }
+}
+
+/** 401 Unauthorized error requiring wallet sign-in. */
+export class UnauthorizedError extends ApiRequestError {
+  constructor(message = "Sign in with your wallet to continue.", code: string | null = "UNAUTHORIZED", requestId: string | null = null) {
+    super(message, 401, code, requestId);
+    this.name = "UnauthorizedError";
   }
 }
 
@@ -70,11 +80,17 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 
   if (!response.ok) {
     const body = payload as ApiErrorBody;
+    const msg = body.error?.message ?? `The API request failed (${response.status}).`;
+    const code = body.error?.code ?? null;
+    const reqId = body.requestId ?? response.headers.get("x-request-id");
+    if (response.status === 401) {
+      throw new UnauthorizedError(msg, code, reqId);
+    }
     throw new ApiRequestError(
-      body.error?.message ?? `The API request failed (${response.status}).`,
+      msg,
       response.status,
-      body.error?.code ?? null,
-      body.requestId ?? response.headers.get("x-request-id")
+      code,
+      reqId
     );
   }
 
@@ -118,7 +134,13 @@ const enc = encodeURIComponent;
 export interface Catalogue {
   assets: Array<Asset & { fixturePriceMicros?: string }>;
   testData: boolean;
+  simulation?: boolean;
   servedAt: string | null;
+}
+
+export interface ActivityResponse {
+  swaps: SwapRecord[];
+  nextCursor?: string;
 }
 
 export const api = {
@@ -129,17 +151,16 @@ export const api = {
     return unwrap<ChainConfig[]>(payload, "chains");
   },
 
-  /** Catalogue for Explore and Swap. Fixture assets are dropped unless mocks are on. */
+  /** Catalogue for Explore and Swap. Fixture assets are allowed in simulation/test data mode without throwing. */
   assets: async (chain?: string): Promise<Catalogue> => {
     const payload = await apiRequest<unknown>(`/api/v1/assets${chain ? `?chain=${enc(chain)}` : ""}`);
     const list = unwrap<Catalogue["assets"]>(payload, "assets") ?? [];
     const servedAt = (payload as { servedAt?: string }).servedAt ?? null;
     const fixtures = list.filter(isFixtureAsset);
     if (fixtures.length === list.length && list.length > 0) {
-      if (!USE_MOCKS) throw new UnavailableError();
-      return { assets: list, testData: true, servedAt };
+      return { assets: list, testData: USE_MOCKS, simulation: true, servedAt };
     }
-    return { assets: list.filter((a) => !isFixtureAsset(a)), testData: false, servedAt };
+    return { assets: list.filter((a) => !isFixtureAsset(a)), testData: false, simulation: false, servedAt };
   },
 
   markets: async (refresh = false) =>
@@ -147,18 +168,27 @@ export const api = {
 
   intelligence: async () => gateSnapshot(await apiRequest<DataSnapshot>("/api/v1/intelligence/near")),
 
-  /** Scenario inputs are labelled fictional by the API, so they are treated as test data. */
+  /** Scenario inputs are illustrative model output. */
   research: async () => {
     const inputs = await apiRequest<ResearchInputs>("/api/v1/research/scenarios");
-    if (!USE_MOCKS) throw new UnavailableError();
-    return { ...inputs, testData: true };
+    return { ...inputs, testData: USE_MOCKS, illustrative: true };
   },
 
   risk: () => apiRequest<RiskReport>("/api/v1/risk/status"),
 
-  activity: async () => {
-    const payload = await apiRequest<SwapRecord[] | { swaps: SwapRecord[] }>("/api/v1/activity");
-    return unwrap<SwapRecord[]>(payload, "swaps") ?? [];
+  activity: async (cursor?: string, limit = 50): Promise<ActivityResponse> => {
+    const p = new URLSearchParams();
+    if (cursor) p.set("cursor", cursor);
+    if (limit) p.set("limit", String(limit));
+    const qs = p.toString() ? `?${p.toString()}` : "";
+    const payload = await apiRequest<SwapRecord[] | { swaps: SwapRecord[]; nextCursor?: string }>(`/api/v1/activity${qs}`);
+    if (Array.isArray(payload)) {
+      return { swaps: payload };
+    }
+    return {
+      swaps: payload.swaps ?? [],
+      nextCursor: payload.nextCursor,
+    };
   },
 
   quote: async (input: {
@@ -196,9 +226,23 @@ export const api = {
   cancelSwap: async (swapId: string) =>
     unwrap<SwapRecord>(await apiRequest<unknown>(`/api/v1/swaps/${enc(swapId)}/cancel`, { method: "POST", body: "{}" }), "swap"),
 
+  claimSwap: async (swapId: string) =>
+    unwrap<SwapRecord>(await apiRequest<unknown>(`/api/v1/swaps/${enc(swapId)}/claim`, { method: "POST", body: "{}" }), "swap"),
+
+  depositTx: async (swapId: string, from?: string) => {
+    const qs = from ? `?from=${encodeURIComponent(from)}` : "";
+    return apiRequest<{
+      family: string;
+      chainKey: string;
+      payload: unknown;
+      memo?: string | null;
+      expiresAt?: string | null;
+    }>(`/api/v1/swaps/${enc(swapId)}/deposit-tx${qs}`);
+  },
+
   swap: async (swapId: string) => unwrap<SwapRecord>(await apiRequest<unknown>(`/api/v1/swaps/${enc(swapId)}`), "swap"),
 
-  // Trading intelligence: read-only. Not yet served by the Go API (see trading-contracts.ts).
+  // Trading intelligence: read-only, served by the Go API when MARKET_DATA_MODE=live (see trading-contracts.ts).
   tradingOverview: async () => {
     const m = await import("./mocks");
     return mockOr(m.mockOverview, () => apiRequest<TradingOverview>("/api/v1/trading/overview"));
@@ -232,14 +276,68 @@ export const api = {
     const m = await import("./mocks");
     return mockOr(m.mockBacktests, () => apiRequest<BacktestsResponse>("/api/v1/trading/backtests"));
   },
+  tradingTopMovers: async (timeframe?: string) => {
+    const m = await import("./mocks");
+    const p = new URLSearchParams(timeframe ? { timeframe } : {});
+    return mockOr(
+      () => {
+        const sigs = m.mockSignals(p);
+        const all = [...sigs.bullish, ...sigs.bearish];
+        return { source: sigs.source, asOf: sigs.asOf, quality: sigs.quality, items: all.slice(0, 10) };
+      },
+      () => apiRequest<TopMoversResponse>(`/api/v1/trading/top-movers${qs(p)}`)
+    );
+  },
 
-  /** No portfolio endpoint exists; only wallet-read native balances are real. */
+  // Wallet sign-in. The API sets an HttpOnly session cookie on verify; the
+  // browser sends it automatically, so the token never needs to be stored here.
+  authNonce: async () => apiRequest<{ nonce: string; message: string }>("/api/v1/auth/nonce", { method: "POST", body: "{}" }),
+  authVerify: async (input: { chain: string; walletAddress: string; signature: string; nonce: string; message: string; publicKey?: string }) =>
+    apiRequest<{ token: string; session: AuthSession }>("/api/v1/auth/verify", {
+      method: "POST",
+      body: JSON.stringify(input)
+    }),
+  authSession: async () => apiRequest<{ session: AuthSession; authRequired: boolean }>("/api/v1/auth/session"),
+  authLogout: async () => apiRequest<{ status: string }>("/api/v1/auth/logout", { method: "POST", body: "{}" }),
+
+  portfolio: async (address?: string, chain?: string, tokens: string = "catalogue") => {
+    const m = await import("./mocks");
+    const p = new URLSearchParams();
+    if (address) p.set("address", address);
+    if (chain) p.set("chain", chain);
+    if (tokens) p.set("tokens", tokens);
+    return mockOr(
+      () => {
+        const balances = m.mockPortfolio().filter((b) => !chain || b.chain === chain);
+        return {
+          source: "TEST DATA",
+          asOf: "2026-11-13T12:00:00Z",
+          quality: "live" as const,
+          address: address ?? null,
+          chain: chain ?? null,
+          totalValueUsd: "6745.51",
+          balances,
+        };
+      },
+      () => apiRequest<PortfolioResponse>(`/api/v1/portfolio${qs(p)}`)
+    );
+  },
+
+  /** TEST DATA balances for interface testing (mocks only). Real balances come from api.portfolio. */
   portfolioTestData: async (): Promise<PortfolioBalance[] | null> => {
     if (!USE_MOCKS) return null;
     const m = await import("./mocks");
     return m.mockPortfolio();
   }
 };
+
+export interface AuthSession {
+  id: string;
+  walletAddress: string;
+  chain: string;
+  createdAt: string;
+  expiresAt: string;
+}
 
 export interface RiskReport {
   status: "HEALTHY" | "DEGRADED" | "UNHEALTHY" | string;
