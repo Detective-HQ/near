@@ -66,7 +66,7 @@ function annualFees(s: ResearchScenario, overrides?: { volume?: number; feeRate?
 
 function Case({ s }: { s: ResearchScenario | undefined }) {
   if (!s) return <p className="subtle-meta">Not available</p>;
-  const fees = annualFees(s);
+  const fees = s.projectedAnnualFeesUsd !== undefined ? numberToDecimalString(s.projectedAnnualFeesUsd) : annualFees(s);
   return (
     <div className="quote-result">
       <DefRow label="Daily volume">{formatUsd(numberToDecimalString(s.dailyVolumeUsd))}</DefRow>
@@ -139,13 +139,20 @@ export function ResearchPage() {
         sub="NEAR ecosystem thesis, with sources."
         testData={Boolean(d?.testData)}
         actions={
-          <button
-            type="button"
-            className="button button-secondary"
-            onClick={() => void navigator.clipboard?.writeText(window.location.href).then(() => toast("Copied"), () => undefined)}
-          >
-            Copy link
-          </button>
+          <>
+            {d && !d.testData && (
+              <span className="state-pill warn" title="Scenario analysis with illustrative inputs.">
+                Illustrative inputs
+              </span>
+            )}
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => void navigator.clipboard?.writeText(window.location.href).then(() => toast("Copied"), () => undefined)}
+            >
+              Copy link
+            </button>
+          </>
         }
       />
       

@@ -259,6 +259,7 @@ func (s *Service) createSimulatedSwap(
 	}
 	recipient := firstNonEmpty(params.Recipient, quote.Recipient, simulationAddress)
 	refundTo := firstNonEmpty(params.RefundTo, quote.RefundTo, simulationAddress)
+	depositAddress := firstNonEmpty(quote.DepositAddress, simulationAddress)
 
 	swap := domain.Swap{
 		ID:                     "swp_sim_" + uuid.NewString(),
@@ -270,6 +271,7 @@ func (s *Service) createSimulatedSwap(
 		Simulated:              true,
 		OriginChain:            originChain,
 		DestinationChain:       destChain,
+		DepositAddress:         depositAddress,
 		RecipientAddress:       recipient,
 		RefundAddress:          refundTo,
 		ExpiresAt:              now.Add(24 * time.Hour),

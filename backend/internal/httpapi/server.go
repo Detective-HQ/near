@@ -127,6 +127,7 @@ func (h *Handler) Routes() []Route {
 		{"GET", "/api/v1/intelligence/near", h.IntelligenceNear, false},
 		{"GET", "/api/v1/research/scenarios", h.ResearchScenarios, false},
 		{"GET", "/api/v1/risk/status", h.RiskStatus, false},
+		{"GET", "/api/v1/portfolio", h.Portfolio, false},
 		{"GET", "/api/v1/trading/overview", h.TradingOverview, false},
 		{"GET", "/api/v1/trading/signals", h.TradingSignals, false},
 		{"GET", "/api/v1/trading/top-movers", h.TradingTopMovers, false},
@@ -139,13 +140,20 @@ func (h *Handler) Routes() []Route {
 		{"POST", "/api/v1/auth/nonce", h.AuthNonce, false},
 		{"POST", "/api/v1/auth/verify", h.AuthVerify, false},
 		{"POST", "/api/v1/auth/logout", h.AuthLogout, false},
+		{"GET", "/api/v1/auth/session", h.AuthSession, false},
 		{"GET", "/api/v1/activity", h.Activity, true},
 		{"POST", "/api/v1/quotes", h.Quotes, true},
 		{"POST", "/api/v1/swaps", h.Swaps, true},
 		{"GET", "/api/v1/swaps/{id}", h.SwapByID, true},
+		{"GET", "/api/v1/swaps/{id}/events", h.SwapEvents, true},
 		{"POST", "/api/v1/swaps/{id}/deposit", h.Deposit, true},
 		{"POST", "/api/v1/swaps/{id}/cancel", h.Cancel, true},
 		{"POST", "/api/v1/swaps/{id}/simulate", h.Simulate, true},
+		{"POST", "/api/v1/swaps/{id}/claim", h.Claim, true},
+		{"GET", "/api/v1/swaps/{id}/deposit-tx", h.DepositTx, true},
+		{"GET", "/api/v1/admin/swaps", h.AdminSwaps, false},
+		{"POST", "/api/v1/admin/swaps/{id}/repoll", h.AdminRepoll, false},
+		{"GET", "/api/v1/admin/provider/health", h.AdminProviderHealth, false},
 	}
 }
 

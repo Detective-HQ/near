@@ -29,6 +29,7 @@ import (
 	"universal-defi-intelligence/internal/config"
 	"universal-defi-intelligence/internal/httpapi"
 	"universal-defi-intelligence/internal/httpclient"
+	"universal-defi-intelligence/internal/portfolio"
 	"universal-defi-intelligence/internal/research/scenarios"
 	"universal-defi-intelligence/internal/risk"
 	"universal-defi-intelligence/internal/storage/postgres"
@@ -213,12 +214,25 @@ func run() error {
 		market = analyticsservice.NewReader(ingest, cfg.MarketData.TTL)
 	}
 
+	// Portfolio balances are read-only RPC calls; USD values only with live
+	// market data so fixture mode never calls a public price API.
+	portfolioCfg := portfolio.Config{
+		Registry:   reg,
+		HTTPClient: httpclient.New(8 * time.Second),
+		Catalogue:  swapsTokenAdapter{swaps: swaps},
+	}
+	if cfg.MarketData.Mode == config.MarketDataLive {
+		portfolioCfg.Prices = &portfolio.LlamaPrices{Client: httpclient.New(cfg.MarketData.Timeout)}
+	}
+	portfolioReader := portfolio.NewReader(portfolioCfg)
+
 	handler, err := httpapi.NewHandler(httpapi.HandlerOptions{
 		Swaps:         swaps,
 		Auth:          authManager,
 		Risk:          riskEngine,
 		Market:        market,
 		Trading:       tradingEngine,
+		Portfolio:     portfolioReader,
 		Research:      scenarios.New(),
 		Config:        cfg,
 		Probes:        probes,
@@ -286,4 +300,30 @@ func newLogger(cfg config.LogConfig) *slog.Logger {
 		handler = slog.NewJSONHandler(os.Stdout, options)
 	}
 	return slog.New(handler)
+}
+
+type swapsTokenAdapter struct {
+	swaps *service.Service
+}
+
+func (a swapsTokenAdapter) ListTokens(ctx context.Context, chain string) ([]portfolio.TokenAsset, error) {
+	assets, _, err := a.swaps.ListAssets(ctx, chain)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]portfolio.TokenAsset, 0, len(assets))
+	for _, asset := range assets {
+		if asset.ContractAddress == "" {
+			continue
+		}
+		out = append(out, portfolio.TokenAsset{
+			ID:              asset.ID,
+			Symbol:          asset.Symbol,
+			Chain:           asset.Chain,
+			Decimals:        asset.Decimals,
+			ContractAddress: asset.ContractAddress,
+			PriceKey:        asset.Chain + ":" + strings.ToLower(asset.ContractAddress),
+		})
+	}
+	return out, nil
 }

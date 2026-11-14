@@ -26,14 +26,44 @@ function Pill({ state }: { state: string }) {
 export function ActivityPage() {
   const { wallet, online, chainName, chainByKey } = useWorkspace();
   const { get, update } = useUrlParams();
-  const res = useResource(wallet.connected ? `activity:${wallet.state.account}` : null, api.activity);
+  const res = useResource(wallet.connected ? `activity:${wallet.state.account}` : null, () => api.activity());
   const [live, setLive] = useState<Record<string, SwapRecord>>({});
+  const [extraSwaps, setExtraSwaps] = useState<SwapRecord[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    if (res.data) {
+      setCursor(res.data.nextCursor ?? null);
+      setExtraSwaps([]);
+    }
+  }, [res.data]);
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const more = await api.activity(cursor, 50);
+      setExtraSwaps((prev) => {
+        const seen = new Set(prev.map((s) => s.id));
+        (res.data?.swaps ?? []).forEach((s) => seen.add(s.id));
+        const additions = more.swaps.filter((s) => !seen.has(s.id));
+        return [...prev, ...additions];
+      });
+      setCursor(more.nextCursor ?? null);
+    } catch {
+      // keep current
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const records = useMemo(() => {
-    const list = (res.data ?? []).map((r) => live[r.id] ?? r);
+    const all = [...(res.data?.swaps ?? []), ...extraSwaps];
+    const list = all.map((r) => live[r.id] ?? r);
     // Simulated records are test data and only appear in TEST DATA mode.
     return USE_MOCKS ? list : list.filter((r) => r.mode !== "simulation");
-  }, [res.data, live]);
+  }, [res.data, extraSwaps, live]);
   const testData = records.some((r) => r.mode === "simulation");
 
   // Poll in-progress swaps; stop once each reaches a final state.
@@ -186,6 +216,13 @@ export function ActivityPage() {
             </div>
           )}
           <Pager page={page} pageSize={PAGE_SIZE} total={filtered.length} onPage={(p) => update({ page: String(p) })} />
+          {cursor && (
+            <div style={{ textAlign: "center", marginTop: "1rem" }}>
+              <button type="button" className="button button-secondary button-small" disabled={loadingMore} onClick={() => void loadMore()}>
+                {loadingMore ? "Loading..." : "Load more"}
+              </button>
+            </div>
+          )}
         </section>
       )}
 

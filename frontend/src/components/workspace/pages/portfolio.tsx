@@ -39,9 +39,13 @@ export function PortfolioPage() {
   const { wallet, online, chains, chainName } = useWorkspace();
   const { get, update } = useUrlParams();
   const hideSmall = get("small") === "hide";
-  const testRows = useResource(wallet.connected ? "portfolio-test" : null, api.portfolioTestData);
 
   const walletChain = chains.data?.find((c) => c.chainId === wallet.state.chainId) ?? null;
+  const portfolioRes = useResource(
+    wallet.connected ? `portfolio:${wallet.state.account ?? ""}:${walletChain?.key ?? ""}` : null,
+    () => api.portfolio(wallet.state.account ?? undefined, walletChain?.key ?? undefined)
+  );
+
   const nativeRow: PortfolioBalance | null = useMemo(() => {
     if (!walletChain?.nativeCurrency || wallet.balanceAtomic === null || !walletChain.portfolioBalanceSupported) return null;
     const balance = fromAtomic(wallet.balanceAtomic, walletChain.nativeCurrency.decimals);
@@ -51,14 +55,45 @@ export function PortfolioPage() {
       symbol: walletChain.nativeCurrency.symbol,
       chain: walletChain.key,
       balance,
-      valueUsd: null, // no price source is connected
+      valueUsd: null, // live price populated from portfolio engine if available
       source: "Wallet RPC",
       asOf: new Date().toISOString(),
     };
   }, [walletChain, wallet.balanceAtomic]);
 
-  const testData = Boolean(testRows.data && testRows.data.length > 0);
-  const all = useMemo(() => [...(nativeRow ? [nativeRow] : []), ...(testRows.data ?? [])].filter((r) => cmp(r.balance, "0") > 0), [nativeRow, testRows.data]);
+  const testData = Boolean(
+    portfolioRes.data?.testData ||
+    portfolioRes.data?.source?.includes("TEST DATA") ||
+    portfolioRes.data?.source?.includes("Demo Fixture")
+  );
+
+  const all = useMemo(() => {
+    const backendBalances = portfolioRes.data?.balances ?? [];
+    const list: PortfolioBalance[] = [];
+    const seen = new Set<string>();
+
+    if (nativeRow && cmp(nativeRow.balance, "0") > 0) {
+      const match = backendBalances.find(
+        (b) => b.chain.toLowerCase() === nativeRow.chain.toLowerCase() && b.symbol.toLowerCase() === nativeRow.symbol.toLowerCase()
+      );
+      if (match?.valueUsd && match?.balance && cmp(match.balance, "0") > 0) {
+        nativeRow.valueUsd = match.valueUsd;
+      }
+      list.push(nativeRow);
+      seen.add(`${nativeRow.chain.toLowerCase()}:${nativeRow.symbol.toLowerCase()}`);
+    }
+
+    for (const b of backendBalances) {
+      const key = `${b.chain.toLowerCase()}:${b.symbol.toLowerCase()}`;
+      if (!seen.has(key) && cmp(b.balance, "0") > 0) {
+        seen.add(key);
+        list.push(b);
+      }
+    }
+
+    return list;
+  }, [nativeRow, portfolioRes.data?.balances]);
+
   const visible = hideSmall ? all.filter((r) => r.valueUsd === null || cmp(r.valueUsd, SMALL_USD) >= 0) : all;
 
   // Assets without a price are excluded from totals.
@@ -86,10 +121,10 @@ export function PortfolioPage() {
 
   const balanceLoading = wallet.state.status === "connected" && wallet.balanceAtomic === null && Boolean(walletChain?.portfolioBalanceSupported);
   const state = deriveViewState({
-    loading: testRows.loading || balanceLoading,
+    loading: portfolioRes.loading || balanceLoading,
     online,
-    error: testRows.error,
-    hasData: !testRows.loading && !balanceLoading,
+    error: portfolioRes.error,
+    hasData: !portfolioRes.loading && !balanceLoading,
     isEmpty: all.length === 0,
     partial: all.some((r) => r.valueUsd === null),
   });
@@ -107,7 +142,13 @@ export function PortfolioPage() {
         }
       />
       <p className="notice-block ws-disclaimer">Read-only. Balances on unsupported networks are not shown.</p>
-      <ViewStateBlock view="portfolio" state={state} onAction={testRows.reload} />
+      <ViewStateBlock view="portfolio" state={state} onAction={portfolioRes.reload} />
+
+      {portfolioRes.data?.notice && (
+        <p className="subtle-meta" style={{ marginTop: "0.5rem", marginBottom: "1rem" }}>
+          {portfolioRes.data.notice}
+        </p>
+      )}
 
       {all.length > 0 && (
         <>

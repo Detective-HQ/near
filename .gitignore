@@ -65,3 +65,6 @@ taste-skill/
 havetoDO.md
 roadmap.md
 handoff.docx
+
+# Local scratch programs (may contain credentials). Never commit.
+backend/scratch_*.go

@@ -48,6 +48,7 @@ func (s *Service) CancelSwap(ctx context.Context, swapID, sessionID string) (dom
 	if err != nil {
 		return domain.Swap{}, err
 	}
+	s.eventBus.Publish(updated)
 	return updated, nil
 }
 
@@ -115,5 +116,6 @@ func (s *Service) AdvanceSimulation(ctx context.Context, swapID, sessionID strin
 	if err != nil {
 		return domain.Swap{}, err
 	}
+	s.eventBus.Publish(updated)
 	return updated, nil
 }

@@ -14,13 +14,17 @@ const STATIC_GET_ROUTES = new Set([
   "/api/v1/intelligence/near",
   "/api/v1/research/scenarios",
   "/api/v1/activity",
-  "/api/v1/risk/status"
+  "/api/v1/risk/status",
+  "/api/v1/portfolio",
+  "/api/v1/auth/session"
 ]);
 
 function isAllowedRoute(method: string, pathname: string): boolean {
   if (method === "GET") {
     return STATIC_GET_ROUTES.has(pathname)
       || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+$/.test(pathname)
+      || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/events$/.test(pathname)
+      || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/deposit-tx$/.test(pathname)
       || /^\/api\/v1\/trading\/(overview|signals|top-movers|history|backtests)$/.test(pathname)
       || /^\/api\/v1\/trading\/(assets|orderblocks|liquidity|scenarios)\/[a-zA-Z0-9_.:%-]+$/.test(pathname);
   }
@@ -32,7 +36,8 @@ function isAllowedRoute(method: string, pathname: string): boolean {
       || pathname === "/api/v1/auth/logout"
       || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/deposit$/.test(pathname)
       || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/cancel$/.test(pathname)
-      || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/simulate$/.test(pathname);
+      || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/simulate$/.test(pathname)
+      || /^\/api\/v1\/swaps\/[a-zA-Z0-9_-]+\/claim$/.test(pathname);
   }
   return false;
 }
@@ -75,6 +80,8 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
   const upstreamUrl = new URL(pathname, process.env.UDI_API_ORIGIN ?? "http://127.0.0.1:8081");
   for (const key of [
     "chain",
+    "address",
+    "tokens",
     "refresh",
     "cursor",
     "limit",
@@ -141,17 +148,21 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
   }
 
   try {
+    const isSSE = pathname.endsWith("/events");
+    if (isSSE) {
+      headers.set("accept", "text/event-stream");
+    }
     const upstream = await fetch(upstreamUrl, {
       method: request.method,
       headers,
       ...(body === undefined ? {} : { body }),
       cache: "no-store",
       redirect: "error",
-      signal: AbortSignal.timeout(12_000)
+      signal: isSSE ? request.signal : AbortSignal.timeout(12_000)
     });
     const responseHeaders = new Headers({
-      "cache-control": "no-store",
-      "content-type": upstream.headers.get("content-type") ?? "application/json; charset=utf-8"
+      "cache-control": isSSE ? "no-cache, no-transform" : "no-store",
+      "content-type": upstream.headers.get("content-type") ?? (isSSE ? "text/event-stream" : "application/json; charset=utf-8")
     });
     const upstreamRequestId = upstream.headers.get("x-request-id");
     if (upstreamRequestId) responseHeaders.set("x-request-id", upstreamRequestId);

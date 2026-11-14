@@ -418,6 +418,48 @@ Historical model backtest verification results with benchmark comparisons, sampl
 
 ---
 
+### 4.8 Portfolio Intelligence
+
+#### `GET /api/v1/portfolio?address=0x...&chain=ethereum`
+Calculates and returns portfolio token balances and live/fixture USD valuations for a connected wallet address or authenticated session.
+
+- **Query Parameters:**
+  - `address` (optional): Connected wallet address. If omitted and session cookie is provided, defaults to authenticated user's wallet address.
+  - `chain` (optional): Filter balances by blockchain network (e.g. `ethereum`, `near`, `base`, `solana`).
+- **Response `200 OK`**:
+```json
+{
+  "source": "Universal DeFi Intelligence Portfolio Engine",
+  "asOf": "2026-11-14T00:00:00Z",
+  "quality": "live",
+  "address": "0x1111111111111111111111111111111111111111",
+  "chain": null,
+  "totalValueUsd": "6745.51",
+  "balances": [
+    {
+      "assetId": "ethereum:eth",
+      "symbol": "ETH",
+      "chain": "ethereum",
+      "balance": "0.8421",
+      "valueUsd": "2863.14",
+      "source": "Universal DeFi Intelligence Portfolio Engine",
+      "asOf": "2026-11-14T00:00:00Z"
+    },
+    {
+      "assetId": "near:near",
+      "symbol": "NEAR",
+      "chain": "near",
+      "balance": "412.5",
+      "valueUsd": "2103.75",
+      "source": "Universal DeFi Intelligence Portfolio Engine",
+      "asOf": "2026-11-14T00:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
 ## 5. Swap State Machine Reference
 
 ```text

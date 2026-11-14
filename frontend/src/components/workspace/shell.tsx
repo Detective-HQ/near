@@ -142,6 +142,7 @@ function WalletButton() {
     <div className="ws-wallet" ref={ref}>
       <button type="button" className="button button-secondary" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>
         {shortenEvmAddress(account)}
+        {wallet.session ? <span className="subtle-meta"> · signed in</span> : null}
       </button>
       {menu && (
         <div className="ws-menu panel" role="menu">
@@ -155,6 +156,30 @@ function WalletButton() {
           >
             Copy address
           </button>
+          {wallet.session ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenu(false);
+                void wallet.signOut();
+              }}
+            >
+              Sign out
+            </button>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={wallet.signingIn}
+              onClick={() => {
+                setMenu(false);
+                void wallet.signIn();
+              }}
+            >
+              {wallet.signingIn ? "Confirm in your wallet..." : "Sign in with wallet"}
+            </button>
+          )}
           {explorer ? (
             <a role="menuitem" href={explorer} target="_blank" rel="noreferrer" onClick={() => setMenu(false)}>View on explorer</a>
           ) : (
@@ -212,6 +237,26 @@ function NetworkBanner() {
       </button>
     </div>
   );
+}
+
+function CapabilityBanner() {
+  const { capabilities } = useWorkspace();
+  if (!capabilities) return null;
+  if (capabilities.demoMode) {
+    return (
+      <div className="fixture-banner ws-banner" role="status">
+        <p>Demo mode: swaps are simulations.</p>
+      </div>
+    );
+  }
+  if (capabilities.quoteMode === "live" && !capabilities.executionEnabled) {
+    return (
+      <div className="fixture-banner ws-banner" role="status">
+        <p>Live execution is off.</p>
+      </div>
+    );
+  }
+  return null;
 }
 
 function Frame({ children }: { children: ReactNode }) {
@@ -273,6 +318,7 @@ function Frame({ children }: { children: ReactNode }) {
           </div>
         )}
         <NetworkBanner />
+        <CapabilityBanner />
         <main className="app-content" id="ws-main" tabIndex={-1}>
           {children}
         </main>

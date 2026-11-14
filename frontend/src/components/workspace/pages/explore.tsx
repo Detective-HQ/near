@@ -81,7 +81,12 @@ export function ExplorePage() {
 
   return (
     <>
-      <PageHeader title="Explore" sub="Chains, assets and routes you can use." testData={catalogue.data?.testData} />
+      <PageHeader
+        title="Explore"
+        sub="Chains, assets and routes you can use."
+        testData={catalogue.data?.testData}
+        simulation={catalogue.data?.simulation}
+      />
 
       {/* Ecosystems grouped by status */}
       <section className="panel panel-pad section" aria-label="Ecosystems by status">
